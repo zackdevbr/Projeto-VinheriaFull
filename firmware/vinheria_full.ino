@@ -47,6 +47,14 @@ byte CHAR_TACA_DIR[8] = {B11100, B00010, B00010, B11111, B11111, B11111, B11111,
 byte CHAR_GOTA[8] = {B00100, B00100, B01010, B01010, B10001, B10001, B10001, B01110};
 byte CHAR_SOL[8] = {B00100, B10101, B01110, B11111, B01110, B10101, B00100, B00000};
 
+// --- Limites de alerta configuráveis pelo backend (comando set_limits) ---
+// Defaults herdados do CP2 (faixa recomendada para vinheria), usados até o
+// backend mandar o primeiro set_limits. O ESP32 não decide alerta com eles
+// (quem decide é o backend); servem só para o texto exibido no LCD.
+int limTempMin = 10, limTempMax = 16;
+int limHumMin = 60, limHumMax = 80;
+int limLuxMin = 0, limLuxMax = 30;
+
 // Estado da máquina de alerta: qual anomalia está ativa agora (ou nenhuma).
 enum AlertMode { ALERT_NONE, ALERT_TEMP, ALERT_HUM, ALERT_LUX };
 AlertMode alertMode = ALERT_NONE;
@@ -142,6 +150,43 @@ bool alertTemp = false;
 bool alertHum = false;
 bool alertLux = false;
 
+// Converte uma String em int, rejeitando qualquer coisa não-numérica
+// (aceita sinal de menos). Vazio também é rejeitado.
+bool parseInteiro(String s, int &out) {
+  s.trim();
+  if (s.length() == 0) return false;
+  int i = (s[0] == '-') ? 1 : 0;
+  if (i >= (int)s.length()) return false;
+  for (; i < (int)s.length(); i++) {
+    if (!isDigit(s[i])) return false;
+  }
+  out = s.toInt();
+  return true;
+}
+
+// Faz o parsing de "temp_min|temp_max|hum_min|hum_max|lux_min|lux_max"
+// (ordem canônica do comando set_limits). Só retorna true se vierem
+// exatamente 6 campos numéricos — nem mais, nem menos. Validação atômica:
+// quem chama só aplica os valores se o retorno for true.
+bool parseLimites(String args, int valores[6]) {
+  int inicio = 0;
+  int count = 0;
+  while (count < 6) {
+    int fim = args.indexOf('|', inicio);
+    String campo = (fim >= 0) ? args.substring(inicio, fim) : args.substring(inicio);
+    if (!parseInteiro(campo, valores[count])) return false;
+    count++;
+    if (fim < 0) {
+      inicio = args.length();
+      break;
+    }
+    inicio = fim + 1;
+  }
+  if (count != 6) return false;
+  if (inicio < (int)args.length()) return false; // sobrou campo extra (7º valor)
+  return true;
+}
+
 // Callback de mensagens MQTT recebidas no tópico de comando.
 // Payload no formato UltraLight do IoT Agent: "<device_id>@<comando>|<args>".
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -175,6 +220,23 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     alertHum = false;
     alertLux = false;
     setAlertMode(ALERT_NONE);
+  } else if (cmd == "set_limits") {
+    String args = (posPipe >= 0) ? msg.substring(posPipe + 1) : "";
+    int valores[6];
+    if (!parseLimites(args, valores)) {
+      Serial.print("set_limits invalido, comando ignorado: ");
+      Serial.println(args);
+      char ackErro[50];
+      snprintf(ackErro, sizeof(ackErro), "%s@%s|erro", ID_DEVICE, cmd.c_str());
+      MQTT.publish(topicCmdExe, ackErro);
+      return;
+    }
+    limTempMin = valores[0];
+    limTempMax = valores[1];
+    limHumMin = valores[2];
+    limHumMax = valores[3];
+    limLuxMin = valores[4];
+    limLuxMax = valores[5];
   } else {
     Serial.print("Comando desconhecido: ");
     Serial.println(cmd);
