@@ -171,16 +171,25 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   MQTT.publish(topicCmdExe, ack);
 }
 
+// Tenta reconectar ao broker sem travar o loop() — se falhar, não insiste
+// imediatamente, só tenta de novo depois de INTERVALO_RECONEXAO_MQTT. Assim
+// o LCD, o LED e o buzzer continuam funcionando mesmo com a EC2 fora do ar.
+const unsigned long INTERVALO_RECONEXAO_MQTT = 2000;
+unsigned long ultimaTentativaMQTT = 0;
+
 void reconectarMQTT() {
-  while (!MQTT.connected()) {
-    Serial.print("Conectando ao broker MQTT...");
-    if (MQTT.connect(ID_DEVICE)) {
-      Serial.println("conectado");
-      MQTT.subscribe(topicCmd);
-    } else {
-      Serial.println("falhou, tentando novamente em 2s");
-      delay(2000);
-    }
+  if (MQTT.connected()) return;
+
+  unsigned long agora = millis();
+  if (agora - ultimaTentativaMQTT < INTERVALO_RECONEXAO_MQTT) return;
+  ultimaTentativaMQTT = agora;
+
+  Serial.print("Conectando ao broker MQTT...");
+  if (MQTT.connect(ID_DEVICE)) {
+    Serial.println("conectado");
+    MQTT.subscribe(topicCmd);
+  } else {
+    Serial.println("falhou, tentando novamente em 2s");
   }
 }
 
