@@ -55,6 +55,21 @@ int limTempMin = 10, limTempMax = 16;
 int limHumMin = 60, limHumMax = 80;
 int limLuxMin = 0, limLuxMax = 30;
 
+// Flags por atributo: o LCD precisa saber se cada atributo está em alerta
+// mesmo quando o alertMode (que só governa o padrão de LED/buzzer) está
+// ocupado com outro atributo — duas anomalias podem estar ativas ao mesmo
+// tempo. alert_off vindo do backend só é mandado quando nenhum atributo
+// mais está em alerta, então ele limpa as três de uma vez.
+bool alertTemp = false;
+bool alertHum = false;
+bool alertLux = false;
+
+// Últimas leituras válidas — usadas pelo publish MQTT e pelas telas do LCD.
+// Começam em 0 porque o LCD só as exibe depois da primeira leitura válida.
+float ultimaTemperatura = 0;
+float ultimaUmidade = 0;
+int ultimaLuminosidade = 0;
+
 // Estado da máquina de alerta: qual anomalia está ativa agora (ou nenhuma).
 enum AlertMode { ALERT_NONE, ALERT_TEMP, ALERT_HUM, ALERT_LUX };
 AlertMode alertMode = ALERT_NONE;
@@ -233,15 +248,6 @@ void setAlertMode(AlertMode modo) {
   }
 }
 
-// Flags por atributo: o LCD precisa saber se cada atributo está em alerta
-// mesmo quando o alertMode (que só governa o padrão de LED/buzzer) está
-// ocupado com outro atributo — duas anomalias podem estar ativas ao mesmo
-// tempo. alert_off vindo do backend só é mandado quando nenhum atributo
-// mais está em alerta, então ele limpa as três de uma vez.
-bool alertTemp = false;
-bool alertHum = false;
-bool alertLux = false;
-
 // Converte uma String em int, rejeitando qualquer coisa não-numérica
 // (aceita sinal de menos). Vazio também é rejeitado.
 bool parseInteiro(String s, int &out) {
@@ -371,12 +377,6 @@ int lerLuminosidade() {
 // --- Publicação periódica de telemetria (não bloqueante via millis) ---
 const unsigned long INTERVALO_PUBLICACAO_MS = 2000;
 unsigned long ultimaPublicacao = 0;
-
-// Últimas leituras válidas — usadas pelo publish MQTT e pelas telas do LCD.
-// Começam em 0 porque o LCD só as exibe depois da primeira leitura válida.
-float ultimaTemperatura = 0;
-float ultimaUmidade = 0;
-int ultimaLuminosidade = 0;
 
 // Lê DHT+LDR e publica "t|<temp>|h|<umid>|l|<lux>" em topicAttrs.
 // Se a leitura do DHT vier NaN, pula o ciclo (não publica) e loga no Serial.
