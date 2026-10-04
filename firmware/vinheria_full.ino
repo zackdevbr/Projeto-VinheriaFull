@@ -7,6 +7,8 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <DHT.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 
 // --- Credenciais de rede (Wokwi usa rede aberta "Wokwi-GUEST") ---
 const char* SSID = "Wokwi-GUEST";
@@ -34,6 +36,15 @@ DHT dht(DHTPIN, DHTTYPE);
 // --- LED azul e buzzer de alerta ---
 #define LED_PIN 2
 #define BUZZER_PIN 5
+
+// --- Display LCD 16x2 I2C (herdado do CP2, endereco 0x27) ---
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Caracteres customizados do CP2: taça (2 metades), gota, sol.
+byte CHAR_TACA_ESQ[8] = {B00111, B01000, B01000, B11111, B11111, B11111, B11111, B01111};
+byte CHAR_TACA_DIR[8] = {B11100, B00010, B00010, B11111, B11111, B11111, B11111, B11110};
+byte CHAR_GOTA[8] = {B00100, B00100, B01010, B01010, B10001, B10001, B10001, B01110};
+byte CHAR_SOL[8] = {B00100, B10101, B01110, B11111, B01110, B10101, B00100, B00000};
 
 // Estado da máquina de alerta: qual anomalia está ativa agora (ou nenhuma).
 enum AlertMode { ALERT_NONE, ALERT_TEMP, ALERT_HUM, ALERT_LUX };
@@ -232,6 +243,24 @@ void atualizarAlerta() {
   }
 }
 
+// Tela de boot exibida uma única vez. delay() aceitável aqui: roda antes do
+// loop(), não interfere no padrão não-bloqueante de LED/buzzer.
+void logo() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Smart Solutions");
+  lcd.setCursor(0, 1);
+  lcd.print("Vinheria Agn.");
+  delay(2000);
+  lcd.clear();
+  lcd.print("Inicializando");
+  for (int i = 0; i < 5; i++) {
+    lcd.print(".");
+    delay(300);
+  }
+  lcd.clear();
+}
+
 void setup() {
   Serial.begin(115200);
   montarTopicos();
@@ -241,6 +270,14 @@ void setup() {
   dht.begin();
   pinMode(LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
+
+  lcd.init();
+  lcd.backlight();
+  lcd.createChar(0, CHAR_TACA_ESQ);
+  lcd.createChar(1, CHAR_TACA_DIR);
+  lcd.createChar(2, CHAR_GOTA);
+  lcd.createChar(3, CHAR_SOL);
+  logo();
 }
 
 void loop() {
