@@ -9,6 +9,7 @@
 #include <DHT.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <time.h>
 
 // --- Credenciais de rede (Wokwi usa rede aberta "Wokwi-GUEST") ---
 const char* SSID = "Wokwi-GUEST";
@@ -80,6 +81,48 @@ void conectarWiFi() {
   Serial.println();
   Serial.print("WiFi conectado, IP: ");
   Serial.println(WiFi.localIP());
+}
+
+// --- Relógio via NTP (substitui o RTC DS1307 do CP2) ---
+#define FUSO_HORARIO_SEG (-3 * 3600) // UTC-3 (horário de Brasília, sem horário de verão)
+
+void iniciarRelogio() {
+  configTime(FUSO_HORARIO_SEG, 0, "pool.ntp.org");
+}
+
+// Preenche p2 (2 dígitos com zero à esquerda) no LCD, igual ao CP2.
+void imprimirDoisDigitos(int valor) {
+  if (valor < 10) lcd.print("0");
+  lcd.print(valor);
+}
+
+// Tela 0: data e hora obtidas por NTP. Se ainda não sincronizou, avisa.
+void exibirTela0() {
+  struct tm dt;
+  lcd.clear();
+  if (!getLocalTime(&dt)) {
+    lcd.setCursor(0, 0);
+    lcd.print("Sincronizando");
+    lcd.setCursor(0, 1);
+    lcd.print("relogio (NTP)...");
+    return;
+  }
+
+  lcd.setCursor(0, 0);
+  lcd.print("Data: ");
+  imprimirDoisDigitos(dt.tm_mday);
+  lcd.print("/");
+  imprimirDoisDigitos(dt.tm_mon + 1);
+  lcd.print("/");
+  lcd.print(dt.tm_year + 1900);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Hora: ");
+  imprimirDoisDigitos(dt.tm_hour);
+  lcd.print(":");
+  imprimirDoisDigitos(dt.tm_min);
+  lcd.print(":");
+  imprimirDoisDigitos(dt.tm_sec);
 }
 
 // Troca o modo de alerta e reinicia o ciclo do buzzer (evita salto de fase).
@@ -278,7 +321,12 @@ void setup() {
   lcd.createChar(2, CHAR_GOTA);
   lcd.createChar(3, CHAR_SOL);
   logo();
+  iniciarRelogio();
 }
+
+// Intervalo de troca das telas do LCD (passo 8 vai expandir para 5 telas).
+const unsigned long T_TELA = 3000;
+unsigned long ultimaTela = 0;
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
@@ -293,6 +341,11 @@ void loop() {
   if (agora - ultimaPublicacao >= INTERVALO_PUBLICACAO_MS) {
     ultimaPublicacao = agora;
     publicarTelemetria();
+  }
+
+  if (agora - ultimaTela >= T_TELA) {
+    ultimaTela = agora;
+    exibirTela0();
   }
 
   atualizarAlerta();
