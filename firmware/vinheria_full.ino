@@ -133,6 +133,15 @@ void setAlertMode(AlertMode modo) {
   }
 }
 
+// Flags por atributo: o LCD precisa saber se cada atributo está em alerta
+// mesmo quando o alertMode (que só governa o padrão de LED/buzzer) está
+// ocupado com outro atributo — duas anomalias podem estar ativas ao mesmo
+// tempo. alert_off vindo do backend só é mandado quando nenhum atributo
+// mais está em alerta, então ele limpa as três de uma vez.
+bool alertTemp = false;
+bool alertHum = false;
+bool alertLux = false;
+
 // Callback de mensagens MQTT recebidas no tópico de comando.
 // Payload no formato UltraLight do IoT Agent: "<device_id>@<comando>|<args>".
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -153,12 +162,18 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 
   if (cmd == "blink_temp") {
+    alertTemp = true;
     setAlertMode(ALERT_TEMP);
   } else if (cmd == "blink_hum") {
+    alertHum = true;
     setAlertMode(ALERT_HUM);
   } else if (cmd == "blink_lux") {
+    alertLux = true;
     setAlertMode(ALERT_LUX);
   } else if (cmd == "alert_off") {
+    alertTemp = false;
+    alertHum = false;
+    alertLux = false;
     setAlertMode(ALERT_NONE);
   } else {
     Serial.print("Comando desconhecido: ");
