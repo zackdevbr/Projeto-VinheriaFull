@@ -105,9 +105,8 @@ void imprimirDoisDigitos(int valor) {
 }
 
 // Tela 0: data e hora obtidas por NTP. Se ainda não sincronizou, avisa.
-void exibirTela0() {
+void telaData() {
   struct tm dt;
-  lcd.clear();
   if (!getLocalTime(&dt)) {
     lcd.setCursor(0, 0);
     lcd.print("Sincronizando");
@@ -131,6 +130,99 @@ void exibirTela0() {
   imprimirDoisDigitos(dt.tm_min);
   lcd.print(":");
   imprimirDoisDigitos(dt.tm_sec);
+}
+
+// Tela 1: temperatura atual. Linha 2 mostra a faixa configurada (set_limits)
+// quando normal, ou aviso de fora da faixa quando o backend mandou alerta.
+void telaTemp() {
+  lcd.setCursor(0, 0);
+  lcd.print("Temp: ");
+  lcd.print(ultimaTemperatura, 1);
+  lcd.print((char)223); // símbolo de grau
+  lcd.print("C");
+
+  lcd.setCursor(0, 1);
+  if (alertTemp) {
+    lcd.print("TEMP FORA FAIXA");
+  } else {
+    lcd.print("Ideal ");
+    lcd.print(limTempMin);
+    lcd.print("-");
+    lcd.print(limTempMax);
+    lcd.print("C");
+  }
+}
+
+// Tela 2: umidade atual, com o caractere de gota.
+void telaUmidade() {
+  lcd.setCursor(0, 0);
+  lcd.print("Umidade: ");
+  lcd.print(ultimaUmidade, 0);
+  lcd.print("% ");
+  lcd.write(byte(2));
+
+  lcd.setCursor(0, 1);
+  if (alertHum) {
+    lcd.print("UMID FORA FAIXA");
+  } else {
+    lcd.print("Ideal ");
+    lcd.print(limHumMin);
+    lcd.print("-");
+    lcd.print(limHumMax);
+    lcd.print("%");
+  }
+}
+
+// Tela 3: luminosidade atual, com o caractere de sol.
+void telaLuz() {
+  lcd.setCursor(0, 0);
+  lcd.print("Luz: ");
+  lcd.print(ultimaLuminosidade);
+  lcd.print("% ");
+  lcd.write(byte(3));
+
+  lcd.setCursor(0, 1);
+  if (alertLux) {
+    lcd.print("LUZ FORA FAIXA");
+  } else {
+    lcd.print("Ideal ate ");
+    lcd.print(limLuxMax);
+    lcd.print("%");
+  }
+}
+
+// Tela 4: status geral da adega, com o caractere de taça (2 metades).
+// "Sem conexao" tem prioridade: se a EC2 caiu, é isso que importa mostrar.
+void telaStatus() {
+  lcd.setCursor(0, 0);
+  lcd.print("Status Adega ");
+  lcd.write(byte(0));
+  lcd.write(byte(1));
+
+  lcd.setCursor(0, 1);
+  if (!MQTT.connected()) {
+    lcd.print("Sem conexao");
+  } else if (alertTemp || alertHum || alertLux) {
+    lcd.print("Atencao");
+  } else {
+    lcd.print("Cond. Premium");
+  }
+}
+
+// Despacha a tela atual (0-4) e limpa o LCD antes de desenhar — evita
+// sobrepor texto de tamanhos diferentes entre uma tela e outra.
+int telaAtual = 0;
+
+void telaLCD() {
+  lcd.clear();
+  switch (telaAtual) {
+    case 0: telaData(); break;
+    case 1: telaTemp(); break;
+    case 2: telaUmidade(); break;
+    case 3: telaLuz(); break;
+    case 4: telaStatus(); break;
+  }
+  telaAtual = (telaAtual + 1) % 5;
 }
 
 // Troca o modo de alerta e reinicia o ciclo do buzzer (evita salto de fase).
@@ -280,6 +372,12 @@ int lerLuminosidade() {
 const unsigned long INTERVALO_PUBLICACAO_MS = 2000;
 unsigned long ultimaPublicacao = 0;
 
+// Últimas leituras válidas — usadas pelo publish MQTT e pelas telas do LCD.
+// Começam em 0 porque o LCD só as exibe depois da primeira leitura válida.
+float ultimaTemperatura = 0;
+float ultimaUmidade = 0;
+int ultimaLuminosidade = 0;
+
 // Lê DHT+LDR e publica "t|<temp>|h|<umid>|l|<lux>" em topicAttrs.
 // Se a leitura do DHT vier NaN, pula o ciclo (não publica) e loga no Serial.
 void publicarTelemetria() {
@@ -291,6 +389,10 @@ void publicarTelemetria() {
     Serial.println("Leitura do DHT invalida (NaN) - ciclo descartado");
     return;
   }
+
+  ultimaTemperatura = temperatura;
+  ultimaUmidade = umidade;
+  ultimaLuminosidade = luminosidade;
 
   char payload[80];
   snprintf(payload, sizeof(payload), "t|%.1f|h|%.1f|l|%d", temperatura, umidade, luminosidade);
@@ -431,7 +533,7 @@ void loop() {
 
   if (agora - ultimaTela >= T_TELA) {
     ultimaTela = agora;
-    exibirTela0();
+    telaLCD();
   }
 
   atualizarAlerta();
