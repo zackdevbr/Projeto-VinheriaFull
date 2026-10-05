@@ -16,8 +16,8 @@ const char* SSID = "Wokwi-GUEST";
 const char* PASSWORD = "";
 
 // --- Broker MQTT (Mosquitto do FIWARE na EC2) ---
-// IP/porta fixos aqui só para simulação local; em produção isso viria de config.
-const char* BROKER_MQTT = "0.0.0.0"; // TODO: IP público da EC2 (digitado antes de cada sessão)
+// A EC2 usa IP elástico (fixo entre liga e desliga), então o IP pode ficar aqui.
+const char* BROKER_MQTT = "3.215.3.216";
 const int BROKER_PORT = 1883;
 
 // --- Identificação do device (nomes canônicos do plano FIWARE) ---
