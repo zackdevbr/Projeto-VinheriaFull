@@ -1,0 +1,947 @@
+{
+  "info": {
+    "_postman_id": "1cf4e3c8-8cab-4545-a982-a4f8e722e315",
+    "name": "CP5 Smart Solutions - Vinheria",
+    "description": "Collection do CP5 (Smart Solutions). Variaveis: url = IP elastico da EC2; device_id/entity_id = vinheria a operar (troque o 00N para outra vinheria). Ordem para colocar uma vinheria nova no ar: 1) Service group (uma vez), 2) Provisionar device, 3) Subscribe temperature/humidity/luminosity. NAO ha request de registration: o IoT Agent registra os comandos sozinho ao provisionar o device, e uma registration manual duplicada quebra o encaminhamento (404). Todo request ao Orion/IoT Agent/STH leva os headers fiware-service e fiware-servicepath; GET nao leva Content-Type.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "url",
+      "value": "3.215.3.216"
+    },
+    {
+      "key": "device_id",
+      "value": "vinheria001"
+    },
+    {
+      "key": "entity_id",
+      "value": "urn:ngsi-ld:Vinheria:001"
+    },
+    {
+      "key": "sth_internal",
+      "value": "http://sth-comet:8666"
+    },
+    {
+      "key": "registration_id",
+      "value": ""
+    },
+    {
+      "key": "subscription_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. IoT Agent MQTT",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://{{url}}:4041/iot/about",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "4041",
+              "path": [
+                "iot",
+                "about"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Criar service group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:4041/iot/services",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "4041",
+              "path": [
+                "iot",
+                "services"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"services\": [\n    {\n      \"apikey\": \"TEF\",\n      \"cbroker\": \"http://{{url}}:1026\",\n      \"entity_type\": \"Thing\",\n      \"resource\": \"\",\n      \"timestamp\": true\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "timestamp:true preenche TimeInstant a cada medicao (necessario para detectar offline). 409 se ja existir."
+          }
+        },
+        {
+          "name": "Listar service groups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:4041/iot/services",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "4041",
+              "path": [
+                "iot",
+                "services"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Provisionar device (usa device_id/entity_id)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:4041/iot/devices",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "4041",
+              "path": [
+                "iot",
+                "devices"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"devices\": [\n    {\n      \"device_id\": \"{{device_id}}\",\n      \"entity_name\": \"{{entity_id}}\",\n      \"entity_type\": \"Vinheria\",\n      \"protocol\": \"PDI-IoTA-UltraLight\",\n      \"transport\": \"MQTT\",\n      \"commands\": [\n        {\n          \"name\": \"blink_temp\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"blink_hum\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"blink_lux\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"alert_off\",\n          \"type\": \"command\"\n        }\n      ],\n      \"attributes\": [\n        {\n          \"object_id\": \"t\",\n          \"name\": \"temperature\",\n          \"type\": \"Float\"\n        },\n        {\n          \"object_id\": \"h\",\n          \"name\": \"humidity\",\n          \"type\": \"Float\"\n        },\n        {\n          \"object_id\": \"l\",\n          \"name\": \"luminosity\",\n          \"type\": \"Integer\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Espera 201. Cria tambem a registration dos comandos automaticamente."
+          }
+        },
+        {
+          "name": "Listar devices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:4041/iot/devices",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "4041",
+              "path": [
+                "iot",
+                "devices"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver device",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:4041/iot/devices/{{device_id}}",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "4041",
+              "path": [
+                "iot",
+                "devices",
+                "{{device_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Apagar device",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:4041/iot/devices/{{device_id}}",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "4041",
+              "path": [
+                "iot",
+                "devices",
+                "{{device_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Orion Context Broker",
+      "item": [
+        {
+          "name": "Versao",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://{{url}}:1026/version",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "version"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar entidades Vinheria",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/entities?type=Vinheria&options=keyValues",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "entities"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "Vinheria"
+                },
+                {
+                  "key": "options",
+                  "value": "keyValues"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver entidade",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/entities/{{entity_id}}?options=keyValues",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "entities",
+                "{{entity_id}}"
+              ],
+              "query": [
+                {
+                  "key": "options",
+                  "value": "keyValues"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Apagar entidade",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/entities/{{entity_id}}",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "entities",
+                "{{entity_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar registrations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/registrations",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "registrations"
+              ]
+            },
+            "description": "Deve haver exatamente uma por entidade (criada pelo IoT Agent). Duplicatas causam 404 nos comandos."
+          }
+        },
+        {
+          "name": "Apagar registration",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/registrations/{{registration_id}}",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "registrations",
+                "{{registration_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/subscriptions",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "subscriptions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Apagar subscription",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/subscriptions/{{subscription_id}}",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "subscriptions",
+                "{{subscription_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Comandos de alerta",
+      "item": [
+        {
+          "name": "Comando blink_temp",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/entities/{{entity_id}}/attrs",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "entities",
+                "{{entity_id}}",
+                "attrs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"blink_temp\": {\n    \"type\": \"command\",\n    \"value\": \"\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Comando blink_hum",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/entities/{{entity_id}}/attrs",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "entities",
+                "{{entity_id}}",
+                "attrs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"blink_hum\": {\n    \"type\": \"command\",\n    \"value\": \"\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Comando blink_lux",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/entities/{{entity_id}}/attrs",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "entities",
+                "{{entity_id}}",
+                "attrs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"blink_lux\": {\n    \"type\": \"command\",\n    \"value\": \"\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Comando alert_off",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/entities/{{entity_id}}/attrs",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "entities",
+                "{{entity_id}}",
+                "attrs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alert_off\": {\n    \"type\": \"command\",\n    \"value\": \"\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. STH-Comet",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://{{url}}:8666/version",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "8666",
+              "path": [
+                "version"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Subscribe temperature (STH)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/subscriptions",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "subscriptions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Notify STH-Comet of temperature changes\",\n  \"subject\": {\n    \"entities\": [\n      {\n        \"id\": \"{{entity_id}}\",\n        \"type\": \"Vinheria\"\n      }\n    ],\n    \"condition\": {\n      \"attrs\": [\n        \"temperature\"\n      ]\n    }\n  },\n  \"notification\": {\n    \"http\": {\n      \"url\": \"{{sth_internal}}/notify\"\n    },\n    \"attrs\": [\n      \"temperature\"\n    ],\n    \"attrsFormat\": \"legacy\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A URL de notificacao usa o nome interno do container (sth-comet), nao o IP publico."
+          }
+        },
+        {
+          "name": "Subscribe humidity (STH)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/subscriptions",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "subscriptions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Notify STH-Comet of humidity changes\",\n  \"subject\": {\n    \"entities\": [\n      {\n        \"id\": \"{{entity_id}}\",\n        \"type\": \"Vinheria\"\n      }\n    ],\n    \"condition\": {\n      \"attrs\": [\n        \"humidity\"\n      ]\n    }\n  },\n  \"notification\": {\n    \"http\": {\n      \"url\": \"{{sth_internal}}/notify\"\n    },\n    \"attrs\": [\n      \"humidity\"\n    ],\n    \"attrsFormat\": \"legacy\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A URL de notificacao usa o nome interno do container (sth-comet), nao o IP publico."
+          }
+        },
+        {
+          "name": "Subscribe luminosity (STH)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/subscriptions",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "subscriptions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Notify STH-Comet of luminosity changes\",\n  \"subject\": {\n    \"entities\": [\n      {\n        \"id\": \"{{entity_id}}\",\n        \"type\": \"Vinheria\"\n      }\n    ],\n    \"condition\": {\n      \"attrs\": [\n        \"luminosity\"\n      ]\n    }\n  },\n  \"notification\": {\n    \"http\": {\n      \"url\": \"{{sth_internal}}/notify\"\n    },\n    \"attrs\": [\n      \"luminosity\"\n    ],\n    \"attrsFormat\": \"legacy\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A URL de notificacao usa o nome interno do container (sth-comet), nao o IP publico."
+          }
+        },
+        {
+          "name": "Historico temperature (lastN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:8666/STH/v1/contextEntities/type/Vinheria/id/{{entity_id}}/attributes/temperature?lastN=30",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "8666",
+              "path": [
+                "STH",
+                "v1",
+                "contextEntities",
+                "type",
+                "Vinheria",
+                "id",
+                "{{entity_id}}",
+                "attributes",
+                "temperature"
+              ],
+              "query": [
+                {
+                  "key": "lastN",
+                  "value": "30"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Historico humidity (lastN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:8666/STH/v1/contextEntities/type/Vinheria/id/{{entity_id}}/attributes/humidity?lastN=30",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "8666",
+              "path": [
+                "STH",
+                "v1",
+                "contextEntities",
+                "type",
+                "Vinheria",
+                "id",
+                "{{entity_id}}",
+                "attributes",
+                "humidity"
+              ],
+              "query": [
+                {
+                  "key": "lastN",
+                  "value": "30"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Historico luminosity (lastN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:8666/STH/v1/contextEntities/type/Vinheria/id/{{entity_id}}/attributes/luminosity?lastN=30",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "8666",
+              "path": [
+                "STH",
+                "v1",
+                "contextEntities",
+                "type",
+                "Vinheria",
+                "id",
+                "{{entity_id}}",
+                "attributes",
+                "luminosity"
+              ],
+              "query": [
+                {
+                  "key": "lastN",
+                  "value": "30"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
