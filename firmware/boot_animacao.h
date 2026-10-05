@@ -1,60 +1,135 @@
 /*
  * Smart Solutions — animação de boot do LCD 16x2.
  *
- * Mostra um cacho de uva sendo espremido e enchendo uma taça de vinho. O
- * display HD44780 guarda só 8 caracteres customizados, e os slots 0 a 3 são
- * usados pelos ícones do carrossel (taça, gota, sol). Por isso a animação
- * redefine esses slots a cada quadro e o .ino recarrega os ícones depois.
+ * Um cacho de uva compacto se desfaz: as uvas se soltam de baixo para cima,
+ * caem no chão e rolam até um copo, que vai enchendo de vinho a cada uva que
+ * entra. O display HD44780 guarda só 8 caracteres customizados e os slots 0 a 3
+ * são usados pelos ícones do carrossel (taça, gota, sol). Por isso a animação
+ * usa todos os 8 slots e o .ino recarrega os ícones depois dela.
+ *
+ * Layout (colunas 0 a 15):
+ *   cacho = colunas 5-6, linhas 0 e 1 (slots 0 a 3)
+ *   pista = colunas 7 a 9, linha 1 (slots 5 a 7), por onde as uvas rolam
+ *   copo  = coluna 10, linha 1 (slot 4), inteiro, sem emenda
  */
 
 #ifndef BOOT_ANIMACAO_H
 #define BOOT_ANIMACAO_H
 
 #include <LiquidCrystal_I2C.h>
+#include <string.h>
 
-// Cada figura ocupa 2x1 caracteres (10x8 pixels): metade esquerda e direita.
-// A uva fica na linha 0 (slots 0 e 1) e a taça na linha 1 (slots 2 e 3),
-// centralizadas nas colunas 7 e 8 do display.
-const uint8_t COLUNA_FIGURA = 7;
+const uint8_t COLUNA_CACHO = 5;
+const uint8_t COLUNA_PISTA = 7;
+const uint8_t COLUNA_COPO = 10;
+const int QTD_QUADROS = 17;
 
-// Cacho de uva cheio: talo no alto, três uvas, duas e uma, afunilando.
-// A última linha fica livre para a gota cair nos próximos quadros.
-const byte UVA_CHEIA_ESQ[8] = {B00001, B01101, B01101, B00110, B00110, B00001, B00001, B00000};
-const byte UVA_CHEIA_DIR[8] = {B10000, B10110, B10110, B01100, B01100, B10000, B10000, B00000};
+// Cena de cada quadro: 7 caracteres, na ordem (cacho esq-cima, dir-cima,
+// esq-baixo, dir-baixo, pista 1, 2, 3). Gerados a partir dos desenhos.
+const byte CENA[17][7][8] = {
+  {{B00001, B00001, B01101, B01101, B00000, B00110, B00110, B00000}, {B10000, B11100, B10110, B10110, B00000, B11000, B11000, B00000}, {B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B10000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B01101, B01101, B00000, B00110, B00110, B00000}, {B10000, B11100, B10110, B10110, B00000, B11000, B11000, B00000}, {B00000, B00000, B00000, B00001, B00001, B00000, B00000, B00000}, {B00000, B00000, B00000, B10000, B10000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B01101, B01101, B00000, B00110, B00110, B00000}, {B10000, B11100, B10110, B10110, B00000, B11000, B11000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00001, B00001}, {B00000, B00000, B00000, B00000, B00000, B00000, B10000, B10000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B01101, B01101, B00000, B00110, B00110, B00000}, {B10000, B11100, B10110, B10110, B00000, B11000, B11000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00011, B00011}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B01101, B01101, B00000, B00110, B00110, B00000}, {B10000, B11100, B10110, B10110, B00000, B11000, B11000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00110, B00110}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B01101, B01101, B00000, B00000, B00000, B00000}, {B10000, B11100, B10110, B10110, B00000, B00000, B00000, B00000}, {B00000, B00110, B00110, B00000, B00000, B00000, B00000, B00000}, {B00000, B11000, B11000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B01100, B01100}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B01101, B01101, B00000, B00000, B00000, B00000}, {B10000, B11100, B10110, B10110, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00110, B00110}, {B00000, B00000, B00000, B00000, B00000, B00000, B11000, B11000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B11000, B11000}},
+  {{B00001, B00001, B01101, B01101, B00000, B00000, B00000, B00000}, {B10000, B11100, B10110, B10110, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B01101, B01101}, {B00000, B00000, B00000, B00000, B00000, B00000, B10000, B10000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B01101, B01101, B00000, B00000, B00000, B00000}, {B10000, B11100, B10110, B10110, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B11011, B11011}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B11100, B00000, B00000, B00000, B00000, B00000, B00000}, {B01101, B01101, B00000, B00000, B00000, B00000, B00000, B00000}, {B10110, B10110, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00001, B00001}, {B00000, B00000, B00000, B00000, B00000, B00000, B10110, B10110}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B11100, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B01101, B01101}, {B00000, B00000, B00000, B00000, B00000, B00000, B10110, B10110}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00011, B00011}, {B00000, B00000, B00000, B00000, B00000, B00000, B01100, B01100}},
+  {{B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B11100, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B11011, B11011}, {B00000, B00000, B00000, B00000, B00000, B00000, B01100, B01100}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00110, B00110}},
+  {{B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B11100, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00001, B00001}, {B00000, B00000, B00000, B00000, B00000, B00000, B10110, B10110}, {B00000, B00000, B00000, B00000, B00000, B00000, B11000, B11000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+  {{B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B11100, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00011, B00011}, {B00000, B00000, B00000, B00000, B00000, B00000, B01101, B01101}, {B00000, B00000, B00000, B00000, B00000, B00000, B10000, B10000}},
+  {{B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B11100, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00110, B00110}, {B00000, B00000, B00000, B00000, B00000, B00000, B11011, B11011}},
+  {{B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B11100, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B01100, B01100}},
+  {{B00001, B00001, B00000, B00000, B00000, B00000, B00000, B00000}, {B10000, B11100, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}, {B00000, B00000, B00000, B00000, B00000, B00000, B00000, B00000}},
+};
 
-// Taça vazia: só o contorno (borda, bojo, haste e base).
-const byte TACA_VAZIA_ESQ[8] = {B10000, B10000, B10000, B01000, B00111, B00001, B00001, B01111};
-const byte TACA_VAZIA_DIR[8] = {B00001, B00001, B00001, B00010, B11100, B10000, B10000, B11110};
+// Copo: 6 níveis, de 0 (vazio) a 5 (cheio até a borda).
+const byte COPO[6][8] = {
+  {B10001, B10001, B10001, B10001, B01010, B00100, B00100, B01110},
+  {B10001, B10001, B10001, B10001, B01110, B00100, B00100, B01110},
+  {B10001, B10001, B10001, B11111, B01110, B00100, B00100, B01110},
+  {B10001, B10001, B11111, B11111, B01110, B00100, B00100, B01110},
+  {B10001, B11111, B11111, B11111, B01110, B00100, B00100, B01110},
+  {B11111, B11111, B11111, B11111, B01110, B00100, B00100, B01110},
+};
 
-// Redefine os slots 0 a 3 com os bitmaps dados. Quem chama deve usar
-// setCursor() antes de escrever: o createChar deixa o cursor na CGRAM.
-void definirFiguras(LiquidCrystal_I2C& lcd, const byte* uvaEsq, const byte* uvaDir,
-                    const byte* tacaEsq, const byte* tacaDir) {
-  lcd.createChar(0, (uint8_t*)uvaEsq);
-  lcd.createChar(1, (uint8_t*)uvaDir);
-  lcd.createChar(2, (uint8_t*)tacaEsq);
-  lcd.createChar(3, (uint8_t*)tacaDir);
+// Roteiro: nível de vinho e duração (ms) de cada quadro.
+// Total: 4250 ms (abaixo do limite de 5 s).
+struct EtapaBoot {
+  uint8_t nivel;
+  unsigned int duracaoMs;
+};
+const EtapaBoot ROTEIRO[17] = {
+  {0, 600},
+  {0, 150},
+  {0, 150},
+  {0, 150},
+  {0, 150},
+  {0, 150},
+  {0, 150},
+  {1, 150},
+  {1, 150},
+  {1, 150},
+  {1, 150},
+  {2, 150},
+  {2, 150},
+  {2, 150},
+  {2, 150},
+  {4, 150},
+  {5, 1400},
+};
+
+// Slot de cada caractere da cena e do copo.
+const uint8_t SLOT_CENA[7] = {0, 1, 2, 3, 5, 6, 7};
+const uint8_t SLOT_COPO = 4;
+
+// Bitmaps já enviados ao display: o createChar é lento no I2C, então só se
+// reenvia o que mudou entre um quadro e o seguinte.
+byte enviado[8][8];
+
+// Envia o bitmap ao slot só se for diferente do que o display já tem.
+void atualizarSlot(LiquidCrystal_I2C& lcd, uint8_t slot, const byte* bitmap) {
+  if (memcmp(enviado[slot], bitmap, 8) != 0) {
+    lcd.createChar(slot, (uint8_t*)bitmap);
+    memcpy(enviado[slot], bitmap, 8);
+  }
 }
 
-// Escreve uva (linha 0) e taça (linha 1) nas colunas centrais.
-void desenharFiguras(LiquidCrystal_I2C& lcd) {
-  lcd.setCursor(COLUNA_FIGURA, 0);
+// Mostra o quadro i do roteiro. O createChar deixa o cursor na CGRAM, por isso
+// todo desenho começa com setCursor(). delay() é aceitável: roda uma única vez
+// no setup(), antes do loop(), então não afeta os padrões não bloqueantes de
+// LED e buzzer.
+void mostrarQuadro(LiquidCrystal_I2C& lcd, int i) {
+  for (int c = 0; c < 7; c++) {
+    atualizarSlot(lcd, SLOT_CENA[c], CENA[i][c]);
+  }
+  atualizarSlot(lcd, SLOT_COPO, COPO[ROTEIRO[i].nivel]);
+
+  lcd.setCursor(COLUNA_CACHO, 0);
   lcd.write(byte(0));
   lcd.write(byte(1));
-  lcd.setCursor(COLUNA_FIGURA, 1);
+  lcd.setCursor(COLUNA_CACHO, 1);
   lcd.write(byte(2));
   lcd.write(byte(3));
+  lcd.setCursor(COLUNA_PISTA, 1);
+  lcd.write(byte(5));
+  lcd.write(byte(6));
+  lcd.write(byte(7));
+  lcd.setCursor(COLUNA_COPO, 1);
+  lcd.write(byte(SLOT_COPO));
+  delay(ROTEIRO[i].duracaoMs);
 }
 
-// Executa a animação. Usa delay() de propósito: roda uma única vez no
-// setup(), antes do loop(), então não afeta os padrões não bloqueantes de
-// LED e buzzer. Por enquanto mostra só o primeiro quadro (uva cheia e taça
-// vazia); os demais quadros entram no próximo passo.
+// Executa a animação inteira, quadro a quadro, na ordem do roteiro.
 void animacaoBoot(LiquidCrystal_I2C& lcd) {
+  memset(enviado, 0xFF, sizeof(enviado));  // força o primeiro envio de todos os slots
   lcd.clear();
-  definirFiguras(lcd, UVA_CHEIA_ESQ, UVA_CHEIA_DIR, TACA_VAZIA_ESQ, TACA_VAZIA_DIR);
-  desenharFiguras(lcd);
-  delay(2000);
+  for (int i = 0; i < QTD_QUADROS; i++) {
+    mostrarQuadro(lcd, i);
+  }
 }
 
 #endif
