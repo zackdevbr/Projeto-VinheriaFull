@@ -93,7 +93,8 @@ projetovinheria/
 │   │   ├── services/
 │   │   │   ├── fiware_client.py    # httpx: IoT Agent 4041, Orion 1026, STH 8666
 │   │   │   ├── device_registry.py  # CRUD devices + provisionamento no FIWARE
-│   │   │   ├── trigger_engine.py   # loop asyncio: compara, debounce, comanda alerta
+│   │   │   ├── trigger_engine.py   # loop asyncio: compara, debounce, offline, comanda alerta
+│   │   │   ├── fleet_state.py      # snapshot em memória do status de todas as vinherias
 │   │   │   ├── alert_log.py        # grava/consulta histórico de alertas
 │   │   │   ├── quality_score.py    # score 0-100 do ambiente
 │   │   │   ├── report.py           # CSV + PDF (matplotlib)
@@ -102,6 +103,7 @@ projetovinheria/
 │   │       ├── routes_config.py    # GET/PUT config (IP EC2, intervalo do poller)
 │   │       ├── routes_devices.py
 │   │       ├── routes_data.py      # histórico, estado atual, score
+│   │       ├── routes_fleet.py     # visão geral da frota (status de todas as vinherias)
 │   │       ├── routes_triggers.py
 │   │       ├── routes_alerts.py
 │   │       ├── routes_report.py
@@ -115,10 +117,14 @@ projetovinheria/
         ├── main.jsx
         ├── App.jsx                 # layout + rotas
         ├── api/client.js           # fetch wrapper (base URL do backend)
-        ├── context/ConfigContext.jsx
+        ├── context/
+        │   ├── ConfigContext.jsx
+        │   └── FleetContext.jsx    # polling de /api/fleet (5 s) + eventos de transição
         ├── components/
         │   ├── FiwareBar.jsx       # input do IP da EC2 + status de conexão
-        │   ├── DeviceForm.jsx
+        │   ├── AlertBanner.jsx     # faixa fixa + toasts de alerta/offline
+        │   ├── VinheriaCard.jsx    # card da visão geral (status, valores, score)
+        │   ├── DeviceForm.jsx      # device_id, nome, cidade
         │   ├── DeviceList.jsx
         │   ├── SensorChart.jsx     # Chart.js: linha dinâmica por atributo
         │   ├── GaugeScore.jsx
@@ -126,7 +132,8 @@ projetovinheria/
         │   ├── AlertTimeline.jsx
         │   └── ChatBox.jsx
         └── pages/
-            ├── Dashboard.jsx
+            ├── Overview.jsx        # grid de cards, uma por vinheria
+            ├── VinheriaDetail.jsx  # gráficos, score, triggers e alertas de uma vinheria
             ├── Devices.jsx
             ├── Triggers.jsx
             ├── Alerts.jsx
@@ -137,8 +144,8 @@ projetovinheria/
 
 ## Contratos-chave
 
-**Entidade FIWARE padrão** (segue o padrão do Smart Lamp):
-- `device_id`: `vinheria001` · `entity_name`: `urn:ngsi-ld:Vinheria:001` · `entity_type`: `Vinheria`
+**Entidade FIWARE padrão** (segue o padrão do Smart Lamp; `vinheria001` é o exemplo, cada nova vinheria segue `vinheria00N`):
+- `device_id`: `vinheria00N` (regex `^vinheria\d{3}$`) · `entity_name`: `urn:ngsi-ld:Vinheria:00N` · `entity_type`: `Vinheria`
 - Headers: `fiware-service: smart` · `fiware-servicepath: /`
 - API key: `TEF` · protocolo `PDI-IoTA-UltraLight` (MQTT)
 - Atributos: `t` (temperature), `h` (humidity), `l` (luminosity)
@@ -156,8 +163,9 @@ projetovinheria/
 
 1. `POST :4041/iot/services` — service group (idempotente; tratar 409 como OK)
 ```json
-{ "services": [ { "apikey": "TEF", "cbroker": "http://<EC2>:1026", "entity_type": "Thing", "resource": "" } ] }
+{ "services": [ { "apikey": "TEF", "cbroker": "http://<EC2>:1026", "entity_type": "Thing", "resource": "", "timestamp": true } ] }
 ```
+> `timestamp: true` faz o IoT Agent preencher `TimeInstant` a cada medição; a detecção de offline depende disso. Confirmar na EC2 no smoke da Task 3; se o campo não vier, parar e voltar ao planejamento.
 2. `POST :4041/iot/devices` — device com atributos e comandos
 ```json
 { "devices": [ {
@@ -218,9 +226,10 @@ projetovinheria/
 
 **Endpoints do backend:**
 ```
-GET/PUT  /api/config                  # { ec2_ip, orion_port, sth_port, iota_port, poll_seconds }
+GET/PUT  /api/config                  # { ec2_ip, orion_port, sth_port, iota_port, poll_seconds, offline_seconds }
 GET      /api/config/health            # testa Orion/IoT Agent/STH no IP atual
-GET/POST /api/devices                  # listar / cadastrar (provisiona no IoT Agent + subscription STH)
+GET      /api/fleet                    # status de todas as vinherias (ok|alerta|offline), valores, score, alertas ativos
+GET/POST /api/devices                  # listar / cadastrar { device_id, name, city } (provisiona no IoT Agent + subscription STH)
 DELETE   /api/devices/{id}
 GET      /api/devices/{id}/current     # estado atual via Orion
 GET      /api/devices/{id}/history     # ?attr=t&lastN=100  ou  ?dateFrom&dateTo  (STH 8666)
@@ -228,7 +237,15 @@ GET      /api/devices/{id}/score       # quality_score
 GET/PUT  /api/devices/{id}/triggers    # limites min/max por atributo
 GET      /api/alerts                   # ?device_id&limit
 GET      /api/report                   # ?device_id&format=csv|pdf
-POST     /api/chat                     # { message, device_id } -> resposta Gemini
+POST     /api/chat                     # { message, history[] } -> resposta Gemini (sem device_id: o bot resolve a vinheria pelo texto)
+```
+
+**Resposta de `GET /api/fleet`:**
+```json
+[{ "device_id": "vinheria001", "name": "Vinheria São Paulo", "city": "São Paulo",
+   "status": "ok|alerta|offline", "last_seen": "2026-10-20T14:03:11Z", "seconds_since": 4,
+   "current": { "temperature": 14.2, "humidity": 62, "luminosity": 20 },
+   "score": 92, "active_alerts": [{ "attr": "temperature", "value": 21.3, "since": "..." }] }]
 ```
 
 **Função do trigger engine** (estado por `(device_id, attr)`, com histerese para não tremer):
