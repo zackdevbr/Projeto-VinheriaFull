@@ -368,6 +368,8 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 2: Backend — config, DB e cliente FIWARE
 
+> **Planejada em 05/10/2026 (spec-driven).** Executar por [`docs/specs/task-2-backend-config-fiware/plan.md`](docs/specs/task-2-backend-config-fiware/plan.md), que segue a [`spec.md`](docs/specs/task-2-backend-config-fiware/spec.md) da mesma pasta. Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Mudanças em relação a este resumo: `register_commands` sai (o IoT Agent registra sozinho), `subscribe_attr` recebe `entity_id`, erros viram `FiwareError` traduzido por handler central, `.gitignore` é antecipado da Task 7A, e entram `delete_device`, `delete_entity`, `delete_subscriptions` e `update_attrs` (revisão 3).
+
 **Files:** criar `backend/requirements.txt`, `.env.example`, `app/main.py`, `app/core/config.py`, `app/core/db.py`, `app/models/schemas.py`, `app/services/fiware_client.py`, `app/api/routes_config.py`, `tests/test_fiware_client.py`, `tests/test_config.py`
 **Multi-vinheria:** `config` inclui `offline_seconds` (default 30); schema `devices`: `device_id TEXT PK, entity_id TEXT, name TEXT, city TEXT, created_at TEXT`; service group com `"timestamp": true`.
 **Produces:** `ConfigStore.get()/update()`, `FiwareClient(base_cfg)` com `provision_service_group()`, `provision_device(device)`, `register_commands(device)`, `subscribe_attr(device, attr)`, `get_entity(entity_id)`, `list_entities(entity_type)` (`GET :1026/v2/entities?type=Vinheria&options=keyValues`, devolve `TimeInstant`), `send_command(entity_id, command)`, `query_history(entity_type, entity_id, attr, last_n=None, date_from=None, date_to=None)`, `health()`.
