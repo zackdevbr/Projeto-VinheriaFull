@@ -495,6 +495,7 @@ void logo() {
   lcd.setCursor(0, 1);
   lcd.print("Vinheria Agn.");
   delay(2000);
+  animacaoBoot(lcd);
   lcd.clear();
   lcd.print("Inicializando");
   for (int i = 0; i < 5; i++) {
