@@ -200,9 +200,12 @@ projetovinheria/
     "entities": [ { "id": "urn:ngsi-ld:Vinheria:001", "type": "Vinheria" } ],
     "attrs": ["blink_temp", "blink_hum", "blink_lux", "alert_off"]
   },
-  "provider": { "http": { "url": "http://<EC2>:4041" }, "legacyForwarding": true }
+  "provider": { "http": { "url": "http://iot-agent:4041" }, "legacyForwarding": false }
 }
 ```
+> **Corrigido em 05/10/2026 após teste real:** com `http://<EC2>:4041` e `legacyForwarding: true` o `PATCH` de comando devolvia `404 NotFound`. A forma que funciona (igual à do `Lamp:200` já em produção) usa o hostname interno do Docker `iot-agent` e `legacyForwarding: false`. O hostname deve vir de config/`.env` (`IOTA_INTERNAL_URL`, default `http://iot-agent:4041`), não ficar hardcoded. Registrations duplicadas para a mesma entidade também quebram o encaminhamento: o `provision_device` precisa remover registrations antigas da entidade antes de criar a nova (ou criar só se não existir).
+>
+> **Armadilhas do Postman vistas no teste:** a collection base tem comentários `//` dentro dos bodies JSON (o IoT Agent rejeita com `SyntaxError`), e todo request ao Orion precisa dos headers `fiware-service: smart` e `fiware-servicepath: /` (sem eles a entidade dá `NotFound`). A `postman/CP5-Vinheria.postman_collection.json` da Task 8 deve sair sem comentários e com os headers.
 4. `POST :1026/v2/subscriptions` — **uma por atributo** (3 chamadas: `temperature`, `humidity`, `luminosity`)
 ```json
 {
@@ -296,7 +299,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 - [ ] **Passo 3:** publicar a cada 2 s `t|<temp>|h|<umid>|l|<lux>`; se leitura DHT for `NaN`, não publicar aquele ciclo e logar no Serial.
 - [ ] **Passo 4:** implementar máquina de estado de alerta não bloqueante (`millis()`): variável `alertMode` ∈ {NONE, TEMP, HUM, LUX}; LED azul (GPIO 2) e buzzer (GPIO 5, `tone`/`ledcWriteTone`) seguindo a tabela de padrões; comandos `blink_temp|blink_hum|blink_lux|alert_off` no callback MQTT; responder em `/TEF/vinheria001/cmdexe` com `vinheria001@<cmd>|ok`.
 - [ ] **Passo 5:** montar `diagram.json` do Wokwi (ESP32 + DHT22 + LDR + buzzer + LED azul + resistores) e `libraries.txt` (`PubSubClient`, `DHT sensor library`, `Adafruit Unified Sensor`).
-- [ ] **Passo 6 (teste):** rodar no Wokwi, conferir no Serial a publicação e, via Postman (`PATCH` command), ver LED/buzzer mudarem de padrão por anomalia e pararem com `alert_off`.
+- [x] **Passo 6 (teste) — FEITO em 05/10/2026:** Wokwi publicando no IP elástico; `vinheria001` provisionada; `blink_temp` (2 bipes), `blink_hum` (1 longo), `blink_lux` (3 bipes) e `alert_off` (para tudo) confirmados, com ack `ok` no Orion e `TimeInstant` presente. **Observações para conferir no ESP32 físico:** um bipe residual depois do `alert_off` e o tom "desafinado" (prováveis artefatos do áudio do Wokwi a 37% de velocidade, não verificado); uma ocorrência isolada de 2 bipes no `blink_lux` (hipótese: `loop()` travado pela leitura do DHT, ciclo de 2 s alinhado ao intervalo de publicação; não reproduziu).
 - [ ] **Passo 6b (multi-instância):** agrupar no topo do `.ino` um bloco `// ===== CONFIGURAÇÃO DESTA INSTÂNCIA =====` com `ID_DEVICE`, `SSID`, `PASSWORD`, `BROKER_MQTT` e `DHTTYPE` (cada computador edita só ele). Rodar uma segunda instância Wokwi com `vinheria002` e confirmar no Serial que os tópicos `/TEF/vinheria002/*` estão separados dos de `vinheria001`.
 - [ ] **Passo 7:** commit `feat: add ESP32 firmware with DHT, LDR and multi-pattern alerts`.
 
