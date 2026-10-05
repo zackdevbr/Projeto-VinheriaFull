@@ -16,7 +16,7 @@ FIWARE e Postman já configurados pelo usuário (stack `fabiocabrini/fiware`). E
 - Triggers: **backend decide, ESP32 obedece** — poller compara leituras com limites e envia comando; front-end controla tudo.
 - Chatbot: **Google Gemini** (`google-genai`) com **function calling** sobre dados reais do STH-Comet.
 - Execução na apresentação: dashboard local no notebook apontando para o IP público da EC2.
-- **IP da EC2 muda a cada boot** → IP configurável em runtime pelo front, persistido no backend, usado por todos os módulos.
+- ~~IP da EC2 muda a cada boot~~ → **substituído na revisão 2:** a EC2 usa **IP elástico** (fixo entre liga/desliga). O IP continua configurável em runtime pelo front e persistido no backend, mas o default vem do `.env` (`FIWARE_HOST`), então no uso normal ninguém precisa digitá-lo.
 - Diferenciais: chatbot Gemini + exportar relatório CSV/PDF + score de qualidade do ambiente + histórico de alertas.
 
 **Revisão de escopo (05/10/2026, após conversa com o professor) — também não reabrir:**
@@ -27,7 +27,11 @@ FIWARE e Postman já configurados pelo usuário (stack `fabiocabrini/fiware`). E
 - **Um poller para a frota:** uma chamada `GET /v2/entities?type=Vinheria` por tick.
 - **Aviso no site:** banner/toast global gerado no navegador a partir de `GET /api/fleet` (polling de 5 s). Sem WebSocket.
 - **Chatbot multi-vinheria (sai do adiamento):** responde por vinheria em linguagem natural ("como está a temperatura da vinheria de São Paulo?") usando os registros do STH-Comet, e avisa sozinho de vinherias em alerta ou offline. As tools aceitam id, nome ou cidade como texto livre, resolvido no backend.
-- **Ordem:** T1 → T0 → T2 → T3 → T4 → T5 → T6 → **T7A chatbot** → T7B relatórios (primeiro corte se o prazo apertar) → T8.
+- **Ordem:** T1 (até o Passo 6b) → T1B (marca + boot animado + IP elástico) → commit final da T1 → T0 → T2 → T3 → T4 → T5 → T6 → **T7A chatbot** → T7B relatórios (primeiro corte se o prazo apertar) → T8.
+
+**Revisão 2 (05/10/2026) — também não reabrir:**
+- **IP elástico na EC2.** O IP do FIWARE fica fixo. Default no `backend/.env` (`FIWARE_HOST`) e no bloco de configuração do firmware (`BROKER_MQTT`); o campo de IP do site vira configuração avançada (recolhida), e o indicador de saúde continua visível.
+- **Marca Smart Solutions.** A empresa fictícia da equipe é **Smart Solutions**; o nome "Vinheria Agnello" sai do projeto. No LCD, o boot mostra "Smart Solutions" centralizado (linha 2 vazia) e em seguida uma **animação de um cacho de uva sendo espremido e enchendo uma taça**. A animação é **só no LCD**; no site, apenas o nome "Smart Solutions" no cabeçalho e no `<title>`.
 
 ---
 
@@ -75,6 +79,7 @@ projetovinheria/
 │   └── manual-software.md          # instalação FIWARE/EC2, provisionamento, execução
 ├── firmware/
 │   ├── vinheria_full.ino           # sketch principal
+│   ├── boot_animacao.h             # marca Smart Solutions: uva espremida enchendo a taça (LCD)
 │   ├── diagram.json                # Wokwi (DHT-22 + LDR + buzzer + LED)
 │   ├── libraries.txt
 │   └── wokwi-project.txt
@@ -83,7 +88,7 @@ projetovinheria/
 │   └── CP5-Vinheria.postman_collection.json           # fork adaptado: entidade Vinheria, 4 comandos, 3 subscriptions
 ├── backend/
 │   ├── requirements.txt
-│   ├── .env.example
+│   ├── .env.example                # FIWARE_HOST (IP elástico), GEMINI_API_KEY, GEMINI_MODEL
 │   ├── app/
 │   │   ├── main.py                 # app FastAPI, CORS, lifespan (start/stop poller)
 │   │   ├── core/
@@ -275,7 +280,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 **Files:** criar `PRD.md`, `CLAUDE.md`, `README.md`, `docs/arquitetura.md`
 
-- [ ] **Passo 1:** escrever `PRD.md` com as seções: Visão e problema (monitoramento global de vinherias) · Objetivos e critérios de aceite mapeados nos pesos da nota · Personas (enólogo/operador, professor-avaliador) · Escopo (in/out) · Requisitos funcionais numerados RF01..RFnn (cadastro de device, gráficos dinâmicos, ajuste de triggers, alerta remoto com som distinto, chat IA, relatório, score, log de alertas, **cadastro de múltiplas vinherias com nome e cidade, visão geral da frota, detecção de offline, aviso global no site, chatbot multi-vinheria em linguagem natural**) · Requisitos não funcionais (IP da EC2 trocável em runtime, código comentado, encapsulamento em camadas, rodar local) · Arquitetura em camadas (copiar o bloco deste plano) · Contratos FIWARE e tabela de alertas · Riscos (IP dinâmico, DHT-11 vs DHT-22, limites do free tier, chave Gemini, 5 instâncias simultâneas na demo, `TimeInstant` ausente quebrando o offline) · Cronograma até 26/10/2026 · Entregáveis (GitHub, .ino, dashboard+requirements.txt, link Wokwi, vídeo, Forms).
+- [ ] **Passo 1:** escrever `PRD.md` com as seções: Visão e problema (monitoramento global de vinherias) · Objetivos e critérios de aceite mapeados nos pesos da nota · Personas (enólogo/operador, professor-avaliador) · Escopo (in/out) · Requisitos funcionais numerados RF01..RFnn (cadastro de device, gráficos dinâmicos, ajuste de triggers, alerta remoto com som distinto, chat IA, relatório, score, log de alertas, **cadastro de múltiplas vinherias com nome e cidade, visão geral da frota, detecção de offline, aviso global no site, chatbot multi-vinheria em linguagem natural**) · Requisitos não funcionais (IP da EC2 trocável em runtime, código comentado, encapsulamento em camadas, rodar local) · Arquitetura em camadas (copiar o bloco deste plano) · Contratos FIWARE e tabela de alertas · Riscos (IP elástico: cobrança da AWS por IPv4 público mesmo com a EC2 desligada fora do free tier, e IP exposto no firmware público — portas abertas sem autenticação; DHT-11 vs DHT-22, limites do free tier, chave Gemini, 5 instâncias simultâneas na demo, `TimeInstant` ausente quebrando o offline) · Cronograma até 26/10/2026 · Entregáveis (GitHub, .ino, dashboard+requirements.txt, link Wokwi, vídeo, Forms).
 - [x] **Passo 2 (FEITO):** `CLAUDE.md` já escrito na raiz — contrato Opus planeja / Sonnet executa, formato obrigatório de plano (Contexto → Objetivo → Detalhes técnicos → Ferramentas → Passos → Verificação), passos de 2–5 min com evidência e commit por passo, stack fixada, regras de camadas e nomes canônicos. Conteúdo original previsto: stack fixada (FastAPI + React JS puro + Gemini), estrutura de pastas, regras — comentários em português, nada hardcoded, camadas não se cruzam (rota não chama `httpx` direto; só `services`), testes com `pytest` + `respx`, não commitar `.env`, nomes de entidade/atributos/comandos canônicos, convenção de commits, comandos de dev (`uvicorn app.main:app --reload`, `npm run dev`).
 - [ ] **Passo 3:** `README.md` com integrantes (Eduarda Soares Moraes RM569369, Isac Nilton Fernandes de Oliveira RM573282, João Benedito de Oliveira Simplício RM570206, Julia Souza Matarazzo RM571340, Mariana Malagutti Gomes Peixoto RM570290), descrição da solução, placeholders de links (Wokwi, vídeo) e sumário dos manuais.
 - [ ] **Passo 4:** `docs/arquitetura.md` com o diagrama em camadas (mermaid), mostrando N devices publicando no mesmo Mosquitto/IoT Agent, e o fluxo sensor → MQTT → IoT Agent → Orion → STH → backend → React, mais o fluxo reverso de comando.
@@ -295,13 +300,64 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 - [ ] **Passo 6b (multi-instância):** agrupar no topo do `.ino` um bloco `// ===== CONFIGURAÇÃO DESTA INSTÂNCIA =====` com `ID_DEVICE`, `SSID`, `PASSWORD`, `BROKER_MQTT` e `DHTTYPE` (cada computador edita só ele). Rodar uma segunda instância Wokwi com `vinheria002` e confirmar no Serial que os tópicos `/TEF/vinheria002/*` estão separados dos de `vinheria001`.
 - [ ] **Passo 7:** commit `feat: add ESP32 firmware with DHT, LDR and multi-pattern alerts`.
 
+### Task 1B: Marca Smart Solutions, animação de boot no LCD e IP elástico
+
+**Contexto.** Revisão 2. O boot atual (`logo()` em `firmware/vinheria_full.ino`) mostra "Smart Solutions / Vinheria Agn." e "Inicializando...". O nome "Vinheria Agnello" sai do projeto, e a equipe quer uma animação de marca. O IP da EC2 agora é elástico, então o `BROKER_MQTT` pode ser fixo no bloco de configuração. Vem depois do Passo 6b da Task 1 (que cria o bloco `CONFIGURAÇÃO DESTA INSTÂNCIA`) e antes do commit final da Task 1. Nada depois depende dela, exceto o manual de hardware (Task 8), que cita a sequência de boot.
+
+**Objetivo.** No Wokwi, ao ligar o ESP32, o LCD mostra "Smart Solutions" centralizado por 2 s, depois uma animação de ~4 s de um cacho de uva sendo espremido e enchendo uma taça, depois "Inicializando..." e o carrossel normal com os ícones de taça/gota/sol intactos. O ESP32 conecta ao Mosquitto pelo IP elástico sem edição antes da sessão.
+
+**Detalhes técnicos.**
+- Criar `firmware/boot_animacao.h` (o `.ino` já passa de 500 linhas). Conteúdo: bitmaps e `void animacaoBoot(LiquidCrystal_I2C& lcd)`, com comentários em português.
+- Restrição do hardware: o HD44780 guarda só **8 caracteres customizados** (slots 0–7), e os slots 0–3 já são usados por taça/gota/sol. A animação **redefine os slots 0–3 a cada quadro** com `lcd.createChar()`. O texto já impresso na tela muda sozinho quando o bitmap do slot muda.
+- Depois de cada `createChar`, chamar `lcd.setCursor()` antes de qualquer `write`/`print`, porque o `createChar` deixa o endereço apontando para a CGRAM.
+- Layout em 2×2 caracteres no centro da tela (colunas 7–8): slots 0 e 1 = cacho (linha 0), slots 2 e 3 = taça (linha 1). Cada caractere tem 5×8 px, então cada figura tem 10×8 px.
+- Bitmaps:
+  - `UVA[4][2][8]`: cheio → espremendo 1 → espremendo 2 → bagaço. As linhas de baixo do cacho podem mostrar a gota saindo.
+  - `TACA[6][2][8]`: vazia (só contorno) → líquido nos níveis 1 a 5. A primeira linha da taça pode mostrar a gota caindo.
+- Sequência (~300 ms por quadro):
+  1. Uva cheia + taça vazia.
+  2. Uva espremendo 1 e 2, com a gota aparecendo.
+  3. Taça subindo do nível 1 ao 5, com a uva alternando entre espremendo 1 e 2.
+  4. Uva bagaço + taça cheia, parado por 1 s.
+- `delay()` é permitido aqui: roda no `setup()`, antes do `loop()` (mesma justificativa do `logo()` atual). A regra de não usar `delay()` vale para os padrões de alerta.
+- Em `vinheria_full.ino`:
+  - `logo()` passa a fazer: tela "Smart Solutions" centralizada (`setCursor(0, 0)`; 15 caracteres em 16 colunas), linha 2 vazia, 2 s → `animacaoBoot(lcd)` → "Inicializando...".
+  - Em `setup()`, os 4 `lcd.createChar(...)` dos ícones normais passam para **depois** de `logo()`, para restaurar taça/gota/sol.
+  - Cabeçalho do arquivo: "Vinheria Full" → "Smart Solutions — monitoramento de vinherias".
+  - No bloco `CONFIGURAÇÃO DESTA INSTÂNCIA`, `BROKER_MQTT` recebe o IP elástico e o `TODO` sai.
+- Fora do firmware: `CLAUDE.md` §6, onde a frase "O IP da EC2 muda a cada boot..." vira "A EC2 usa IP elástico; o default vem do `.env` e pode ser trocado em runtime no painel Avançado do front, sem reiniciar o backend". No §9, o candidato a skill "trocar o IP da EC2" vira "subir o ambiente FIWARE e revalidar".
+
+**Ferramentas e requisitos.**
+- Nenhuma lib nova (`LiquidCrystal_I2C` já está em `libraries.txt`).
+- IP elástico alocado e associado à EC2 pelo usuário no console AWS (EC2 → Elastic IPs → Allocate → Associate). Informar o IP antes do passo 7.
+- Wokwi aberto. Lá é preciso **adicionar o arquivo `boot_animacao.h`** no projeto (botão "+" ao lado das abas). O mesmo vale para os 4 Wokwi das outras máquinas, que devem abrir o link do projeto atualizado.
+
+**Passos.**
+1. Criar `boot_animacao.h` só com o esqueleto: include guard, `#include <LiquidCrystal_I2C.h>` e `animacaoBoot()` vazia. Incluir no `.ino`. Resultado: o Wokwi compila e o boot fica igual. Commit.
+2. Desenhar os bitmaps `UVA` e `TACA` (cheia/vazia e os quadros intermediários) e implementar um único quadro estático (uva cheia + taça vazia, 2 s). Resultado: as figuras aparecem no Wokwi. **O usuário aprova o desenho** antes de seguir. Commit.
+3. Implementar a sequência completa de quadros. Resultado: a animação roda inteira no Wokwi e o usuário aprova o ritmo. Commit.
+4. Alterar `logo()`: "Smart Solutions" centralizado, linha 2 vazia, sem "Vinheria Agn.", chamando `animacaoBoot`. Resultado: a sequência nome → animação → "Inicializando..." aparece no Wokwi. Commit.
+5. Mover os `createChar` dos ícones normais para depois de `logo()` em `setup()`. Resultado: o carrossel mostra taça/gota/sol corretos após o boot. Commit.
+6. Atualizar o cabeçalho do `.ino` com o nome Smart Solutions. Commit.
+7. Colocar o IP elástico em `BROKER_MQTT` e remover o `TODO`. Resultado: o Serial mostra a conexão MQTT OK. Commit.
+8. Atualizar o `CLAUDE.md` §6 e §9 conforme acima. Commit.
+
+**Como verificar.**
+- Reiniciar a simulação no Wokwi e confirmar 4 coisas:
+  - (a) "Smart Solutions" centralizado por ~2 s, sem segunda linha;
+  - (b) uva espremendo e taça enchendo em ~4 s, terminando cheia;
+  - (c) "Inicializando...";
+  - (d) o carrossel com os ícones taça/gota/sol corretos, não os bitmaps da uva.
+- O Serial mostra a conexão MQTT no IP elástico sem nenhuma edição antes da sessão.
+- `grep -rn "Agn" firmware/` → nenhum resultado.
+
 ### Task 2: Backend — config, DB e cliente FIWARE
 
 **Files:** criar `backend/requirements.txt`, `.env.example`, `app/main.py`, `app/core/config.py`, `app/core/db.py`, `app/models/schemas.py`, `app/services/fiware_client.py`, `app/api/routes_config.py`, `tests/test_fiware_client.py`, `tests/test_config.py`
 **Multi-vinheria:** `config` inclui `offline_seconds` (default 30); schema `devices`: `device_id TEXT PK, entity_id TEXT, name TEXT, city TEXT, created_at TEXT`; service group com `"timestamp": true`.
 **Produces:** `ConfigStore.get()/update()`, `FiwareClient(base_cfg)` com `provision_service_group()`, `provision_device(device)`, `register_commands(device)`, `subscribe_attr(device, attr)`, `get_entity(entity_id)`, `list_entities(entity_type)` (`GET :1026/v2/entities?type=Vinheria&options=keyValues`, devolve `TimeInstant`), `send_command(entity_id, command)`, `query_history(entity_type, entity_id, attr, last_n=None, date_from=None, date_to=None)`, `health()`.
 
-- [ ] **Passo 1:** teste falhando — `ConfigStore` persiste `ec2_ip` no SQLite e `FiwareClient` monta URLs `http://<ip>:1026/...`, `:4041`, `:8666` a partir do config atual (trocar o IP troca a URL sem reiniciar o app).
+- [ ] **Passo 1:** teste falhando — `ConfigStore` usa `FIWARE_HOST` do `.env` como `ec2_ip` quando o SQLite ainda não tem valor salvo, persiste `ec2_ip` no SQLite quando atualizado, e `FiwareClient` monta URLs `http://<ip>:1026/...`, `:4041`, `:8666` a partir do config atual (trocar o IP troca a URL sem reiniciar o app).
 - [ ] **Passo 2:** rodar `pytest backend/tests -v` → falha.
 - [ ] **Passo 3:** implementar `config.py` (Settings via `.env` + ConfigStore em SQLite), `db.py` (schema: `config`, `devices`, `triggers`, `alerts`), `schemas.py`, `fiware_client.py` (httpx, headers `fiware-service`/`fiware-servicepath`, timeouts, erros traduzidos em `HTTPException`), `routes_config.py` (GET/PUT + `/health` pingando as três portas).
 - [ ] **Passo 4:** `main.py` com CORS liberado para `http://localhost:5173` e inclusão dos routers; rodar `pytest` → passa; subir `uvicorn app.main:app --reload` e checar `/docs`.
@@ -334,11 +390,13 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 **Files:** criar `frontend/package.json`, `vite.config.js`, `index.html`, `src/main.jsx`, `src/App.jsx`, `src/api/client.js`, `src/context/ConfigContext.jsx`, `src/context/FleetContext.jsx`, `src/components/FiwareBar.jsx`, `AlertBanner.jsx`, `DeviceForm.jsx`, `DeviceList.jsx`, `src/pages/Devices.jsx`
 **Consumes:** `/api/config`, `/api/devices`, `/api/fleet`.
+
+> **Gate de design (vale para as Tasks 5, 6 e 7A no front):** antes de qualquer passo de front-end, o usuário envia anexos e exemplos de referência (modelo, layout, cores, tipografia, estilo). Nenhuma decisão visual é tomada antes disso. Fluxo: receber as referências → planejar o design system e os layouts em Opus (cores, fontes, componentes, telas) e registrar neste plano → só então o Sonnet implementa. Os passos abaixo definem estrutura e comportamento, não aparência.
 **Rotas:** `/` Visão Geral · `/vinherias/:id` detalhe · `/alertas` · `/dispositivos` · `/chat`.
 
 - [ ] **Passo 1:** scaffold Vite + React (JS), instalar deps, `vite.config.js` com proxy `/api` → `http://localhost:8000`.
 - [ ] **Passo 2:** `client.js` — wrapper `request(path, options)` com base URL do backend (`localStorage`, default `http://localhost:8000`) e tratamento de erro padronizado.
-- [ ] **Passo 3:** `ConfigContext` carrega `/api/config` no mount e expõe `config`/`saveConfig`; `FiwareBar` fixo no topo com input do **IP da EC2**, botão Salvar e indicador verde/vermelho vindo de `/api/config/health` (revalida a cada 30 s). Esse é o único lugar onde o IP é digitado.
+- [ ] **Passo 3:** `ConfigContext` carrega `/api/config` no mount e expõe `config`/`saveConfig`; `FiwareBar` fixo no topo com o nome **Smart Solutions**, indicador verde/vermelho vindo de `/api/config/health` (revalida a cada 30 s) e o IP do FIWARE em um painel "Avançado" recolhido (input + Salvar). O IP já vem do `.env` (IP elástico); esse painel é o único lugar onde ele pode ser trocado. `<title>` do `index.html`: "Smart Solutions — Monitoramento de Vinherias".
 - [ ] **Passo 4:** página Devices — formulário (`device_id`, nome, cidade) + lista com status e botão excluir.
 - [ ] **Passo 4b:** `FleetContext` faz polling de `/api/fleet` a cada 5 s, guarda o snapshot anterior e gera eventos nas transições `ok→alerta`, `*→offline` e `offline→ok`. `AlertBanner` mostra faixa fixa enquanto houver vinheria em alerta ou offline, mais toasts empilháveis e fecháveis por evento, com link para `/vinherias/:id`.
 - [ ] **Passo 5 (teste):** `npm run dev`, trocar o IP com a EC2 desligada (indicador vermelho) e ligada (verde); cadastrar e remover um device; parar um Wokwi e ver o toast de offline em até ~35 s.
@@ -395,7 +453,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 **Files:** criar `docs/manual-hardware.md`, `docs/manual-software.md`, `postman/CP5-Vinheria.postman_collection.json`; modificar `README.md`, `PRD.md`
 
 - [ ] **Passo 1:** `manual-hardware.md` — lista de materiais, tabela de pinagem (DHT-11 GPIO 4, LDR GPIO 34, buzzer GPIO 5, LED azul GPIO 2), esquema de montagem, cuidados (resistor de pull-up do DHT, divisor do LDR) e diferenças DHT-11 vs DHT-22.
-- [ ] **Passo 2:** `manual-software.md` — subir a EC2, `docker-compose up -d` do `fabiocabrini/fiware`, portas no Security Group (1026, 4041, 8666, 1883), provisionamento via Postman, instalar/rodar backend (`pip install -r requirements.txt`, `.env`, `uvicorn`) e front (`npm install`, `npm run dev`), **procedimento de troca de IP após reiniciar a EC2** e troubleshooting. Incluir a seção **"Rodar uma vinheria Wokwi em outro computador"**: abrir o link do Wokwi, editar o bloco `CONFIGURAÇÃO DESTA INSTÂNCIA` (`ID_DEVICE`, `BROKER_MQTT`), Start e cadastrar a vinheria no site (`device_id`, nome, cidade).
+- [ ] **Passo 2:** `manual-software.md` — subir a EC2, `docker-compose up -d` do `fabiocabrini/fiware`, portas no Security Group (1026, 4041, 8666, 1883), provisionamento via Postman, instalar/rodar backend (`pip install -r requirements.txt`, `.env`, `uvicorn`) e front (`npm install`, `npm run dev`), **alocar e associar o IP elástico à EC2** (e o que fazer se precisar trocá-lo: `.env`, bloco do firmware, variável `{{url}}` do Postman, painel Avançado do site) e troubleshooting. Incluir a seção **"Rodar uma vinheria Wokwi em outro computador"**: abrir o link do Wokwi, editar o bloco `CONFIGURAÇÃO DESTA INSTÂNCIA` (`ID_DEVICE`, `BROKER_MQTT`), Start e cadastrar a vinheria no site (`device_id`, nome, cidade).
 - [ ] **Passo 3:** criar `postman/CP5-Vinheria.postman_collection.json` a partir da collection base do professor: variável `{{url}}` mantida, entidade `urn:ngsi-ld:Vinheria:001`/type `Vinheria` (variáveis para trocar o `00N` e provisionar as outras vinherias), os 4 comandos no provisionamento e na registration, e as 3 subscriptions (temperature, humidity, luminosity) — remover os requests de Lamp que não se aplicam.
 - [ ] **Passo 4:** finalizar `README.md` (arquitetura em camadas, links do Wokwi e do vídeo, prints do dashboard) e revisar o `PRD.md` contra o que foi construído.
 - [ ] **Passo 5:** roteiro do pitch/vídeo em `docs/` (problema → arquitetura → demo ao vivo com as 5 vinherias, alerta e offline → chatbot → diferenciais → encerramento), 5–7 min. Ensaiar com as 5 instâncias (1 física + 4 Wokwi).
@@ -406,7 +464,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 ## Verificação end-to-end (ensaio do hands-on)
 
 1. EC2 ligada; `docker ps` mostra orion, iot-agent, sth-comet, mosquitto, mongo.
-2. `GET /api/config/health` com o IP novo → três portas OK.
+2. Backend recém-iniciado, sem digitar IP: `GET /api/config/health` usa o IP elástico do `.env` → três portas OK.
 3. 5 instâncias ligadas (1 física + 4 Wokwi, `vinheria001` a `vinheria005`) e cadastradas; a Visão Geral mostra 5 cards verdes. `GET /api/devices/vinheria001/current` retorna `t`, `h`, `l`.
 4. `GET /api/devices/vinheria001/history?attr=t&lastN=20` retorna série do STH e o gráfico desenha.
 5. Pelo front, baixar o máximo de temperatura **só da vinheria002** → apenas o LED/buzzer dela reage (LED azul a 500 ms + 2 bipes curtos); banner aparece e os outros cards seguem verdes. Subir o limite de novo → para. Repetir para umidade (bipe longo) e luminosidade (3 bipes rápidos).
