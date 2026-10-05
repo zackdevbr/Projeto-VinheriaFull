@@ -275,10 +275,10 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 **Files:** criar `PRD.md`, `CLAUDE.md`, `README.md`, `docs/arquitetura.md`
 
-- [ ] **Passo 1:** escrever `PRD.md` com as seções: Visão e problema (monitoramento global de vinherias) · Objetivos e critérios de aceite mapeados nos pesos da nota · Personas (enólogo/operador, professor-avaliador) · Escopo (in/out) · Requisitos funcionais numerados RF01..RFnn (cadastro de device, gráficos dinâmicos, ajuste de triggers, alerta remoto com som distinto, chat IA, relatório, score, log de alertas) · Requisitos não funcionais (IP da EC2 trocável em runtime, código comentado, encapsulamento em camadas, rodar local) · Arquitetura em camadas (copiar o bloco deste plano) · Contratos FIWARE e tabela de alertas · Riscos (IP dinâmico, DHT-11 vs DHT-22, limites do free tier, chave Gemini) · Cronograma até 26/10/2026 · Entregáveis (GitHub, .ino, dashboard+requirements.txt, link Wokwi, vídeo, Forms).
+- [ ] **Passo 1:** escrever `PRD.md` com as seções: Visão e problema (monitoramento global de vinherias) · Objetivos e critérios de aceite mapeados nos pesos da nota · Personas (enólogo/operador, professor-avaliador) · Escopo (in/out) · Requisitos funcionais numerados RF01..RFnn (cadastro de device, gráficos dinâmicos, ajuste de triggers, alerta remoto com som distinto, chat IA, relatório, score, log de alertas, **cadastro de múltiplas vinherias com nome e cidade, visão geral da frota, detecção de offline, aviso global no site, chatbot multi-vinheria em linguagem natural**) · Requisitos não funcionais (IP da EC2 trocável em runtime, código comentado, encapsulamento em camadas, rodar local) · Arquitetura em camadas (copiar o bloco deste plano) · Contratos FIWARE e tabela de alertas · Riscos (IP dinâmico, DHT-11 vs DHT-22, limites do free tier, chave Gemini, 5 instâncias simultâneas na demo, `TimeInstant` ausente quebrando o offline) · Cronograma até 26/10/2026 · Entregáveis (GitHub, .ino, dashboard+requirements.txt, link Wokwi, vídeo, Forms).
 - [x] **Passo 2 (FEITO):** `CLAUDE.md` já escrito na raiz — contrato Opus planeja / Sonnet executa, formato obrigatório de plano (Contexto → Objetivo → Detalhes técnicos → Ferramentas → Passos → Verificação), passos de 2–5 min com evidência e commit por passo, stack fixada, regras de camadas e nomes canônicos. Conteúdo original previsto: stack fixada (FastAPI + React JS puro + Gemini), estrutura de pastas, regras — comentários em português, nada hardcoded, camadas não se cruzam (rota não chama `httpx` direto; só `services`), testes com `pytest` + `respx`, não commitar `.env`, nomes de entidade/atributos/comandos canônicos, convenção de commits, comandos de dev (`uvicorn app.main:app --reload`, `npm run dev`).
 - [ ] **Passo 3:** `README.md` com integrantes (Eduarda Soares Moraes RM569369, Isac Nilton Fernandes de Oliveira RM573282, João Benedito de Oliveira Simplício RM570206, Julia Souza Matarazzo RM571340, Mariana Malagutti Gomes Peixoto RM570290), descrição da solução, placeholders de links (Wokwi, vídeo) e sumário dos manuais.
-- [ ] **Passo 4:** `docs/arquitetura.md` com o diagrama em camadas (mermaid) e o fluxo sensor → MQTT → IoT Agent → Orion → STH → backend → React, mais o fluxo reverso de comando.
+- [ ] **Passo 4:** `docs/arquitetura.md` com o diagrama em camadas (mermaid), mostrando N devices publicando no mesmo Mosquitto/IoT Agent, e o fluxo sensor → MQTT → IoT Agent → Orion → STH → backend → React, mais o fluxo reverso de comando.
 - [ ] **Passo 5:** commit `docs: add PRD, CLAUDE.md and architecture baseline`.
 
 ### Task 1: Firmware ESP32 (`firmware/vinheria_full.ino`)
@@ -292,12 +292,14 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 - [ ] **Passo 4:** implementar máquina de estado de alerta não bloqueante (`millis()`): variável `alertMode` ∈ {NONE, TEMP, HUM, LUX}; LED azul (GPIO 2) e buzzer (GPIO 5, `tone`/`ledcWriteTone`) seguindo a tabela de padrões; comandos `blink_temp|blink_hum|blink_lux|alert_off` no callback MQTT; responder em `/TEF/vinheria001/cmdexe` com `vinheria001@<cmd>|ok`.
 - [ ] **Passo 5:** montar `diagram.json` do Wokwi (ESP32 + DHT22 + LDR + buzzer + LED azul + resistores) e `libraries.txt` (`PubSubClient`, `DHT sensor library`, `Adafruit Unified Sensor`).
 - [ ] **Passo 6 (teste):** rodar no Wokwi, conferir no Serial a publicação e, via Postman (`PATCH` command), ver LED/buzzer mudarem de padrão por anomalia e pararem com `alert_off`.
+- [ ] **Passo 6b (multi-instância):** agrupar no topo do `.ino` um bloco `// ===== CONFIGURAÇÃO DESTA INSTÂNCIA =====` com `ID_DEVICE`, `SSID`, `PASSWORD`, `BROKER_MQTT` e `DHTTYPE` (cada computador edita só ele). Rodar uma segunda instância Wokwi com `vinheria002` e confirmar no Serial que os tópicos `/TEF/vinheria002/*` estão separados dos de `vinheria001`.
 - [ ] **Passo 7:** commit `feat: add ESP32 firmware with DHT, LDR and multi-pattern alerts`.
 
 ### Task 2: Backend — config, DB e cliente FIWARE
 
 **Files:** criar `backend/requirements.txt`, `.env.example`, `app/main.py`, `app/core/config.py`, `app/core/db.py`, `app/models/schemas.py`, `app/services/fiware_client.py`, `app/api/routes_config.py`, `tests/test_fiware_client.py`, `tests/test_config.py`
-**Produces:** `ConfigStore.get()/update()`, `FiwareClient(base_cfg)` com `provision_service_group()`, `provision_device(device)`, `register_commands(device)`, `subscribe_attr(device, attr)`, `get_entity(entity_id)`, `send_command(entity_id, command)`, `query_history(entity_type, entity_id, attr, last_n=None, date_from=None, date_to=None)`, `health()`.
+**Multi-vinheria:** `config` inclui `offline_seconds` (default 30); schema `devices`: `device_id TEXT PK, entity_id TEXT, name TEXT, city TEXT, created_at TEXT`; service group com `"timestamp": true`.
+**Produces:** `ConfigStore.get()/update()`, `FiwareClient(base_cfg)` com `provision_service_group()`, `provision_device(device)`, `register_commands(device)`, `subscribe_attr(device, attr)`, `get_entity(entity_id)`, `list_entities(entity_type)` (`GET :1026/v2/entities?type=Vinheria&options=keyValues`, devolve `TimeInstant`), `send_command(entity_id, command)`, `query_history(entity_type, entity_id, attr, last_n=None, date_from=None, date_to=None)`, `health()`.
 
 - [ ] **Passo 1:** teste falhando — `ConfigStore` persiste `ec2_ip` no SQLite e `FiwareClient` monta URLs `http://<ip>:1026/...`, `:4041`, `:8666` a partir do config atual (trocar o IP troca a URL sem reiniciar o app).
 - [ ] **Passo 2:** rodar `pytest backend/tests -v` → falha.
@@ -308,20 +310,21 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 ### Task 3: Backend — cadastro de devices e leitura de dados
 
 **Files:** criar `app/services/device_registry.py`, `app/services/quality_score.py`, `app/api/routes_devices.py`, `app/api/routes_data.py`, `tests/test_device_registry.py`, `tests/test_quality_score.py`
-**Consumes:** `FiwareClient`, `ConfigStore`. **Produces:** `DeviceRegistry.create/list/delete`, `quality_score(reading)`.
+**Consumes:** `FiwareClient`, `ConfigStore`. **Produces:** `DeviceRegistry.create(device_id, name, city)/list/delete`, `resolve_vinheria(texto) -> Device` (lança `AmbiguousVinheria(options)` ou `VinheriaNotFound`), `quality_score(reading)`.
 
+- [ ] **Passo 0 (multi-vinheria):** `create_device` valida `^vinheria\d{3}$` e deriva `entity_id`; `resolve_vinheria` normaliza (sem acento, minúsculas) e casa primeiro com o id, depois com nome/cidade. Testes: cadastrar 2 devices gera 2× a sequência de provisionamento; resolver com "sao paulo", "São Paulo", "vinheria002", "vinheria" (ambíguo) e "Recife" (não encontrado).
 - [ ] **Passo 1:** teste falhando — `create_device` grava no SQLite e executa a sequência completa de provisionamento (service group → device → `register_commands` → `subscribe_attr` para os 3 atributos), devolvendo o device com `entity_name` derivado do id; `quality_score` devolve 100 em condição ideal (temp 12–18 °C, umid 50–70 %, luz ≤ 30 %) e penaliza proporcionalmente fora dela.
 - [ ] **Passo 2:** rodar os testes → falham (mock HTTP com `respx`).
 - [ ] **Passo 3:** implementar registry (rollback no SQLite se o provisionamento falhar), `quality_score`, rotas de device (POST/GET/DELETE), rotas de dados (`/current`, `/history` com `lastN` ou janela de datas, `/score`), normalizando a resposta do STH para `[{ "ts": iso, "value": float }]`.
-- [ ] **Passo 4:** testes passam; smoke real contra a EC2: cadastrar `vinheria001` e ver o Wokwi aparecer no Orion.
+- [ ] **Passo 4:** testes passam; smoke real contra a EC2: cadastrar `vinheria001` e ver o Wokwi aparecer no Orion, **com `TimeInstant` atualizando a cada leitura**. Se o campo não vier, parar e voltar ao planejamento (a detecção de offline depende dele).
 - [ ] **Passo 5:** commit `feat: add device registry, history queries and quality score`.
 
 ### Task 4: Backend — triggers, poller e log de alertas
 
-**Files:** criar `app/services/trigger_engine.py`, `app/services/alert_log.py`, `app/api/routes_triggers.py`, `app/api/routes_alerts.py`, `tests/test_trigger_engine.py`; modificar `app/main.py` (lifespan start/stop da task)
-**Consumes:** `FiwareClient`, `DeviceRegistry`. **Produces:** `TriggerEngine.tick()` (uma passada, testável sem loop), `TriggerEngine.run()` (loop asyncio), `AlertLog.open/close/list`.
+**Files:** criar `app/services/trigger_engine.py`, `app/services/fleet_state.py`, `app/services/alert_log.py`, `app/api/routes_triggers.py`, `app/api/routes_alerts.py`, `app/api/routes_fleet.py`, `tests/test_trigger_engine.py`, `tests/test_fleet.py`; modificar `app/main.py` (lifespan start/stop da task)
+**Consumes:** `FiwareClient`, `DeviceRegistry`. **Produces:** `TriggerEngine.tick()` (uma passada, testável sem loop; faz uma chamada `list_entities` e avalia triggers e offline de cada device cadastrado), `TriggerEngine.run()` (loop asyncio), `AlertLog.open/close/list`, `FleetState.snapshot() -> list[VinheriaStatus]`, `GET /api/fleet`.
 
-- [ ] **Passo 1:** teste falhando com leituras sintéticas — valor acima do máximo dispara exatamente um `blink_temp` e abre um alerta; segundo tick com o mesmo valor **não** reenvia comando; retorno à faixa envia `alert_off` e fecha o alerta; duas anomalias simultâneas mantêm o alerta ativo até a última normalizar.
+- [ ] **Passo 1:** teste falhando com leituras sintéticas — valor acima do máximo dispara exatamente um `blink_temp` e abre um alerta; segundo tick com o mesmo valor **não** reenvia comando; retorno à faixa envia `alert_off` e fecha o alerta; duas anomalias simultâneas mantêm o alerta ativo até a última normalizar. Offline: device sem atualização há mais de `offline_seconds` abre alerta `attr="offline"` e não recebe comando; ao voltar, o alerta fecha. Um device em alerta não altera o estado dos outros.
 - [ ] **Passo 2:** rodar → falha.
 - [ ] **Passo 3:** implementar `trigger_engine` (dict de estado por `(device_id, attr)`, histerese configurável, `tick()` puro + `run()` com `asyncio.sleep(poll_seconds)`), `alert_log`, rotas de triggers (GET/PUT por device, defaults de vinheria) e de alertas; iniciar/parar a task no lifespan do FastAPI.
 - [ ] **Passo 4:** testes passam; teste manual: baixar o máximo de temperatura pelo `PUT /triggers` e ver o ESP32 piscar/apitar, depois voltar e ver parar.
@@ -329,25 +332,29 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 5: Front-end React — base, config de IP e devices
 
-**Files:** criar `frontend/package.json`, `vite.config.js`, `index.html`, `src/main.jsx`, `src/App.jsx`, `src/api/client.js`, `src/context/ConfigContext.jsx`, `src/components/FiwareBar.jsx`, `DeviceForm.jsx`, `DeviceList.jsx`, `src/pages/Devices.jsx`
-**Consumes:** `/api/config`, `/api/devices`.
+**Files:** criar `frontend/package.json`, `vite.config.js`, `index.html`, `src/main.jsx`, `src/App.jsx`, `src/api/client.js`, `src/context/ConfigContext.jsx`, `src/context/FleetContext.jsx`, `src/components/FiwareBar.jsx`, `AlertBanner.jsx`, `DeviceForm.jsx`, `DeviceList.jsx`, `src/pages/Devices.jsx`
+**Consumes:** `/api/config`, `/api/devices`, `/api/fleet`.
+**Rotas:** `/` Visão Geral · `/vinherias/:id` detalhe · `/alertas` · `/dispositivos` · `/chat`.
 
 - [ ] **Passo 1:** scaffold Vite + React (JS), instalar deps, `vite.config.js` com proxy `/api` → `http://localhost:8000`.
 - [ ] **Passo 2:** `client.js` — wrapper `request(path, options)` com base URL do backend (`localStorage`, default `http://localhost:8000`) e tratamento de erro padronizado.
 - [ ] **Passo 3:** `ConfigContext` carrega `/api/config` no mount e expõe `config`/`saveConfig`; `FiwareBar` fixo no topo com input do **IP da EC2**, botão Salvar e indicador verde/vermelho vindo de `/api/config/health` (revalida a cada 30 s). Esse é o único lugar onde o IP é digitado.
-- [ ] **Passo 4:** página Devices — formulário (device_id, entity_type, rótulo/local) + lista com status e botão excluir.
-- [ ] **Passo 5 (teste):** `npm run dev`, trocar o IP com a EC2 desligada (indicador vermelho) e ligada (verde); cadastrar e remover um device.
+- [ ] **Passo 4:** página Devices — formulário (`device_id`, nome, cidade) + lista com status e botão excluir.
+- [ ] **Passo 4b:** `FleetContext` faz polling de `/api/fleet` a cada 5 s, guarda o snapshot anterior e gera eventos nas transições `ok→alerta`, `*→offline` e `offline→ok`. `AlertBanner` mostra faixa fixa enquanto houver vinheria em alerta ou offline, mais toasts empilháveis e fecháveis por evento, com link para `/vinherias/:id`.
+- [ ] **Passo 5 (teste):** `npm run dev`, trocar o IP com a EC2 desligada (indicador vermelho) e ligada (verde); cadastrar e remover um device; parar um Wokwi e ver o toast de offline em até ~35 s.
 - [ ] **Passo 6:** commit `feat: add React dashboard shell with runtime FIWARE IP config and device CRUD`.
 
-### Task 6: Front-end — gráficos dinâmicos, triggers, alertas e score
+### Task 6: Front-end — visão geral, gráficos dinâmicos, triggers, alertas e score
 
-**Files:** criar `src/components/SensorChart.jsx`, `GaugeScore.jsx`, `TriggerPanel.jsx`, `AlertTimeline.jsx`, `src/pages/Dashboard.jsx`, `Triggers.jsx`, `Alerts.jsx`
+**Files:** criar `src/components/SensorChart.jsx`, `GaugeScore.jsx`, `TriggerPanel.jsx`, `AlertTimeline.jsx`, `VinheriaCard.jsx`, `src/pages/Overview.jsx`, `VinheriaDetail.jsx`, `Alerts.jsx`
+
+- [ ] **Passo 0:** `Overview` + `VinheriaCard` — grid de cards com nome, cidade, cor do status (verde/vermelho/cinza), valores atuais, score e "visto há Ns", alimentados por `FleetContext`; clicar abre `/vinherias/:id`.
 
 - [ ] **Passo 1:** `SensorChart` — `react-chartjs-2` Line, props `deviceId`/`attr`/`lastN`, auto-refresh a cada 10 s, seletor de janela (lastN 20/50/100 ou dateFrom–dateTo), linhas tracejadas nos limites do trigger.
-- [ ] **Passo 2:** `Dashboard` — três cards (temperatura, umidade, luminosidade) com valor atual + gráfico, `GaugeScore` com o score e semáforo, e badge de alerta ativo.
+- [ ] **Passo 2:** `VinheriaDetail` (rota `/vinherias/:id`) — três cards (temperatura, umidade, luminosidade) com valor atual + gráfico, `GaugeScore` com o score e semáforo, badge de alerta ativo, `TriggerPanel` e timeline da vinheria.
 - [ ] **Passo 3:** `TriggerPanel` — min/max para os três atributos com validação (min < max), salvando em `PUT /api/devices/{id}/triggers`; feedback de sucesso.
-- [ ] **Passo 4:** `AlertTimeline` — lista de `/api/alerts` com tipo, valor, início, fim e duração.
-- [ ] **Passo 5 (teste):** com o Wokwi rodando, apertar o LDR/temperatura no simulador e ver gráfico, badge, timeline e o ESP32 reagindo.
+- [ ] **Passo 4:** `AlertTimeline` — lista de `/api/alerts` com tipo (incluindo `offline`), valor, início, fim e duração; página `/alertas` com a timeline global e filtro por vinheria.
+- [ ] **Passo 5 (teste):** com 2 ou mais Wokwi rodando, apertar o LDR/temperatura em um deles e ver só o card, o gráfico, o badge, a timeline e o ESP32 daquela vinheria reagirem, enquanto as outras seguem verdes.
 - [ ] **Passo 6:** commit `feat: add dynamic charts, trigger tuning, score gauge and alert timeline`.
 
 ### Task 7: Diferencial — chatbot Gemini e relatórios
