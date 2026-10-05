@@ -369,9 +369,12 @@ void reconectarMQTT() {
 }
 
 // Lê o LDR e converte para percentual de luminosidade (0-100%).
+// Invertido de propósito: no módulo de LDR usado, o pino AO sobe quando
+// escurece (resistência do LDR cresce no escuro). Sem a inversão, 100% de
+// luz no simulador aparecia como 0% na tela.
 int lerLuminosidade() {
   int leituraAdc = analogRead(LDRPIN);
-  return map(leituraAdc, 0, 4095, 0, 100);
+  return map(leituraAdc, 0, 4095, 100, 0);
 }
 
 // --- Publicação periódica de telemetria (não bloqueante via millis) ---
