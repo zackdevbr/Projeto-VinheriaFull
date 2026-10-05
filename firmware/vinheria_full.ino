@@ -10,6 +10,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <time.h>
+#include "boot_animacao.h"
 
 // ===== CONFIGURAÇÃO DESTA INSTÂNCIA =====
 // Único bloco a editar ao rodar o firmware em outro computador ou ESP32.
