@@ -6,7 +6,7 @@ Instruções de trabalho para agentes neste repositório. Leia antes de qualquer
 
 Check Point 5 de Edge Computing & Computer Systems (FIAP, Prof. Dr. Fábio H. Cabrini) — entrega em 26/10/2026.
 
-Solução de monitoramento de vinherias: ESP32 com DHT-11 (DHT-22 no Wokwi), LDR, buzzer e LED azul, integrado ao FIWARE rodando em AWS EC2, com dashboard web para cadastro de IoT Devices, gráficos históricos do STH-Comet, ajuste de triggers e disparo remoto de alertas sonoros e visuais.
+Solução de monitoramento de vinherias: ESP32 com DHT-11 (DHT-22 no Wokwi), LDR, buzzer e LED azul, integrado ao FIWARE rodando em AWS EC2, com dashboard web para cadastro de múltiplas vinherias (IoT Devices), visão geral com status e alertas de cada uma, chatbot que responde por vinheria, gráficos históricos do STH-Comet, ajuste de triggers e disparo remoto de alertas sonoros e visuais.
 
 Plano completo e autoritativo: `PLANO-CP5-VINHERIA.md`. Em caso de divergência entre este arquivo e o plano, o plano manda nos detalhes de implementação; este arquivo manda no processo de trabalho.
 
@@ -64,7 +64,7 @@ Não trocar sem decisão explícita do usuário.
 - **Nada hardcoded** em módulo de lógica: IP, portas, API key e chaves saem de `ConfigStore` ou `.env`. O IP da EC2 muda a cada boot da máquina — ele é digitado em um único lugar no front e vale para todo o sistema em runtime, sem reiniciar o backend.
 - Arquivos focados. Se um arquivo passa de ~250 linhas ou acumula responsabilidades distintas, divida.
 - Nomes canônicos do FIWARE (não inventar variações):
-  - device `vinheria001`, entity `urn:ngsi-ld:Vinheria:001`, type `Vinheria`
+  - device `vinheria00N`, entity `urn:ngsi-ld:Vinheria:00N`, type `Vinheria` (N = 1, 2, 3...; `vinheria001` é o exemplo). Cada vinheria tem também nome e cidade no cadastro.
   - headers `fiware-service: smart`, `fiware-servicepath: /`, apikey `TEF`
   - UltraLight curto: `t`, `h`, `l` · nomes longos no Orion/STH: `temperature`, `humidity`, `luminosity`
   - comandos: `blink_temp`, `blink_hum`, `blink_lux`, `alert_off`
@@ -112,4 +112,4 @@ Clareza vence compressão em avisos de segurança, confirmações de ação irre
 
 ## 11. Ordem de execução
 
-Tasks 0 a 6 do `PLANO-CP5-VINHERIA.md` primeiro. Task 7 (chatbot Gemini, relatórios, `.gitignore`, `.env`) foi adiada por decisão do usuário e só começa quando ele pedir. Task 8 (manuais, Postman, README final) fecha a entrega.
+Ordem do `PLANO-CP5-VINHERIA.md`: Task 1 (firmware) → Task 0 → Tasks 2 a 6 → Task 7A (chatbot Gemini multi-vinheria, `.gitignore`, `.env`) → Task 7B (relatórios CSV/PDF, primeiro corte se o prazo apertar) → Task 8 (manuais, Postman, README final), que fecha a entrega. O chatbot deixou de ser adiado na revisão de escopo de 05/10/2026 (múltiplas vinherias, decisão tomada após conversa com o professor).
