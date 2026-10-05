@@ -491,9 +491,7 @@ void atualizarAlerta() {
 void logo() {
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Smart Solutions");
-  lcd.setCursor(0, 1);
-  lcd.print("Vinheria Agn.");
+  lcd.print("Smart Solutions"); // 15 colunas de 16; a linha 2 fica vazia
   delay(2000);
   animacaoBoot(lcd);
   lcd.clear();
