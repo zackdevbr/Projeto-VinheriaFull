@@ -239,7 +239,7 @@ npm run dev                 # http://localhost:5173
 
 | Documento | Conteúdo | Status |
 |---|---|---|
-| [`docs/arquitetura.md`](docs/arquitetura.md) | Diagrama em camadas, fluxos de telemetria e de comando | em construção |
+| [`docs/arquitetura.md`](docs/arquitetura.md) | Diagrama em camadas, fluxos de telemetria e de comando | pronto |
 | [`docs/manual-hardware.md`](docs/manual-hardware.md) | Lista de materiais, pinagem, montagem, DHT-11 vs DHT-22 | a fazer |
 | [`docs/manual-software.md`](docs/manual-software.md) | EC2 e FIWARE, IP elástico, Postman, backend, front-end, rodar uma vinheria Wokwi em outro computador, troubleshooting | a fazer |
 
@@ -249,7 +249,7 @@ npm run dev                 # http://localhost:5173
 
 - [x] Firmware ESP32: sensores, publicação MQTT, alertas não bloqueantes, várias instâncias
 - [x] Marca Smart Solutions e animação de boot no LCD
-- [ ] Documentação base: PRD, README e arquitetura
+- [x] Documentação base: PRD, README e arquitetura
 - [ ] Backend: configuração e cliente FIWARE
 - [ ] Backend: cadastro de vinherias, histórico e score
 - [ ] Backend: motor de triggers, offline e log de alertas
