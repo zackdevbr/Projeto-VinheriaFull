@@ -11,23 +11,31 @@
 #include <LiquidCrystal_I2C.h>
 #include <time.h>
 
-// --- Credenciais de rede (Wokwi usa rede aberta "Wokwi-GUEST") ---
+// ===== CONFIGURAÇÃO DESTA INSTÂNCIA =====
+// Único bloco a editar ao rodar o firmware em outro computador ou ESP32.
+// Cada vinheria precisa de um ID_DEVICE próprio (vinheria001, vinheria002...)
+// e do device correspondente já provisionado no FIWARE.
+
+// Identificação do device (nomes canônicos do plano FIWARE).
+const char* ID_DEVICE = "vinheria001";
+
+// Credenciais de rede (Wokwi usa rede aberta "Wokwi-GUEST").
 const char* SSID = "Wokwi-GUEST";
 const char* PASSWORD = "";
 
-// --- Broker MQTT (Mosquitto do FIWARE na EC2) ---
-// A EC2 usa IP elástico (fixo entre liga e desliga), então o IP pode ficar aqui.
+// Broker MQTT (Mosquitto do FIWARE na EC2). A EC2 usa IP elástico (fixo entre
+// liga e desliga), então o IP pode ficar aqui.
 const char* BROKER_MQTT = "3.215.3.216";
 const int BROKER_PORT = 1883;
 
-// --- Identificação do device (nomes canônicos do plano FIWARE) ---
-const char* ID_DEVICE = "vinheria001";
-
-// --- Sensor de temperatura/umidade ---
-// Simulação no Wokwi usa DHT22 (não tem DHT11 no simulador); hardware real da
-// vinheria usa DHT11. Para trocar: mudar DHTTYPE para DHT11, pinagem não muda.
-#define DHTPIN 4
+// Sensor de temperatura/umidade. Simulação no Wokwi usa DHT22 (não tem DHT11
+// no simulador); hardware real da vinheria usa DHT11. Para trocar: mudar
+// DHTTYPE para DHT11, pinagem não muda.
 #define DHTTYPE DHT22
+// ===== FIM DA CONFIGURAÇÃO DESTA INSTÂNCIA =====
+
+// --- Sensor de temperatura/umidade (pino) ---
+#define DHTPIN 4
 DHT dht(DHTPIN, DHTTYPE);
 
 // --- LDR (luminosidade) ---
