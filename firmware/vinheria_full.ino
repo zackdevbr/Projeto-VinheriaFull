@@ -1,7 +1,10 @@
 /*
- * Vinheria Full — firmware ESP32
- * Task 1 / Passo 1: base de conexão Wi-Fi + MQTT com os tópicos UltraLight 2.0
- * do device "vinheria001". Sensores, LED e buzzer entram nos próximos passos.
+ * Smart Solutions — monitoramento de vinherias (firmware ESP32)
+ *
+ * Lê temperatura, umidade (DHT) e luminosidade (LDR), publica no FIWARE por
+ * MQTT em UltraLight 2.0, executa comandos de alerta (LED azul e buzzer) e
+ * mostra os dados num LCD 16x2. O ID da vinheria e a rede ficam no bloco
+ * "CONFIGURAÇÃO DESTA INSTÂNCIA" abaixo.
  */
 
 #include <WiFi.h>
