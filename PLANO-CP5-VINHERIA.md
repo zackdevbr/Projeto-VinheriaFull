@@ -325,7 +325,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
   - Em `setup()`, os 4 `lcd.createChar(...)` dos ícones normais passam para **depois** de `logo()`, para restaurar taça/gota/sol.
   - Cabeçalho do arquivo: "Vinheria Full" → "Smart Solutions — monitoramento de vinherias".
   - No bloco `CONFIGURAÇÃO DESTA INSTÂNCIA`, `BROKER_MQTT` recebe o IP elástico e o `TODO` sai.
-- Fora do firmware: `CLAUDE.md` §6, onde a frase "O IP da EC2 muda a cada boot..." vira "A EC2 usa IP elástico; o default vem do `.env` e pode ser trocado em runtime no painel Avançado do front, sem reiniciar o backend". No §9, o candidato a skill "trocar o IP da EC2" vira "subir o ambiente FIWARE e revalidar".
+- Fora do firmware: `CLAUDE.md` §5 (Smart Solutions e gate de design), §6 (IP elástico) e §9 (candidato a skill "subir o ambiente FIWARE e revalidar") — **já atualizado** em 05/10/2026, então o passo 8 abaixo é só conferência.
 
 **Ferramentas e requisitos.**
 - Nenhuma lib nova (`LiquidCrystal_I2C` já está em `libraries.txt`).
@@ -340,7 +340,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 5. Mover os `createChar` dos ícones normais para depois de `logo()` em `setup()`. Resultado: o carrossel mostra taça/gota/sol corretos após o boot. Commit.
 6. Atualizar o cabeçalho do `.ino` com o nome Smart Solutions. Commit.
 7. Colocar o IP elástico em `BROKER_MQTT` e remover o `TODO`. Resultado: o Serial mostra a conexão MQTT OK. Commit.
-8. Atualizar o `CLAUDE.md` §6 e §9 conforme acima. Commit.
+8. Conferir que o `CLAUDE.md` já reflete IP elástico e Smart Solutions (`grep -n "elástico\|Smart Solutions" CLAUDE.md`). Sem commit se nada mudar.
 
 **Como verificar.**
 - Reiniciar a simulação no Wokwi e confirmar 4 coisas:

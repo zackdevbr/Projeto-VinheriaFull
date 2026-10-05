@@ -54,14 +54,14 @@ Não trocar sem decisão explícita do usuário.
 - **Firmware:** C++ (`.ino`), ESP32, `PubSubClient`, `DHT sensor library`, `Adafruit Unified Sensor`. Simulação no Wokwi.
 - **Middleware:** FIWARE (stack `fabiocabrini/fiware` em Docker na AWS EC2) — Orion 1026, IoT Agent MQTT 4041, STH-Comet 8666, Mosquitto 1883, MongoDB 27017.
 - **Back-end:** Python 3.11+, FastAPI, Uvicorn, httpx, Pydantic, SQLite, pandas, matplotlib, reportlab. Testes com pytest e respx.
-- **Front-end:** React com JavaScript puro (`.jsx`), Vite, Chart.js via react-chartjs-2, react-router-dom. **Sem TypeScript.**
+- **Front-end:** React com JavaScript puro (`.jsx`), Vite, Chart.js via react-chartjs-2, react-router-dom. **Sem TypeScript.** A empresa fictícia é **Smart Solutions** (o nome "Vinheria Agnello" não é mais usado). **Gate de design:** nenhuma decisão visual do front é tomada antes de o usuário enviar anexos e exemplos de referência; o design é planejado em Opus e só depois implementado.
 - **Chatbot (fase posterior):** Google Gemini via `google-genai`, modelo `gemini-2.5-flash`, com function calling.
 
 ## 6. Regras de código
 
 - **Comentários em português** explicando o propósito de cada módulo e de cada função não óbvia. A entrega exige código comentado.
 - **Encapsulamento em camadas.** Rota nunca chama `httpx` direto; rota chama `services`; só `services/fiware_client.py` fala HTTP com o FIWARE. Componente React nunca faz `fetch` direto; usa `src/api/client.js`.
-- **Nada hardcoded** em módulo de lógica: IP, portas, API key e chaves saem de `ConfigStore` ou `.env`. O IP da EC2 muda a cada boot da máquina — ele é digitado em um único lugar no front e vale para todo o sistema em runtime, sem reiniciar o backend.
+- **Nada hardcoded** em módulo de lógica: IP, portas, API key e chaves saem de `ConfigStore` ou `.env`. A EC2 usa IP elástico (fixo entre liga e desliga): o default vem do `.env` (`FIWARE_HOST`) e pode ser trocado em runtime no painel Avançado do front, sem reiniciar o backend.
 - Arquivos focados. Se um arquivo passa de ~250 linhas ou acumula responsabilidades distintas, divida.
 - Nomes canônicos do FIWARE (não inventar variações):
   - device `vinheria00N`, entity `urn:ngsi-ld:Vinheria:00N`, type `Vinheria` (N = 1, 2, 3...; `vinheria001` é o exemplo). Cada vinheria tem também nome e cidade no cadastro.
@@ -95,7 +95,7 @@ Mensagem no imperativo, em português, uma linha. Sem co-author do Claude — au
 O usuário autoriza, sem pedir permissão a cada vez:
 
 - **Buscar e instalar skills** quando surgir uma necessidade que uma skill existente resolve melhor — via skill `find-skills`.
-- **Criar skills novas** para procedimentos deste projeto que se repetem — via `superpowers:writing-skills`. Candidatos naturais: provisionar um device novo no FIWARE ponta a ponta, trocar o IP da EC2 e revalidar o ambiente, ensaiar a demo do hands-on.
+- **Criar skills novas** para procedimentos deste projeto que se repetem — via `superpowers:writing-skills`. Candidatos naturais: provisionar um device novo no FIWARE ponta a ponta, subir o ambiente FIWARE na EC2 e revalidar, ensaiar a demo do hands-on.
 - **Ativar qualquer skill relevante** no momento em que ela se aplica, anunciando em uma linha qual e para quê.
 
 Skills de processo vêm antes das de implementação: `superpowers:brainstorming` antes de criar feature nova, `superpowers:systematic-debugging` antes de propor conserto de bug, `superpowers:writing-plans` antes de encostar em código, `superpowers:test-driven-development` durante a implementação.
