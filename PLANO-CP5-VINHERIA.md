@@ -357,30 +357,48 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 - [ ] **Passo 5 (teste):** com 2 ou mais Wokwi rodando, apertar o LDR/temperatura em um deles e ver só o card, o gráfico, o badge, a timeline e o ESP32 daquela vinheria reagirem, enquanto as outras seguem verdes.
 - [ ] **Passo 6:** commit `feat: add dynamic charts, trigger tuning, score gauge and alert timeline`.
 
-### Task 7: Diferencial — chatbot Gemini e relatórios
+### Task 7A: Chatbot Gemini multi-vinheria
 
-> **Adiada por decisão do usuário.** Fazer depois das Tasks 0–6. Nesta task entram também `.gitignore` (ignorando `.env`, `__pycache__/`, `node_modules/`, `*.db`) e `backend/.env.example` com `GEMINI_API_KEY=` vazio. A chave real só no `.env` local, nunca commitada. Até lá, `routes_chat` não existe e o front não mostra a aba Chat.
+> **Sai do adiamento (revisão de 05/10/2026).** Vem logo depois da Task 6, pois precisa de `/api/fleet`, do resolver e dos dados do STH prontos. Entram aqui também `.gitignore` (ignorando `.env`, `__pycache__/`, `node_modules/`, `*.db`) e `backend/.env.example` com `GEMINI_API_KEY=` vazio. A chave real só no `.env` local, nunca commitada.
 
-**Files:** criar `app/services/chatbot.py`, `app/services/report.py`, `app/api/routes_chat.py`, `routes_report.py`, `src/components/ChatBox.jsx`, `src/pages/Chat.jsx`, `tests/test_chatbot_tools.py`
-**Consumes:** `routes_data`/`alert_log`/`quality_score`. **Produces:** `ask(message, device_id) -> str`.
+**Files:** criar `app/services/chatbot.py`, `app/api/routes_chat.py`, `src/components/ChatBox.jsx`, `src/pages/Chat.jsx`, `tests/test_chatbot_tools.py`
+**Consumes:** `DeviceRegistry.resolve_vinheria`, `FleetState`, `alert_log`, `quality_score`, `FiwareClient.query_history`. **Produces:** `ask(message, history) -> str`, `POST /api/chat`.
 
-- [ ] **Passo 1:** teste falhando nas **tools** (funções puras, sem chamar a API): `tool_get_current`, `tool_get_stats` (média/min/máx/desvio/oscilação = máx−mín por janela), `tool_get_history`, `tool_get_alerts`, `tool_get_triggers` — validados com dados sintéticos via pandas.
+- [ ] **Passo 1:** teste falhando nas **tools** (funções puras, sem chamar a API), com dados sintéticos via pandas. O parâmetro `vinheria` é texto livre (id, nome ou cidade), resolvido por `resolve_vinheria`; se ambíguo, a tool devolve erro listando as opções.
+  - `listar_vinherias()` → id, nome, cidade, status
+  - `estado_atual(vinheria)`
+  - `estatisticas(vinheria, atributo, horas=1)` → média, mín, máx, desvio, n e `tendencia` ∈ {estável, subindo, caindo}. É "estável" se a amplitude (máx−mín) for < 1,0 °C (temperatura), 3 % (umidade) ou 5 % (luminosidade); senão o sinal da inclinação decide.
+  - `comparar(atributo, horas=1)` → média por vinheria ("qual está mais quente?")
+  - `alertas(vinheria=None, horas=24)`
+  - `limites(vinheria)`
 - [ ] **Passo 2:** rodar → falha; implementar as tools e fazer passar.
-- [ ] **Passo 3:** `chatbot.py` — `google.genai` com declaração das tools, loop de function calling (máx. 5 iterações), system instruction: responder em português, só com dados retornados pelas tools, citar números e unidades, recomendar ação de vinheria quando houver anomalia.
-- [ ] **Passo 4:** `report.py` — CSV via pandas e PDF via matplotlib + reportlab (gráfico dos três atributos, estatísticas e alertas do período); `routes_report` devolve `StreamingResponse` com `Content-Disposition`.
-- [ ] **Passo 5:** `ChatBox` — histórico de mensagens, textarea, estado de carregando, chips de perguntas prontas ("qual a média de temperatura hoje?", "houve picos de luminosidade?", "quais alertas nas últimas 24 h?"); botão de exportar CSV/PDF no Dashboard.
-- [ ] **Passo 6 (teste):** perguntar as três chips com dados reais no STH e conferir que os números batem com o gráfico; baixar CSV e PDF.
-- [ ] **Passo 7:** commit `feat: add Gemini chatbot with data tools and CSV/PDF reports`.
+- [ ] **Passo 3:** `chatbot.py` — `google.genai` com declaração das tools, loop de function calling (máx. 5 iterações). System instruction: responder em português, só com dados das tools, citar números e unidades, recomendar ação de vinheria quando houver anomalia. A cada pergunta, injetar no prompt um resumo do status da frota para o bot avisar sozinho de vinherias em alerta ou offline.
+- [ ] **Passo 4:** `routes_chat.py` — `POST /api/chat { message, history[] }`, sem `device_id`.
+- [ ] **Passo 5:** `ChatBox` — histórico de mensagens, textarea, estado de carregando, chips ("Como está a vinheria de São Paulo?", "Alguma vinheria em alerta?", "Qual vinheria está mais úmida agora?").
+- [ ] **Passo 6 (teste):** com 2 ou mais vinherias com dados reais no STH, perguntar as três chips e conferir que os números batem com o gráfico do detalhe; parar um Wokwi e confirmar que o bot cita a vinheria offline.
+- [ ] **Passo 7:** commit `feat: add multi-vinheria Gemini chatbot with data tools`.
+
+### Task 7B: Relatórios CSV/PDF
+
+> **Primeiro corte se o prazo apertar.** Fazer depois da Task 7A.
+
+**Files:** criar `app/services/report.py`, `app/api/routes_report.py`; modificar `src/pages/VinheriaDetail.jsx`
+**Consumes:** `routes_data`/`alert_log`/`quality_score`.
+
+- [ ] **Passo 1:** `report.py` — CSV via pandas e PDF via matplotlib + reportlab (gráfico dos três atributos, estatísticas e alertas do período), por vinheria.
+- [ ] **Passo 2:** `routes_report` devolve `StreamingResponse` com `Content-Disposition`; botão de exportar CSV/PDF em `VinheriaDetail` (a vinheria vem da rota).
+- [ ] **Passo 3 (teste):** baixar CSV e PDF de duas vinherias diferentes e conferir que cada arquivo traz só os dados da sua vinheria.
+- [ ] **Passo 4:** commit `feat: add CSV and PDF reports per vinheria`.
 
 ### Task 8: Manuais, Postman e fechamento da entrega
 
 **Files:** criar `docs/manual-hardware.md`, `docs/manual-software.md`, `postman/CP5-Vinheria.postman_collection.json`; modificar `README.md`, `PRD.md`
 
 - [ ] **Passo 1:** `manual-hardware.md` — lista de materiais, tabela de pinagem (DHT-11 GPIO 4, LDR GPIO 34, buzzer GPIO 5, LED azul GPIO 2), esquema de montagem, cuidados (resistor de pull-up do DHT, divisor do LDR) e diferenças DHT-11 vs DHT-22.
-- [ ] **Passo 2:** `manual-software.md` — subir a EC2, `docker-compose up -d` do `fabiocabrini/fiware`, portas no Security Group (1026, 4041, 8666, 1883), provisionamento via Postman, instalar/rodar backend (`pip install -r requirements.txt`, `.env`, `uvicorn`) e front (`npm install`, `npm run dev`), **procedimento de troca de IP após reiniciar a EC2** e troubleshooting.
-- [ ] **Passo 3:** criar `postman/CP5-Vinheria.postman_collection.json` a partir da collection base do professor: variável `{{url}}` mantida, entidade `urn:ngsi-ld:Vinheria:001`/type `Vinheria`, os 4 comandos no provisionamento e na registration, e as 3 subscriptions (temperature, humidity, luminosity) — remover os requests de Lamp que não se aplicam.
+- [ ] **Passo 2:** `manual-software.md` — subir a EC2, `docker-compose up -d` do `fabiocabrini/fiware`, portas no Security Group (1026, 4041, 8666, 1883), provisionamento via Postman, instalar/rodar backend (`pip install -r requirements.txt`, `.env`, `uvicorn`) e front (`npm install`, `npm run dev`), **procedimento de troca de IP após reiniciar a EC2** e troubleshooting. Incluir a seção **"Rodar uma vinheria Wokwi em outro computador"**: abrir o link do Wokwi, editar o bloco `CONFIGURAÇÃO DESTA INSTÂNCIA` (`ID_DEVICE`, `BROKER_MQTT`), Start e cadastrar a vinheria no site (`device_id`, nome, cidade).
+- [ ] **Passo 3:** criar `postman/CP5-Vinheria.postman_collection.json` a partir da collection base do professor: variável `{{url}}` mantida, entidade `urn:ngsi-ld:Vinheria:001`/type `Vinheria` (variáveis para trocar o `00N` e provisionar as outras vinherias), os 4 comandos no provisionamento e na registration, e as 3 subscriptions (temperature, humidity, luminosity) — remover os requests de Lamp que não se aplicam.
 - [ ] **Passo 4:** finalizar `README.md` (arquitetura em camadas, links do Wokwi e do vídeo, prints do dashboard) e revisar o `PRD.md` contra o que foi construído.
-- [ ] **Passo 5:** roteiro do pitch/vídeo em `docs/` (problema → arquitetura → demo ao vivo do alerta → diferenciais → encerramento), 5–7 min.
+- [ ] **Passo 5:** roteiro do pitch/vídeo em `docs/` (problema → arquitetura → demo ao vivo com as 5 vinherias, alerta e offline → chatbot → diferenciais → encerramento), 5–7 min. Ensaiar com as 5 instâncias (1 física + 4 Wokwi).
 - [ ] **Passo 6:** commit `docs: add hardware/software manuals, Postman collection and final README`.
 
 ---
@@ -389,10 +407,11 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 1. EC2 ligada; `docker ps` mostra orion, iot-agent, sth-comet, mosquitto, mongo.
 2. `GET /api/config/health` com o IP novo → três portas OK.
-3. Wokwi (ou ESP32 físico) conectado; `GET /api/devices/vinheria001/current` retorna `t`, `h`, `l`.
+3. 5 instâncias ligadas (1 física + 4 Wokwi, `vinheria001` a `vinheria005`) e cadastradas; a Visão Geral mostra 5 cards verdes. `GET /api/devices/vinheria001/current` retorna `t`, `h`, `l`.
 4. `GET /api/devices/vinheria001/history?attr=t&lastN=20` retorna série do STH e o gráfico desenha.
-5. Pelo front, baixar o máximo de temperatura → LED azul pisca a 500 ms + 2 bipes curtos; subir o limite de novo → para. Repetir para umidade (bipe longo) e luminosidade (3 bipes rápidos), confirmando padrões distintos.
-6. Timeline de alertas mostra os três eventos com início, fim e duração.
-7. Chat: "qual foi a média e o pico de temperatura na última hora?" → números conferem com o gráfico.
-8. Exportar CSV e PDF do período.
-9. `pytest backend/tests -v` tudo verde.
+5. Pelo front, baixar o máximo de temperatura **só da vinheria002** → apenas o LED/buzzer dela reage (LED azul a 500 ms + 2 bipes curtos); banner aparece e os outros cards seguem verdes. Subir o limite de novo → para. Repetir para umidade (bipe longo) e luminosidade (3 bipes rápidos).
+6. Parar um Wokwi → em até ~35 s o card fica cinza "offline", aparece o toast e a timeline registra `offline`. Religar → volta para ok e o alerta fecha.
+7. Timeline de alertas mostra os eventos com início, fim e duração, filtráveis por vinheria.
+8. Chat: "Como está a temperatura da vinheria de São Paulo?" → resposta com média, unidade e tendência, números conferem com o gráfico. "Alguma vinheria com problema?" → cita a vinheria em alerta ou offline.
+9. Exportar CSV e PDF do período de uma vinheria (Task 7B, se entrar).
+10. `pytest backend/tests -v` tudo verde.
