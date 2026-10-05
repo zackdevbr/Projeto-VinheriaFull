@@ -515,11 +515,14 @@ void setup() {
 
   lcd.init();
   lcd.backlight();
+  logo();
+
+  // Os ícones do carrossel ocupam os slots 0 a 3, que a animação de boot
+  // sobrescreve. Por isso só são carregados depois do logo().
   lcd.createChar(0, CHAR_TACA_ESQ);
   lcd.createChar(1, CHAR_TACA_DIR);
   lcd.createChar(2, CHAR_GOTA);
   lcd.createChar(3, CHAR_SOL);
-  logo();
   iniciarRelogio();
 }
 
