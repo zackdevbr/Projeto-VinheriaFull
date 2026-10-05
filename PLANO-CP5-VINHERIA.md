@@ -33,6 +33,13 @@ FIWARE e Postman já configurados pelo usuário (stack `fabiocabrini/fiware`). E
 - **IP elástico na EC2.** O IP do FIWARE fica fixo. Default no `backend/.env` (`FIWARE_HOST`) e no bloco de configuração do firmware (`BROKER_MQTT`); o campo de IP do site vira configuração avançada (recolhida), e o indicador de saúde continua visível.
 - **Marca Smart Solutions.** A empresa fictícia da equipe é **Smart Solutions**; o nome "Vinheria Agnello" sai do projeto. No LCD, o boot mostra "Smart Solutions" centralizado (linha 2 vazia) e em seguida uma **animação de um cacho de uva sendo espremido e enchendo uma taça**. A animação é **só no LCD**; no site, apenas o nome "Smart Solutions" no cabeçalho e no `<title>`.
 
+**Revisão 3 (05/10/2026, durante a Task 0) — também não reabrir:**
+- **Faixa ideal = limites dos triggers.** Um único min/max por atributo por vinheria, definido pelo usuário no painel. Ele dispara os alertas e define o score 100 (penalidade proporcional fora da faixa). A faixa 12–18 °C / 50–70 % / luz 0–30 % vira só o default de vinheria recém-cadastrada.
+- **A faixa é propagada.** Ao salvar (`PUT /api/devices/{id}/triggers`): grava no SQLite, publica `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max` como atributos da entidade no Orion e envia ao ESP32 o novo comando **`set_limits`** com valor `"tmin;tmax;hmin;hmax;lmin;lmax"` (separador `;` para não colidir com o `|` do UltraLight). Também enviar no cadastro, com o default.
+- **No ESP32 a faixa é só informativa.** Guarda a última recebida e mostra no carrossel do LCD. "Backend decide, ESP32 obedece" continua valendo.
+- **Remoção apaga no FIWARE.** `DELETE /api/devices/{id}` remove o device no IoT Agent, a entidade e as subscriptions dela no Orion, e o cadastro local. O histórico no STH-Comet é mantido.
+- **Impacto nas tasks:** Task 2 (`FiwareClient` ganha `delete_device`, `delete_entity`, `delete_subscriptions(entity_id)` e `update_attrs(entity_id, attrs)`); Task 3 (`quality_score(reading, limits)`, provisionamento declara `set_limits`, remoção completa); Task 4 (PUT de triggers propaga a faixa; confirmar na EC2 se os atributos `*_min/*_max` vão por `PATCH` direto no Orion ou provisionados no device); nova **Task 4B** de firmware (comando `set_limits` com parse e ack, tela do carrossel com a faixa), depois da Task 4.
+
 ---
 
 ## Arquitetura em camadas
@@ -154,7 +161,8 @@ projetovinheria/
 - Headers: `fiware-service: smart` · `fiware-servicepath: /`
 - API key: `TEF` · protocolo `PDI-IoTA-UltraLight` (MQTT)
 - Atributos: `t` (temperature), `h` (humidity), `l` (luminosity)
-- Comandos: `blink_temp`, `blink_hum`, `blink_lux`, `alert_off`
+- Comandos: `blink_temp`, `blink_hum`, `blink_lux`, `alert_off`, `set_limits` (revisão 3)
+- Atributos da faixa ideal no Orion (revisão 3): `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max`
 
 **Payload UltraLight publicado pelo ESP32:**
 `/TEF/vinheria001/attrs` → `t|24.3|h|58|l|42`
@@ -238,11 +246,11 @@ GET/PUT  /api/config                  # { ec2_ip, orion_port, sth_port, iota_por
 GET      /api/config/health            # testa Orion/IoT Agent/STH no IP atual
 GET      /api/fleet                    # status de todas as vinherias (ok|alerta|offline), valores, score, alertas ativos
 GET/POST /api/devices                  # listar / cadastrar { device_id, name, city } (provisiona no IoT Agent + subscription STH)
-DELETE   /api/devices/{id}
+DELETE   /api/devices/{id}              # remove do SQLite, do IoT Agent e do Orion (entidade + subscriptions); STH mantido
 GET      /api/devices/{id}/current     # estado atual via Orion
 GET      /api/devices/{id}/history     # ?attr=t&lastN=100  ou  ?dateFrom&dateTo  (STH 8666)
 GET      /api/devices/{id}/score       # quality_score
-GET/PUT  /api/devices/{id}/triggers    # limites min/max por atributo
+GET/PUT  /api/devices/{id}/triggers    # faixa ideal min/max por atributo; PUT propaga ao Orion e ao ESP32 (set_limits)
 GET      /api/alerts                   # ?device_id&limit
 GET      /api/report                   # ?device_id&format=csv|pdf
 POST     /api/chat                     # { message, history[] } -> resposta Gemini (sem device_id: o bot resolve a vinheria pelo texto)

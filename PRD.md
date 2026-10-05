@@ -61,16 +61,16 @@ Os objetivos seguem os critérios de avaliação do CP5. Cada critério tem um a
 | ID | Requisito |
 |---|---|
 | RF01 | O sistema cadastra uma vinheria com `device_id` no formato `vinheria00N`, nome e cidade, e a provisiona no FIWARE (service group, device com atributos e comandos, subscriptions para o STH-Comet). |
-| RF02 | O sistema lista e remove vinherias cadastradas; a remoção desfaz o cadastro local. |
+| RF02 | O sistema lista e remove vinherias cadastradas. A remoção apaga o cadastro local, o device no IoT Agent e a entidade e as subscriptions no Orion; o histórico já gravado no STH-Comet é mantido. |
 | RF03 | O ESP32 publica temperatura, umidade e luminosidade a cada 2 s; leituras inválidas do DHT não são publicadas. |
 | RF04 | O painel mostra o estado atual de cada vinheria (valores e horário da última leitura). |
 | RF05 | O painel mostra gráficos históricos por atributo, vindos do STH-Comet, com janela por quantidade de pontos (20/50/100) ou por intervalo de datas, atualizando sozinhos. |
-| RF06 | O usuário ajusta, por vinheria, os limites mínimo e máximo de temperatura, umidade e luminosidade; o painel valida que o mínimo é menor que o máximo. |
+| RF06 | O usuário ajusta, por vinheria, a faixa ideal (mínimo e máximo) de temperatura, umidade e luminosidade; o painel valida que o mínimo é menor que o máximo. Essa faixa única serve ao mesmo tempo como limite dos alertas (RF07) e como referência do score (RF11). Ao salvar, a faixa é gravada no backend, publicada como atributos da entidade no Orion e enviada ao ESP32 pelo comando `set_limits`. |
 | RF07 | O backend compara cada leitura com os limites e, quando um atributo sai da faixa, envia à vinheria o comando de alerta correspondente uma única vez; quando todos os atributos voltam, envia `alert_off`. |
 | RF08 | O ESP32 executa um padrão distinto de luz e som para cada anomalia (tabela na seção 9), sem bloquear a leitura dos sensores. |
 | RF09 | O usuário pode disparar e desligar alertas remotamente pelo painel. |
 | RF10 | Cada alerta é registrado com vinheria, atributo, valor, início, fim e duração; o painel mostra a linha do tempo geral e por vinheria. |
-| RF11 | O sistema calcula um score de qualidade do ambiente de 0 a 100 por vinheria (100 na faixa ideal: 12–18 °C, 50–70 % de umidade, luz ≤ 30 %). |
+| RF11 | O sistema calcula um score de qualidade do ambiente de 0 a 100 por vinheria: 100 com todos os atributos dentro da faixa ideal configurada para aquela vinheria (RF06), com penalidade proporcional à distância fora dela. Vinheria recém-cadastrada começa com a faixa padrão: 12–18 °C, 50–70 % de umidade e luz de 0 a 30 %. |
 | RF12 | O painel tem uma visão geral da frota: um card por vinheria com nome, cidade, status (ok, alerta, offline), valores atuais, score e tempo desde a última leitura. |
 | RF13 | Uma vinheria sem atualização há mais de `offline_seconds` (padrão 30 s, configurável) é marcada como offline, gera alerta `offline` e não recebe comandos; ao voltar, o alerta é fechado. |
 | RF14 | O painel exibe um aviso global (faixa fixa e toasts) sempre que uma vinheria entra em alerta, fica offline ou volta ao normal, com link para o detalhe dela. |
@@ -78,6 +78,7 @@ Os objetivos seguem os critérios de avaliação do CP5. Cada critério tem um a
 | RF16 | O chatbot avisa por conta própria quando há vinherias em alerta ou offline, e compara vinherias entre si ("qual está mais quente?"). |
 | RF17 | O usuário exporta um relatório CSV ou PDF por vinheria, com dados, estatísticas, gráfico e alertas do período. |
 | RF18 | O LCD do ESP32 mostra a marca Smart Solutions com animação no boot e, em seguida, um carrossel com data/hora, temperatura, umidade e luminosidade. |
+| RF19 | O ESP32 guarda a última faixa ideal recebida por `set_limits` e a exibe no carrossel do LCD. A faixa é só informativa no dispositivo: quem decide o alerta continua sendo o backend. |
 
 ## 6. Requisitos não funcionais
 
@@ -145,14 +146,15 @@ Diagramas e fluxos detalhados: `docs/arquitetura.md`.
 | API key | `TEF` |
 | Protocolo | `PDI-IoTA-UltraLight` sobre MQTT |
 | Atributos (UltraLight → Orion/STH) | `t` → `temperature` · `h` → `humidity` · `l` → `luminosity` |
-| Comandos | `blink_temp`, `blink_hum`, `blink_lux`, `alert_off` |
+| Comandos | `blink_temp`, `blink_hum`, `blink_lux`, `alert_off`, `set_limits` |
+| Atributos da faixa ideal (Orion) | `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max` |
 
 **Tópicos MQTT**
 
 | Tópico | Direção | Exemplo |
 |---|---|---|
 | `/TEF/<device_id>/attrs` | ESP32 → IoT Agent | `t\|24.3\|h\|58\|l\|42` |
-| `/TEF/<device_id>/cmd` | IoT Agent → ESP32 | `vinheria001@blink_temp\|` |
+| `/TEF/<device_id>/cmd` | IoT Agent → ESP32 | `vinheria001@blink_temp\|` · `vinheria001@set_limits\|12;18;50;70;0;30` |
 | `/TEF/<device_id>/cmdexe` | ESP32 → IoT Agent | `vinheria001@blink_temp\|ok` |
 
 **Comando enviado pelo backend**
@@ -160,6 +162,13 @@ Diagramas e fluxos detalhados: `docs/arquitetura.md`.
 ```
 PATCH http://<EC2>:1026/v2/entities/urn:ngsi-ld:Vinheria:001/attrs
 { "blink_temp": { "type": "command", "value": "" } }
+```
+
+**Faixa ideal enviada pelo backend** (ao salvar a faixa no painel). A ordem dos valores é temperatura mín/máx, umidade mín/máx, luminosidade mín/máx, separados por `;` para não colidir com o `|` do UltraLight. Um segundo `PATCH`, separado do comando, grava os seis atributos `*_min`/`*_max` na entidade. Como atributos que não são comando ficam no próprio Orion e o comando é encaminhado ao IoT Agent, a forma exata (dois `PATCH` ou atributos provisionados no device) será confirmada contra a EC2 no planejamento da Task 4.
+
+```
+PATCH http://<EC2>:1026/v2/entities/urn:ngsi-ld:Vinheria:001/attrs
+{ "set_limits": { "type": "command", "value": "12;18;50;70;0;30" } }
 ```
 
 **Padrões de alerta no ESP32**
@@ -193,7 +202,7 @@ A sequência completa de provisionamento (service group, device, subscriptions) 
 | até 05/10/2026 | Task 1 (firmware) e Task 1B (marca Smart Solutions, boot animado, IP elástico) — concluídas |
 | 05/10 | Task 0 — PRD, README e arquitetura |
 | 06/10 a 08/10 | Task 2 (config e cliente FIWARE) e Task 3 (cadastro de devices, histórico, score) |
-| 09/10 a 11/10 | Task 4 — motor de triggers, offline e log de alertas |
+| 09/10 a 11/10 | Task 4 — motor de triggers, offline e log de alertas; Task 4B — comando `set_limits` e tela da faixa no firmware |
 | 12/10 a 15/10 | Task 5 — base do painel e cadastro (depois do envio das referências de design) |
 | 16/10 a 18/10 | Task 6 — visão geral, gráficos, triggers, alertas e score |
 | 19/10 a 21/10 | Task 7A — chatbot Gemini multi-vinheria |

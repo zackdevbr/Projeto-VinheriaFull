@@ -67,7 +67,8 @@ Não trocar sem decisão explícita do usuário.
   - device `vinheria00N`, entity `urn:ngsi-ld:Vinheria:00N`, type `Vinheria` (N = 1, 2, 3...; `vinheria001` é o exemplo). Cada vinheria tem também nome e cidade no cadastro.
   - headers `fiware-service: smart`, `fiware-servicepath: /`, apikey `TEF`
   - UltraLight curto: `t`, `h`, `l` · nomes longos no Orion/STH: `temperature`, `humidity`, `luminosity`
-  - comandos: `blink_temp`, `blink_hum`, `blink_lux`, `alert_off`
+  - comandos: `blink_temp`, `blink_hum`, `blink_lux`, `alert_off`, `set_limits` (valor `"tmin;tmax;hmin;hmax;lmin;lmax"`)
+  - faixa ideal no Orion: `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max`
 - Sem `delay()` nos padrões de alerta do firmware — máquina de estado com `millis()`.
 - Segredos nunca commitados. `.env` no `.gitignore`; `.env.example` commitado com as chaves vazias.
 
