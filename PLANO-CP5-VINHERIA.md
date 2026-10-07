@@ -384,6 +384,13 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 3: Backend — cadastro de devices e leitura de dados
 
+> **Planejada em 07/10/2026 (spec-driven).** Executar por [`docs/specs/task-3-cadastro-historico-score/plan.md`](docs/specs/task-3-cadastro-historico-score/plan.md), que segue a [`spec.md`](docs/specs/task-3-cadastro-historico-score/spec.md) da mesma pasta. Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Mudanças em relação a este resumo, decididas com o usuário e com uma sonda na EC2 (IoT Agent 3.7.0):
+> - `register_commands` sai do plano.
+> - O cadastro **re-provisiona** o device que já existe no IoT Agent, para a 001 e a 002 ganharem `set_limits` (o IoT Agent não aceita acrescentar comandos com `PUT`).
+> - As subscriptions são recriadas a cada cadastro, e a faixa padrão é publicada no Orion já no cadastro (a entidade nasce no provisionamento).
+> - O score usa média proporcional e fica `null` com uma mensagem de motivo quando falta leitura.
+> - Não há rollback compensatório: o FIWARE vem primeiro e o SQLite por último.
+
 **Files:** criar `app/services/device_registry.py`, `app/services/quality_score.py`, `app/api/routes_devices.py`, `app/api/routes_data.py`, `tests/test_device_registry.py`, `tests/test_quality_score.py`
 **Consumes:** `FiwareClient`, `ConfigStore`. **Produces:** `DeviceRegistry.create(device_id, name, city)/list/delete`, `resolve_vinheria(texto) -> Device` (lança `AmbiguousVinheria(options)` ou `VinheriaNotFound`), `quality_score(reading)`.
 
@@ -466,6 +473,22 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 - [ ] **Passo 2:** `routes_report` devolve `StreamingResponse` com `Content-Disposition`; botão de exportar CSV/PDF em `VinheriaDetail` (a vinheria vem da rota).
 - [ ] **Passo 3 (teste):** baixar CSV e PDF de duas vinherias diferentes e conferir que cada arquivo traz só os dados da sua vinheria.
 - [ ] **Passo 4:** commit `feat: add CSV and PDF reports per vinheria`.
+
+### Task opcional: atribuição automática do id ao dispositivo
+
+> **Registrada em 07/10/2026, a pedido do usuário. Só depois que a demo central (Tasks 4 a 6) funcionar.** Precisa de planejamento próprio em Opus antes de qualquer código.
+
+**Ideia.** O operador não precisa mais editar o `ID_DEVICE` no firmware.
+1. O ESP32 sem id salvo na flash (`Preferences`) entra em "aguardando cadastro" e mostra no LCD um código curto (ex.: `K7Q2`).
+2. O operador cadastra a vinheria no painel informando esse código.
+3. O backend manda o id pelo comando `assign` (valor `"K7Q2;vinheria003"`) de um device fixo `bootstrap`, provisionado no IoT Agent. Todos os ESP32 sem id escutam o tópico dele.
+4. Só o ESP32 com o código certo grava o id, refaz os tópicos e passa a publicar como `vinheria003`.
+
+**Primeiro passo:** rodar duas abas do Wokwi com `Serial.println(WiFi.macAddress())`, para saber se o MAC é diferente em cada uma. Se não for, o código precisa ser aleatório.
+
+**Limitação conhecida:** o Wokwi não guarda a flash entre execuções, então o id precisaria ser reatribuído a cada reinício da simulação. No ESP32 físico funciona normalmente.
+
+**Escopo estimado:** 1 a 1,5 dia, cobrindo firmware, backend (device `bootstrap` e ação de atribuir no `DeviceRegistry`) e front.
 
 ### Task 8: Manuais, Postman e fechamento da entrega
 
