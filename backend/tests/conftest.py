@@ -3,6 +3,8 @@ import pytest
 
 from app.core.config import ConfigStore, Settings
 from app.core.db import connect
+from app.models.schemas import Device
+from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
 from app.services.limits import LimitsStore
 
@@ -52,3 +54,28 @@ def fiware_sem_ip(tmp_path):
 def limits(conn):
     """LimitsStore sobre o banco de teste."""
     return LimitsStore(conn)
+
+
+@pytest.fixture
+def registry(conn, fiware, limits):
+    """DeviceRegistry com FIWARE interceptado pelo respx e banco de teste."""
+    return DeviceRegistry(conn, fiware, limits)
+
+
+@pytest.fixture
+def cadastrar(conn, limits):
+    """Grava vinherias direto no SQLite, sem FIWARE (para testes de leitura e remoção)."""
+    def _cadastrar(numero="001", name="Vinheria Paulista", city="São Paulo"):
+        device = Device(device_id=f"vinheria{numero}",
+                        entity_id=f"urn:ngsi-ld:Vinheria:{numero}",
+                        name=name, city=city, created_at="2026-10-07T21:00:00+00:00")
+        with conn:
+            conn.execute(
+                "INSERT INTO devices (device_id, entity_id, name, city, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (device.device_id, device.entity_id, device.name, device.city,
+                 device.created_at),
+            )
+            limits.seed_defaults(device.device_id)
+        return device
+    return _cadastrar
