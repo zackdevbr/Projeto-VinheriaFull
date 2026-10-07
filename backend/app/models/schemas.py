@@ -5,11 +5,17 @@ Aqui ficam os contratos de entrada e saída da API e dos services:
 configuração e saúde do FIWARE (Task 2), cadastro, faixa ideal, leituras,
 histórico e score (Task 3). As próximas tasks acrescentam os seus.
 """
+from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 _PORTA = {"ge": 1, "le": 65535}
 _POLL = {"ge": 1, "le": 300}
 _OFFLINE = {"ge": 5, "le": 3600}
+
+# Atributos de sensor aceitos no histórico e no score (nomes longos do Orion/STH)
+SensorAttr = Literal["temperature", "humidity", "luminosity"]
 
 
 def normalize_host(value: str) -> str:
@@ -133,3 +139,49 @@ class AttrScores(BaseModel):
     temperature: float | None = None
     humidity: float | None = None
     luminosity: float | None = None
+
+
+class HistoryPoint(BaseModel):
+    """Um ponto do histórico, já normalizado a partir do STH-Comet."""
+    ts: str
+    value: float
+
+
+class HistoryQuery(BaseModel):
+    """Janela de consulta do histórico: OU last_n OU intervalo de datas (ISO 8601)."""
+    attr: SensorAttr
+    last_n: int | None = Field(default=None, ge=1, le=500)
+    date_from: str | None = None
+    date_to: str | None = None
+
+    @field_validator("date_from", "date_to")
+    @classmethod
+    def _data_iso(cls, valor: str | None) -> str | None:
+        """Aceita só datas ISO 8601 (ex.: 2026-10-07T00:00:00)."""
+        if valor is None:
+            return None
+        try:
+            datetime.fromisoformat(valor)
+        except ValueError as exc:
+            raise ValueError("data deve estar em ISO 8601, ex.: 2026-10-07T00:00:00") from exc
+        return valor
+
+    @model_validator(mode="after")
+    def _um_modo(self) -> "HistoryQuery":
+        """Exige exatamente um modo de janela."""
+        por_datas = self.date_from is not None or self.date_to is not None
+        if self.last_n is None and not por_datas:
+            raise ValueError("informe last_n ou date_from/date_to")
+        if self.last_n is not None and por_datas:
+            raise ValueError("use last_n ou date_from/date_to, não os dois")
+        return self
+
+
+class ScoreReport(BaseModel):
+    """Score de qualidade de uma vinheria; com score None, `message` explica o motivo."""
+    device_id: str
+    score: float | None
+    available: bool
+    message: str | None = None
+    attrs: AttrScores
+    limits: Limits

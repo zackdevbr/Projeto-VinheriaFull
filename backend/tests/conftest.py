@@ -7,6 +7,7 @@ from app.models.schemas import Device
 from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
 from app.services.limits import LimitsStore
+from app.services.readings import ReadingsService
 
 
 @pytest.fixture
@@ -79,3 +80,9 @@ def cadastrar(conn, limits):
             limits.seed_defaults(device.device_id)
         return device
     return _cadastrar
+
+
+@pytest.fixture
+def readings(registry, fiware, limits):
+    """ReadingsService com FIWARE interceptado pelo respx."""
+    return ReadingsService(registry, fiware, limits)
