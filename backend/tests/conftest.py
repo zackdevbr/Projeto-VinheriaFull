@@ -3,6 +3,7 @@ import pytest
 
 from app.core.config import ConfigStore, Settings
 from app.core.db import connect
+from app.services.fiware_client import FiwareClient
 
 
 @pytest.fixture
@@ -29,3 +30,18 @@ def conn(settings):
 def store(conn, settings):
     """ConfigStore sobre o banco de teste."""
     return ConfigStore(conn, settings)
+
+
+@pytest.fixture
+def fiware(store, settings):
+    """FiwareClient apontando para o IP fictício 10.0.0.1 (respx intercepta)."""
+    return FiwareClient(store, settings)
+
+
+@pytest.fixture
+def fiware_sem_ip(tmp_path):
+    """FiwareClient de um backend iniciado sem FIWARE_HOST."""
+    settings = Settings(fiware_host="", database_path=str(tmp_path / "sem_ip.db"))
+    conexao = connect(settings.database_path)
+    yield FiwareClient(ConfigStore(conexao, settings), settings)
+    conexao.close()
