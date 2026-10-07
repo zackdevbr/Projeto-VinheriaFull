@@ -8,7 +8,9 @@ qualquer peça sem mexer nas rotas.
 from fastapi import Request
 
 from app.core.config import ConfigStore
+from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
+from app.services.readings import ReadingsService
 
 
 def get_config_store(request: Request) -> ConfigStore:
@@ -19,3 +21,13 @@ def get_config_store(request: Request) -> ConfigStore:
 def get_fiware(request: Request) -> FiwareClient:
     """Cliente FIWARE da aplicação."""
     return request.app.state.fiware
+
+
+def get_registry(request: Request) -> DeviceRegistry:
+    """Cadastro de vinherias da aplicação."""
+    return request.app.state.registry
+
+
+def get_readings(request: Request) -> ReadingsService:
+    """Serviço de leituras da aplicação."""
+    return request.app.state.readings
