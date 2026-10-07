@@ -92,6 +92,21 @@ class DeviceRegistry:
         device = self.get(device_id)
         return DeviceDetail(**device.model_dump(), limits=self._limits.get(device_id))
 
+    async def delete(self, device_id: str) -> None:
+        """Remove a vinheria do FIWARE e depois do SQLite.
+
+        Ordem: subscriptions, device no IoT Agent e entidade no Orion (404
+        aceito; remover o device já costuma apagar a entidade). Os triggers
+        saem em cascata; os alertas ficam, pois o histórico sobrevive. Se o
+        FIWARE falhar, o cadastro local fica para uma nova tentativa.
+        """
+        device = self.get(device_id)
+        await self._fiware.delete_subscriptions(device.entity_id)
+        await self._fiware.delete_device(device.device_id)
+        await self._fiware.delete_entity(device.entity_id)
+        with self._conn:
+            self._conn.execute("DELETE FROM devices WHERE device_id = ?", (device_id,))
+
     def _exists(self, device_id: str) -> bool:
         """True se o id já está no SQLite."""
         return self._conn.execute(
