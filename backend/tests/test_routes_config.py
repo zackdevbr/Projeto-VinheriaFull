@@ -103,3 +103,18 @@ def test_cors_libera_front(client):
         "Access-Control-Request-Method": "GET",
     })
     assert resposta.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_importar_main_nao_cria_banco_nem_app(tmp_path, monkeypatch):
+    """O app global só nasce quando o uvicorn o pede (import sem efeito colateral)."""
+    import app.main as main
+
+    banco = tmp_path / "lazy.db"
+    monkeypatch.setattr(main, "load_settings",
+                        lambda: Settings(fiware_host="10.0.0.1", database_path=str(banco)))
+    monkeypatch.delitem(main.__dict__, "app", raising=False)
+    assert not banco.exists()
+    criado = main.app  # primeiro acesso cria
+    assert banco.exists()
+    assert main.app is criado  # e fica guardado
+    criado.state.conn.close()

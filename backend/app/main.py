@@ -54,4 +54,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-app = create_app()
+def __getattr__(nome: str):
+    """Cria o `app` global só no primeiro acesso (PEP 562).
+
+    O uvicorn pede `app.main:app` e dispara a criação; importar o módulo nos
+    testes só para usar `create_app` não abre banco nem lê o .env.
+    """
+    if nome == "app":
+        globals()["app"] = create_app()
+        return globals()["app"]
+    raise AttributeError(f"module {__name__!r} has no attribute {nome!r}")

@@ -11,10 +11,15 @@ import json
 import os
 import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 from app.models.schemas import ConfigUpdate, RuntimeConfig, normalize_host
+
+# Pasta backend/: âncora do .env e do banco, para não depender de onde o
+# comando foi executado (uvicorn na raiz, pytest em backend/, etc.)
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -41,11 +46,18 @@ def _env(nome: str, padrao):
     return valor if valor else padrao
 
 
-def load_settings(env_file: str | None = ".env") -> Settings:
+def _resolve_db_path(valor: str) -> str:
+    """Caminho relativo do banco vale a partir de backend/; absoluto fica como está."""
+    caminho = Path(valor)
+    return str(caminho if caminho.is_absolute() else BACKEND_DIR / caminho)
+
+
+def load_settings(env_file: str | None = str(BACKEND_DIR / ".env")) -> Settings:
     """Monta o Settings a partir do .env e do ambiente.
 
     Variáveis já definidas no ambiente têm prioridade sobre o arquivo.
-    `env_file=None` ignora o arquivo (usado nos testes).
+    O .env padrão é o de backend/. `env_file=None` ignora o arquivo
+    (usado nos testes).
     """
     if env_file:
         load_dotenv(env_file, override=False)
@@ -63,7 +75,7 @@ def load_settings(env_file: str | None = ".env") -> Settings:
         poll_seconds=int(_env("POLL_SECONDS", p.poll_seconds)),
         offline_seconds=int(_env("OFFLINE_SECONDS", p.offline_seconds)),
         http_timeout_seconds=float(_env("HTTP_TIMEOUT_SECONDS", p.http_timeout_seconds)),
-        database_path=_env("DATABASE_PATH", p.database_path),
+        database_path=_resolve_db_path(_env("DATABASE_PATH", p.database_path)),
         cors_origins=tuple(o.strip() for o in origens.split(",") if o.strip()),
     )
 

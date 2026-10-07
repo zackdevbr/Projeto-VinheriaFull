@@ -1,8 +1,10 @@
 """Testes de Settings, ConfigStore e banco (spec R1, R2 e R3)."""
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import ConfigStore, Settings, load_settings
+from app.core.config import BACKEND_DIR, ConfigStore, Settings, load_settings
 from app.core.db import connect
 from app.models.schemas import ConfigUpdate
 
@@ -24,7 +26,8 @@ def ambiente_limpo(monkeypatch):
 
 def test_load_settings_usa_defaults(ambiente_limpo):
     s = load_settings(env_file=None)
-    assert s == Settings()
+    # O caminho do banco é resolvido para absoluto; o resto é o padrão da classe
+    assert s == Settings(database_path=s.database_path)
     assert s.fiware_host == ""
     assert (s.orion_port, s.iota_port, s.sth_port) == (1026, 4041, 8666)
     assert (s.fiware_service, s.fiware_servicepath, s.fiware_apikey) == ("smart", "/", "TEF")
@@ -112,3 +115,24 @@ def test_config_update_normaliza_ip():
 def test_config_update_rejeita_valores_fora_da_faixa(campos):
     with pytest.raises(ValidationError):
         ConfigUpdate(**campos)
+
+
+def test_database_path_relativo_fica_dentro_de_backend(ambiente_limpo):
+    """Rodar de outra pasta não pode espalhar bancos pelo disco."""
+    ambiente_limpo.setenv("DATABASE_PATH", "dados/meu.db")
+    caminho = Path(load_settings(env_file=None).database_path)
+    assert caminho.is_absolute()
+    assert caminho == BACKEND_DIR / "dados" / "meu.db"
+
+
+def test_database_path_absoluto_e_respeitado(ambiente_limpo, tmp_path):
+    destino = str(tmp_path / "abs.db")
+    ambiente_limpo.setenv("DATABASE_PATH", destino)
+    assert load_settings(env_file=None).database_path == destino
+
+
+def test_env_file_padrao_fica_em_backend():
+    """O .env padrão é o de backend/, qualquer que seja a pasta de execução."""
+    import inspect
+    padrao = inspect.signature(load_settings).parameters["env_file"].default
+    assert Path(padrao) == BACKEND_DIR / ".env"
