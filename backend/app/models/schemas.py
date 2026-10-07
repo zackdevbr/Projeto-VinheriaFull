@@ -1,11 +1,11 @@
 """
 Modelos de dados (Pydantic) compartilhados pelo backend.
 
-Aqui ficam os contratos de entrada e saída da API e dos services. Esta task
-cria os modelos de configuração, de saúde do FIWARE e o Device; as próximas
-tasks acrescentam os seus (triggers, leituras, alertas, chat).
+Aqui ficam os contratos de entrada e saída da API e dos services:
+configuração e saúde do FIWARE (Task 2), cadastro, faixa ideal, leituras,
+histórico e score (Task 3). As próximas tasks acrescentam os seus.
 """
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 _PORTA = {"ge": 1, "le": 65535}
 _POLL = {"ge": 1, "le": 300}
@@ -64,6 +64,42 @@ class Device(BaseModel):
     entity_id: str
     name: str
     city: str
+    # Opcional para manter compatível o uso da Task 2 (provision_device)
+    created_at: str | None = None
+
+
+class DeviceCreate(BaseModel):
+    """Entrada do cadastro de uma vinheria (o id precisa bater com o ID_DEVICE do firmware)."""
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    device_id: str = Field(pattern=r"^vinheria\d{3}$")
+    name: str = Field(min_length=1, max_length=60)
+    city: str = Field(min_length=1, max_length=60)
+
+
+class AttrLimits(BaseModel):
+    """Faixa ideal de um atributo: serve de limite de alerta e de referência do score."""
+    min: float
+    max: float
+
+    @model_validator(mode="after")
+    def _min_menor_que_max(self) -> "AttrLimits":
+        """Recusa faixa vazia ou invertida."""
+        if self.min >= self.max:
+            raise ValueError("min deve ser menor que max")
+        return self
+
+
+class Limits(BaseModel):
+    """Faixa ideal dos três atributos de uma vinheria."""
+    temperature: AttrLimits
+    humidity: AttrLimits
+    luminosity: AttrLimits
+
+
+class DeviceDetail(Device):
+    """Vinheria com a faixa ideal configurada."""
+    limits: Limits
 
 
 class ServiceHealth(BaseModel):

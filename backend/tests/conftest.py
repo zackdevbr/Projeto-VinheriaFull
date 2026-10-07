@@ -4,6 +4,7 @@ import pytest
 from app.core.config import ConfigStore, Settings
 from app.core.db import connect
 from app.services.fiware_client import FiwareClient
+from app.services.limits import LimitsStore
 
 
 @pytest.fixture
@@ -45,3 +46,9 @@ def fiware_sem_ip(tmp_path):
     conexao = connect(settings.database_path)
     yield FiwareClient(ConfigStore(conexao, settings), settings)
     conexao.close()
+
+
+@pytest.fixture
+def limits(conn):
+    """LimitsStore sobre o banco de teste."""
+    return LimitsStore(conn)
