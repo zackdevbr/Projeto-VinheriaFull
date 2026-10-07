@@ -117,3 +117,19 @@ class HealthReport(BaseModel):
     orion: ServiceHealth
     iota: ServiceHealth
     sth: ServiceHealth
+
+
+class CurrentReading(BaseModel):
+    """Estado atual de uma vinheria; None quando ainda não há leitura válida."""
+    device_id: str
+    temperature: float | None = None
+    humidity: float | None = None
+    luminosity: float | None = None
+    time_instant: str | None = None
+
+
+class AttrScores(BaseModel):
+    """Nota de 0 a 100 de cada atributo; None quando falta a leitura."""
+    temperature: float | None = None
+    humidity: float | None = None
+    luminosity: float | None = None
