@@ -9,6 +9,9 @@ As URLs são montadas a cada chamada a partir do ConfigStore, então trocar o
 IP pelo painel vale na hora, sem reiniciar o backend. Falhas de rede e status
 de erro viram exceções de app.services.fiware_errors.
 """
+import functools
+import ssl
+
 import httpx
 
 from app.core.config import ConfigStore, Settings
@@ -20,6 +23,16 @@ from app.services.fiware_errors import (
 )
 
 
+@functools.lru_cache(maxsize=1)
+def _contexto_ssl() -> ssl.SSLContext:
+    """Contexto SSL padrão (com verificação), criado uma vez por processo.
+
+    Carregar o pacote de certificados custa ~0,7 s no Windows; compartilhar o
+    contexto evita pagar isso a cada FiwareClient (relevante nos testes).
+    """
+    return httpx.create_ssl_context()
+
+
 class FiwareBase:
     """Infraestrutura comum: configuração, pool HTTP, URLs e tratamento de erros."""
 
@@ -29,7 +42,8 @@ class FiwareBase:
         self._settings = settings
         # Um único AsyncClient reaproveita conexões entre chamadas;
         # nos testes o respx intercepta as requisições dele.
-        self._http = http or httpx.AsyncClient(timeout=settings.http_timeout_seconds)
+        self._http = http or httpx.AsyncClient(timeout=settings.http_timeout_seconds,
+                                               verify=_contexto_ssl())
 
     async def aclose(self) -> None:
         """Fecha o pool de conexões (chamado no desligamento do app)."""

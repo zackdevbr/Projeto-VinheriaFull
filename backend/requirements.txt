@@ -5,3 +5,5 @@ pydantic==2.13.5
 python-dotenv==1.2.4
 pytest==9.1.1
 respx==0.23.1
+# usado só pelo TestClient do FastAPI nos testes (o starlette deprecou o httpx ali)
+httpx2==2.13.1
