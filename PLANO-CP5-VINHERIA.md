@@ -389,7 +389,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 > *Planejamento original:* [`docs/specs/task-3-cadastro-historico-score/plan.md`](docs/specs/task-3-cadastro-historico-score/plan.md), que segue a [`spec.md`](docs/specs/task-3-cadastro-historico-score/spec.md) da mesma pasta. Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Mudanças em relação a este resumo, decididas com o usuário e com uma sonda na EC2 (IoT Agent 3.7.0):
 > - `register_commands` sai do plano.
 > - O cadastro **re-provisiona** o device que já existe no IoT Agent, para a 001 e a 002 ganharem `set_limits` (o IoT Agent não aceita acrescentar comandos com `PUT`).
-> - As subscriptions são recriadas a cada cadastro, e a faixa padrão é publicada no Orion já no cadastro (a entidade nasce no provisionamento).
+> - As subscriptions são recriadas a cada cadastro, e a faixa padrão é publicada no Orion já no cadastro, por upsert (`POST /v2/op/update`), porque a entidade só fica armazenada depois da primeira leitura.
 > - O score usa média proporcional e fica `null` com uma mensagem de motivo quando falta leitura.
 > - Não há rollback compensatório: o FIWARE vem primeiro e o SQLite por último.
 
