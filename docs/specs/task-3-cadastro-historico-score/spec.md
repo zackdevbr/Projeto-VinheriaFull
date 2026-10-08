@@ -17,10 +17,10 @@
 
 **Fatos verificados na EC2 em 07/10/2026** (IoT Agent 3.7.0, `iotagent-node-lib` 4.7.0, sonda com `vinheria099` descartável, já removida):
 - F1 (**corrigido em 07/10/2026, ver F4**): logo após o `POST /iot/devices`, o `GET` da entidade responde 200, só com os atributos de comando. Isso **não** significa que a entidade está armazenada no Orion: o `GET` é atendido pela registration do IoT Agent. `temperature`, `humidity` e `luminosity` só aparecem na primeira leitura.
-- F2: o `DELETE /iot/devices/{id}` **apaga também a entidade e a registration no Orion**. As subscriptions não são apagadas.
+- F2 (**refinado em 08/10/2026**): o `DELETE /iot/devices/{id}` apaga a registration dos comandos e uma entidade que só tem atributos de comando (caso da sonda). Uma entidade **com medições já gravadas sobrevive** à remoção do device: na adoção da 001, a primeira leitura veio com `time_instant` anterior ao cadastro. Não faz mal, porque o `delete` explícito da entidade na remoção cobre esse caso e o upsert da faixa só acrescenta atributos. As subscriptions não são apagadas.
 - F3: o `PUT /iot/devices/{id}` para acrescentar comandos **falha** (`404 ENTITY_GENERIC_ERROR`). Para um device ganhar `set_limits`, é preciso removê-lo e provisioná-lo de novo.
 - F4 (primeira tentativa da 3.8, `vinheria077` descartável, já removida): antes da primeira leitura, `POST /v2/entities/{id}/attrs` responde **404** (3 de 3 rodadas, com e sem `?type=`). `POST /v2/op/update` com `actionType: append` responde **204**, cria a entidade, mantém os atributos de comando e aceita repetição.
-- F5 (risco, **não verificado**): com o ESP32 ligado, uma leitura pode chegar entre a remoção e o provisionamento do device. Se o service group autoprovisiona (provável padrão do IoT Agent), o device é recriado sozinho e o `POST /iot/devices` responde 409.
+- F5 (risco): com o ESP32 ligado, uma leitura pode chegar entre a remoção e o provisionamento do device. Se o service group autoprovisiona, o device é recriado sozinho e o `POST /iot/devices` responde 409. **Verificação de 08/10/2026:** nas adoções da 001 e da 002 (Wokwi publicando) o 409 não ocorreu e não apareceu nenhuma entidade `Thing`; o tratamento do R4.7 fica como proteção, coberto por teste, sem ter sido acionado na EC2.
 
 **O que depende desta task.**
 - Task 4: `DeviceRegistry.list/get`, `LimitsStore` (ganha `update`), `ReadingsService`, `quality_score`, e a faixa já publicada no Orion.

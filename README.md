@@ -251,7 +251,7 @@ npm run dev                 # http://localhost:5173
 - [x] Marca Smart Solutions e animação de boot no LCD
 - [x] Documentação base: PRD, README e arquitetura
 - [x] Backend: configuração e cliente FIWARE
-- [ ] Backend: cadastro de vinherias, histórico e score
+- [x] Backend: cadastro de vinherias, histórico e score
 - [ ] Backend: motor de triggers, offline e log de alertas
 - [ ] Firmware: recebimento e exibição da faixa ideal
 - [ ] Painel: base, configuração e cadastro

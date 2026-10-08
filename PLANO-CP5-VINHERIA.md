@@ -384,7 +384,9 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 3: Backend — cadastro de devices e leitura de dados
 
-> **Planejada em 07/10/2026 (spec-driven).** Executar por [`docs/specs/task-3-cadastro-historico-score/plan.md`](docs/specs/task-3-cadastro-historico-score/plan.md), que segue a [`spec.md`](docs/specs/task-3-cadastro-historico-score/spec.md) da mesma pasta. Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Mudanças em relação a este resumo, decididas com o usuário e com uma sonda na EC2 (IoT Agent 3.7.0):
+> **FEITA em 08/10/2026** — executada pelo plano docs/specs/task-3-cadastro-historico-score/plan.md (commits `568d33d`..`149082d`). 160 testes passando sem rede. Verificação real na EC2: `vinheria001` (Vinheria Paulista, São Paulo) e `vinheria002` (Vinheria Mineira, Minas Gerais) adotadas com `set_limits`, faixa padrão no Orion e 3 subscriptions cada; `alert_off` respondido pelo Wokwi depois do upsert; histórico `{ts, value}` e score conferido à mão (16,7 para 24 °C / 40 % / 76); ciclo da `vinheria099` limpo. A primeira tentativa achou que `POST /attrs` dá 404 antes da primeira leitura, e o `update_attrs` passou a usar `POST /v2/op/update` (append).
+>
+> *Planejamento original:* [`docs/specs/task-3-cadastro-historico-score/plan.md`](docs/specs/task-3-cadastro-historico-score/plan.md), que segue a [`spec.md`](docs/specs/task-3-cadastro-historico-score/spec.md) da mesma pasta. Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Mudanças em relação a este resumo, decididas com o usuário e com uma sonda na EC2 (IoT Agent 3.7.0):
 > - `register_commands` sai do plano.
 > - O cadastro **re-provisiona** o device que já existe no IoT Agent, para a 001 e a 002 ganharem `set_limits` (o IoT Agent não aceita acrescentar comandos com `PUT`).
 > - As subscriptions são recriadas a cada cadastro, e a faixa padrão é publicada no Orion já no cadastro (a entidade nasce no provisionamento).
@@ -394,12 +396,12 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 **Files:** criar `app/services/device_registry.py`, `app/services/quality_score.py`, `app/api/routes_devices.py`, `app/api/routes_data.py`, `tests/test_device_registry.py`, `tests/test_quality_score.py`
 **Consumes:** `FiwareClient`, `ConfigStore`. **Produces:** `DeviceRegistry.create(device_id, name, city)/list/delete`, `resolve_vinheria(texto) -> Device` (lança `AmbiguousVinheria(options)` ou `VinheriaNotFound`), `quality_score(reading)`.
 
-- [ ] **Passo 0 (multi-vinheria):** `create_device` valida `^vinheria\d{3}$` e deriva `entity_id`; `resolve_vinheria` normaliza (sem acento, minúsculas) e casa primeiro com o id, depois com nome/cidade. Testes: cadastrar 2 devices gera 2× a sequência de provisionamento; resolver com "sao paulo", "São Paulo", "vinheria002", "vinheria" (ambíguo) e "Recife" (não encontrado).
-- [ ] **Passo 1:** teste falhando — `create_device` grava no SQLite e executa a sequência completa de provisionamento (service group → device → `register_commands` → `subscribe_attr` para os 3 atributos), devolvendo o device com `entity_name` derivado do id; `quality_score` devolve 100 em condição ideal (temp 12–18 °C, umid 50–70 %, luz ≤ 30 %) e penaliza proporcionalmente fora dela.
-- [ ] **Passo 2:** rodar os testes → falham (mock HTTP com `respx`).
-- [ ] **Passo 3:** implementar registry (rollback no SQLite se o provisionamento falhar), `quality_score`, rotas de device (POST/GET/DELETE), rotas de dados (`/current`, `/history` com `lastN` ou janela de datas, `/score`), normalizando a resposta do STH para `[{ "ts": iso, "value": float }]`.
-- [ ] **Passo 4:** testes passam; smoke real contra a EC2: cadastrar `vinheria001` e ver o Wokwi aparecer no Orion, **com `TimeInstant` atualizando a cada leitura**. Se o campo não vier, parar e voltar ao planejamento (a detecção de offline depende dele).
-- [ ] **Passo 5:** commit `feat: add device registry, history queries and quality score`.
+- [x] **Passo 0 (multi-vinheria):** `create_device` valida `^vinheria\d{3}$` e deriva `entity_id`; `resolve_vinheria` normaliza (sem acento, minúsculas) e casa primeiro com o id, depois com nome/cidade. Testes: cadastrar 2 devices gera 2× a sequência de provisionamento; resolver com "sao paulo", "São Paulo", "vinheria002", "vinheria" (ambíguo) e "Recife" (não encontrado).
+- [x] **Passo 1:** teste falhando — `create_device` grava no SQLite e executa a sequência completa de provisionamento (service group → device → `register_commands` → `subscribe_attr` para os 3 atributos), devolvendo o device com `entity_name` derivado do id; `quality_score` devolve 100 em condição ideal (temp 12–18 °C, umid 50–70 %, luz ≤ 30 %) e penaliza proporcionalmente fora dela.
+- [x] **Passo 2:** rodar os testes → falham (mock HTTP com `respx`).
+- [x] **Passo 3:** implementar registry (rollback no SQLite se o provisionamento falhar), `quality_score`, rotas de device (POST/GET/DELETE), rotas de dados (`/current`, `/history` com `lastN` ou janela de datas, `/score`), normalizando a resposta do STH para `[{ "ts": iso, "value": float }]`.
+- [x] **Passo 4:** testes passam; smoke real contra a EC2: cadastrar `vinheria001` e ver o Wokwi aparecer no Orion, **com `TimeInstant` atualizando a cada leitura**. Se o campo não vier, parar e voltar ao planejamento (a detecção de offline depende dele).
+- [x] **Passo 5:** commit `feat: add device registry, history queries and quality score`.
 
 ### Task 4: Backend — triggers, poller e log de alertas
 
