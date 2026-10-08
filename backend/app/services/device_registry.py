@@ -8,6 +8,7 @@ de novo. Device que já existe no IoT Agent é removido e provisionado de
 novo, para ganhar a configuração completa (inclusive set_limits): o IoT
 Agent não deixa acrescentar comandos a um device existente.
 """
+import logging
 import sqlite3
 from datetime import datetime, timezone
 
@@ -19,6 +20,8 @@ from app.services.limits import DEFAULT_LIMITS, LimitsStore, limits_to_orion_att
 from app.services.registry_errors import DeviceAlreadyExists, DeviceNotFound
 
 ENTITY_PREFIX = "urn:ngsi-ld:Vinheria:"
+
+log = logging.getLogger(__name__)
 
 
 def entity_id_for(device_id: str) -> str:
@@ -109,15 +112,20 @@ class DeviceRegistry:
             self._conn.execute("DELETE FROM devices WHERE device_id = ?", (device_id,))
 
     async def _provisionar(self, device: Device) -> None:
-        """Provisiona o device; se o IoT Agent já o recriou sozinho, tenta de novo uma vez.
+        """Provisiona o device; se o IoT Agent responder 409, tenta de novo uma vez.
 
-        Com o ESP32 ligado, uma leitura pode chegar entre a remoção e o
-        provisionamento, e o IoT Agent autoprovisiona o device (409). Remover
-        de novo e provisionar resolve; um segundo 409 propaga.
+        O device acabou de ser removido, então um 409 aqui significa que algo
+        o recriou no intervalo (outro cadastro do mesmo id, por exemplo). Na
+        EC2 o service group não autoprovisiona (verificado em 08/10/2026: com
+        o ESP32 publicando, o device removido não volta), então o caso é raro.
+        Remover de novo e provisionar resolve; um segundo 409 propaga. O aviso
+        no log deixa o caso visível se acontecer.
         """
         try:
             await self._fiware.provision_device(device)
         except FiwareConflict:
+            log.warning("IoT Agent já tinha %s logo após a remoção; removendo e "
+                        "provisionando de novo", device.device_id)
             await self._fiware.delete_device(device.device_id)
             await self._fiware.provision_device(device)
 

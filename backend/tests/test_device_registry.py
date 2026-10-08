@@ -165,6 +165,24 @@ async def test_create_device_autoprovisionado_no_meio_tenta_de_novo(registry):
 
 
 @respx.mock
+async def test_create_avisa_no_log_quando_refaz_o_provisionamento(registry, caplog):
+    _mock_cadastro(device_existente=True, provisionamento=[DUPLICADO, httpx.Response(201)])
+    with caplog.at_level("WARNING", logger="app.services.device_registry"):
+        await registry.create(NOVA)
+    avisos = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(avisos) == 1
+    assert "vinheria001" in avisos[0].getMessage()
+
+
+@respx.mock
+async def test_create_sem_conflito_nao_avisa(registry, caplog):
+    _mock_cadastro()
+    with caplog.at_level("WARNING", logger="app.services.device_registry"):
+        await registry.create(NOVA)
+    assert [r for r in caplog.records if r.levelname == "WARNING"] == []
+
+
+@respx.mock
 async def test_create_conflito_persistente_propaga(registry):
     _mock_cadastro(device_existente=True, provisionamento=[DUPLICADO, DUPLICADO])
     with pytest.raises(FiwareConflict):
