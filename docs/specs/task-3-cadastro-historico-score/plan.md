@@ -10,6 +10,12 @@
 
 **Spec:** [`spec.md`](spec.md) — requisitos R1 a R9, fatos F1 a F3 e decisões D1 a D11. Leia antes de começar.
 
+> **Estado em 07/10/2026 (fim do dia):**
+> - **Feitas:** subtarefas 3.1 a 3.7 (commits `568d33d`..`2426476`, 158 testes).
+> - **Desvio registrado na 3.5:** a busca "rio" do `test_resolve_por_trecho` também casava "empório". O teste passou a usar "carioca", e entrou `test_resolve_trecho_em_varias_e_ambiguo`. O código ficou igual.
+> - **Primeira tentativa da 3.8:** parou no fato F4 da spec (o `POST /attrs` responde 404 antes da primeira leitura).
+> - **Retomar na 3.7a.** Depois vêm a 3.7b e a 3.8 reescrita, com lições de shell, checagem de comando e os nomes da 001 e da 002.
+
 ## Global Constraints
 
 - Todos os comandos rodam de dentro de `backend/` com `.venv/Scripts/python -m ...`.
@@ -2065,41 +2071,308 @@ git commit -m "feat: adiciona rotas de cadastro, historico e score das vinherias
 
 ---
 
+## Subtarefa 3.7a — Faixa publicada com upsert real no Orion (correção; F4, R4.2, Task 2 R7.5)
+
+> **Correção de 07/10/2026**, nascida da primeira tentativa da 3.8. Na EC2, logo após o provisionamento, `POST /v2/entities/<id>/attrs` respondeu **404** (3 de 3 rodadas, com e sem `?type=`), embora o `GET` da entidade respondesse 200. A entidade só fica armazenada no Orion depois da primeira leitura; antes disso o `GET` é atendido pela registration do IoT Agent. Já `POST /v2/op/update` com `actionType: append` respondeu 204, criou a entidade mantendo os atributos de comando e aceitou repetição (spec F4). O `update_attrs` da Task 2 passa a usar esse upsert.
+
+**Files:**
+- Modify: `backend/app/services/fiware_orion.py` (método `update_attrs`)
+- Modify: `backend/tests/test_fiware_orion.py` (troca `test_update_attrs_envia_post`)
+- Modify: `backend/tests/test_device_registry.py` (rota e corpo da faixa)
+
+**Interfaces:**
+- Consumes: `FiwareBase._request`, `orion_url`; `ENTITY_TYPE` (já importado em `fiware_orion.py`).
+- Produces: `update_attrs(entity_id, attrs) -> None` com a **mesma assinatura**, agora via `POST /v2/op/update` (`append`). Nenhum chamador muda.
+
+- [ ] **Passo 1: trocar o teste do cliente (vermelho)**
+
+Em `backend/tests/test_fiware_orion.py`, substituir a função `test_update_attrs_envia_post` inteira por:
+
+```python
+@respx.mock
+async def test_update_attrs_usa_op_update_append(fiware):
+    rota = respx.post(f"{ORION}/v2/op/update").mock(return_value=httpx.Response(204))
+    await fiware.update_attrs(E1, {"temp_min": 12, "temp_max": 18.5})
+    assert _corpo(rota) == {"actionType": "append", "entities": [{
+        "id": E1, "type": "Vinheria",
+        "temp_min": {"type": "Number", "value": 12},
+        "temp_max": {"type": "Number", "value": 18.5},
+    }]}
+```
+
+- [ ] **Passo 2: ajustar os testes do cadastro (vermelho)**
+
+Em `backend/tests/test_device_registry.py`:
+
+(a) Em `_mock_cadastro`, apagar a linha `entidade = f"urn:ngsi-ld:Vinheria:{numero}"` e trocar a linha da rota da faixa por:
+
+```python
+    rota_faixa = respx.post(f"{ORION}/v2/op/update")
+```
+
+(b) Em `test_create_sequencia_completa_no_fiware`, trocar o último item da lista esperada `("POST", f"/v2/entities/{E1}/attrs"),` por:
+
+```python
+        ("POST", "/v2/op/update"),
+```
+
+e trocar o bloco final `faixa = json.loads(...)` / `assert faixa == {...}` por:
+
+```python
+    faixa = json.loads(respx.calls[-1].request.content)
+    assert faixa == {"actionType": "append", "entities": [{
+        "id": E1, "type": "Vinheria",
+        "temp_min": {"type": "Number", "value": 12},
+        "temp_max": {"type": "Number", "value": 18},
+        "hum_min": {"type": "Number", "value": 50},
+        "hum_max": {"type": "Number", "value": 70},
+        "lux_min": {"type": "Number", "value": 0},
+        "lux_max": {"type": "Number", "value": 30},
+    }]}
+```
+
+- [ ] **Passo 3: rodar e ver falhar**
+
+Run: `.venv/Scripts/python -m pytest tests/test_fiware_orion.py tests/test_device_registry.py -q`
+Expected: falhas em `test_update_attrs_usa_op_update_append` e nos testes de cadastro que passam pela faixa (o código ainda chama `/v2/entities/<id>/attrs`, rota não registrada no respx). Nenhum erro de coleta.
+
+- [ ] **Passo 4: implementar o upsert em `backend/app/services/fiware_orion.py`**
+
+Substituir o método `update_attrs` inteiro por:
+
+```python
+    async def update_attrs(self, entity_id: str, attrs: dict[str, float]) -> None:
+        """Cria ou atualiza atributos numéricos na entidade (ex.: faixa ideal).
+
+        Usa POST /v2/op/update com actionType append, que cria a entidade se
+        ela ainda não estiver armazenada. Logo após o provisionamento, a
+        entidade só existe pela registration do IoT Agent até a primeira
+        leitura, e POST /v2/entities/<id>/attrs responde 404 (verificado na
+        EC2 em 07/10/2026). Repetir a chamada é seguro.
+        """
+        entidade = {"id": entity_id, "type": ENTITY_TYPE}
+        entidade.update(
+            {nome: {"type": "Number", "value": valor} for nome, valor in attrs.items()})
+        await self._request("orion", "POST", self.orion_url("/v2/op/update"),
+                            json={"actionType": "append", "entities": [entidade]})
+```
+
+- [ ] **Passo 5: rodar e ver passar**
+
+Run: `.venv/Scripts/python -m pytest tests/test_fiware_orion.py tests/test_device_registry.py -q`
+Expected: `21 passed` (9 do Orion + 12 do cadastro).
+
+- [ ] **Passo 6: rodar a suíte inteira**
+
+Run: `.venv/Scripts/python -m pytest -q`
+Expected: `158 passed`.
+
+- [ ] **Passo 7: commit**
+
+```bash
+git add backend/app/services/fiware_orion.py backend/tests/test_fiware_orion.py backend/tests/test_device_registry.py
+git commit -m "fix: publica faixa no Orion por op/update append antes da primeira leitura"
+```
+
+**Pare aqui para revisão do usuário.**
+
+---
+
+## Subtarefa 3.7b — Re-provisionamento resistente ao ESP32 ligado (correção; F5, R4.7)
+
+> **Correção de 07/10/2026.** Ao adotar a 001 e a 002 com o Wokwi publicando a cada 2 s, uma leitura pode chegar entre o `DELETE` e o `POST` do device. Se o service group autoprovisiona (padrão provável do IoT Agent, **não verificado**), o IoT Agent recria o device sozinho e o `POST /iot/devices` responde 409. O cadastro passa a remover e provisionar de novo **uma vez**; um segundo 409 propaga. A entidade lixo do autoprovisionamento some junto com o device (fato F2).
+
+**Files:**
+- Modify: `backend/app/services/device_registry.py` (novo `_provisionar`; `create` passa a usá-lo)
+- Modify: `backend/tests/test_device_registry.py` (helper ganha `provisionamento`; 2 testes novos)
+
+**Interfaces:**
+- Consumes: `FiwareClient.delete_device`, `provision_device`; `FiwareConflict` (Task 2).
+- Produces: `DeviceRegistry._provisionar(device) -> None` (interno). Nenhum contrato público muda.
+
+- [ ] **Passo 1: dar ao helper de testes a opção de trocar a resposta do provisionamento**
+
+Em `backend/tests/test_device_registry.py`, trocar a assinatura e a docstring de `_mock_cadastro` por:
+
+```python
+def _mock_cadastro(numero="001", device_existente=False, subscricao=None, faixa=None,
+                   provisionamento=None):
+    """Registra no respx todas as rotas do cadastro de uma vinheria.
+
+    `subscricao`, `faixa` e `provisionamento` permitem trocar a resposta (ou
+    side_effect) do POST de subscriptions, do upsert da faixa no Orion e do
+    POST do device no IoT Agent.
+    """
+```
+
+e trocar a linha `respx.post(f"{IOTA}/iot/devices").mock(return_value=httpx.Response(201))` por:
+
+```python
+    rota_device = respx.post(f"{IOTA}/iot/devices")
+    if provisionamento is None:
+        rota_device.mock(return_value=httpx.Response(201))
+    else:
+        rota_device.mock(side_effect=provisionamento)
+```
+
+- [ ] **Passo 2: escrever os testes que falham**
+
+No import de erros do topo de `backend/tests/test_device_registry.py`, trocar `from app.services.fiware_errors import FiwareError` por:
+
+```python
+from app.services.fiware_errors import FiwareConflict, FiwareError
+```
+
+E acrescentar, logo depois de `test_create_reprovisiona_device_existente`:
+
+```python
+DUPLICADO = httpx.Response(409, json={"name": "DUPLICATE_DEVICE_ID"})
+
+
+@respx.mock
+async def test_create_device_autoprovisionado_no_meio_tenta_de_novo(registry):
+    _mock_cadastro(device_existente=True, provisionamento=[DUPLICADO, httpx.Response(201)])
+    await registry.create(NOVA)
+    assert _chamadas()[1:5] == [
+        ("DELETE", "/iot/devices/vinheria001"),
+        ("POST", "/iot/devices"),
+        ("DELETE", "/iot/devices/vinheria001"),
+        ("POST", "/iot/devices"),
+    ]
+    assert [d.device_id for d in registry.list()] == ["vinheria001"]
+
+
+@respx.mock
+async def test_create_conflito_persistente_propaga(registry):
+    _mock_cadastro(device_existente=True, provisionamento=[DUPLICADO, DUPLICADO])
+    with pytest.raises(FiwareConflict):
+        await registry.create(NOVA)
+    assert registry.list() == []
+```
+
+- [ ] **Passo 3: rodar e ver falhar**
+
+Run: `.venv/Scripts/python -m pytest tests/test_device_registry.py -q`
+Expected: os 2 testes novos falham com `FiwareConflict` (o código ainda não tenta de novo); os outros 12 passam.
+
+- [ ] **Passo 4: implementar em `backend/app/services/device_registry.py`**
+
+(a) No import de erros do FIWARE, acrescentar (o arquivo ainda não importa nada de `fiware_errors`):
+
+```python
+from app.services.fiware_errors import FiwareConflict
+```
+
+(b) Em `create`, trocar a linha `await self._fiware.provision_device(device)` por:
+
+```python
+        await self._provisionar(device)
+```
+
+(c) Inserir este método logo antes de `_exists`:
+
+```python
+    async def _provisionar(self, device: Device) -> None:
+        """Provisiona o device; se o IoT Agent já o recriou sozinho, tenta de novo uma vez.
+
+        Com o ESP32 ligado, uma leitura pode chegar entre a remoção e o
+        provisionamento, e o IoT Agent autoprovisiona o device (409). Remover
+        de novo e provisionar resolve; um segundo 409 propaga.
+        """
+        try:
+            await self._fiware.provision_device(device)
+        except FiwareConflict:
+            await self._fiware.delete_device(device.device_id)
+            await self._fiware.provision_device(device)
+```
+
+- [ ] **Passo 5: rodar e ver passar**
+
+Run: `.venv/Scripts/python -m pytest tests/test_device_registry.py -q`
+Expected: `14 passed`.
+
+- [ ] **Passo 6: rodar a suíte inteira**
+
+Run: `.venv/Scripts/python -m pytest -q`
+Expected: `160 passed`.
+
+- [ ] **Passo 7: commit**
+
+```bash
+git add backend/app/services/device_registry.py backend/tests/test_device_registry.py
+git commit -m "fix: refaz provisionamento quando o IoT Agent recria o device no meio do cadastro"
+```
+
+**Pare aqui para revisão do usuário.**
+
+---
+
 ## Subtarefa 3.8 — Verificação real contra a EC2 e fechamento
 
-**Requisitos:** EC2 ligada com os containers de pé; `backend/.env` com `FIWARE_HOST`; Wokwi da `vinheria001` e da `vinheria002` rodando. **Antes do Passo 3, pergunte ao usuário o nome e a cidade da 001 e da 002** e use exatamente o que ele informar.
+**Requisitos:** EC2 ligada com os containers de pé; `backend/.env` com `FIWARE_HOST`; Wokwi da `vinheria001` e da `vinheria002` rodando. Nomes informados pelo usuário em 07/10/2026:
+- `vinheria001`: **Vinheria Paulista**, **São Paulo**;
+- `vinheria002`: **Vinheria Mineira**, **Minas Gerais**.
 
 **Files:**
 - Modify: `PLANO-CP5-VINHERIA.md` (marcar a Task 3), `README.md` (roadmap)
 
-Nos comandos abaixo, `H` resume os headers do FIWARE: `-H "fiware-service: smart" -H "fiware-servicepath: /"`, e `IP` é o `FIWARE_HOST` do `.env`.
+**Lições da primeira tentativa (valem para todos os passos):**
+- **Nunca** passar JSON inline com `curl -d '...'` no Git Bash do Windows: deu `400 There was an error parsing the body`. Gravar o corpo num arquivo do scratchpad com Python (`json.dump(..., ensure_ascii=True)`, que escreve `São` como `São`) e enviar com `--data-binary @arquivo`.
+- Em scripts próprios, **não** mandar `Content-Type` em `GET` nem em `DELETE` sem corpo: o Orion responde 400.
+- `H` abaixo resume `-H "fiware-service: smart" -H "fiware-servicepath: /"`, e `IP` é o `FIWARE_HOST` do `.env`.
 
-- [ ] **Passo 1: subir o backend**
-
-Run (de dentro de `backend/`, em segundo plano): `.venv/Scripts/python -m uvicorn app.main:app --reload`
-Expected: `Application startup complete`.
-
-- [ ] **Passo 2: Swagger e saúde**
-
-Abrir `http://localhost:8000/docs` e rodar `curl -s http://localhost:8000/api/config/health`.
-Expected: as 7 rotas novas aparecem no Swagger (além das 3 de config); o health devolve `"ok":true`. Se der `false`, **pare** e reporte.
-
-- [ ] **Passo 3: adotar a `vinheria001`**
+- [ ] **Passo 1: estado de partida**
 
 Run:
 ```bash
-curl -s -X POST http://localhost:8000/api/devices -H "Content-Type: application/json" -d "{\"device_id\": \"vinheria001\", \"name\": \"<NOME_001>\", \"city\": \"<CIDADE_001>\"}"
+curl -s $H "http://IP:1026/v2/entities?type=Vinheria&options=keyValues&attrs=temperature,TimeInstant"
+curl -s $H "http://IP:1026/v2/entities?type=Thing&options=keyValues"
+```
+Expected: 001 e 002 com `TimeInstant` de segundos atrás (Wokwi publicando); nenhuma entidade `Thing` (se houver, anotar os ids antes de seguir, para comparar no Passo 4).
+
+- [ ] **Passo 2: subir o backend e conferir saúde**
+
+Run (de dentro de `backend/`, em segundo plano): `.venv/Scripts/python -m uvicorn app.main:app --reload`; depois `curl -s http://localhost:8000/api/config/health`.
+Expected: `Application startup complete`; health `"ok":true`. Swagger (`/docs`) com as 7 rotas novas. Se o health der `false`, **pare** e reporte.
+
+- [ ] **Passo 3: gravar os corpos dos cadastros**
+
+Run (de dentro de `backend/`; `<SCRATCH>` é o diretório de scratchpad da sessão):
+```bash
+.venv/Scripts/python -c "import json; d='<SCRATCH>'; [json.dump(c, open(f'{d}/{c[\"device_id\"]}.json','w'), ensure_ascii=True) for c in ({'device_id':'vinheria001','name':'Vinheria Paulista','city':'São Paulo'}, {'device_id':'vinheria002','name':'Vinheria Mineira','city':'Minas Gerais'}, {'device_id':'vinheria099','name':'Teste','city':'Teste'})]"
+```
+Expected: três arquivos `.json` no scratchpad; o da 001 contém `São Paulo`.
+
+- [ ] **Passo 4: adotar a `vinheria001`**
+
+Run:
+```bash
+curl -s -w "\nHTTP %{http_code}\n" -X POST http://localhost:8000/api/devices -H "Content-Type: application/json" --data-binary @<SCRATCH>/vinheria001.json
 curl -s $H http://IP:4041/iot/devices/vinheria001
 curl -s $H "http://IP:1026/v2/entities/urn:ngsi-ld:Vinheria:001?options=keyValues&attrs=temp_min,temp_max,hum_min,hum_max,lux_min,lux_max"
+curl -s $H "http://IP:1026/v2/subscriptions?limit=1000"
+curl -s $H "http://IP:1026/v2/entities?type=Thing&options=keyValues"
 ```
-Expected: o POST devolve 201 com o device; o device no IoT Agent lista os 5 comandos, `set_limits` incluído; a entidade traz `temp_min 12`, `temp_max 18`, `hum_min 50`, `hum_max 70`, `lux_min 0`, `lux_max 30`.
+Expected: `HTTP 201` com `"city":"São Paulo"`; o device lista os 5 comandos, `set_limits` incluído; a entidade traz `temp_min 12`, `temp_max 18`, `hum_min 50`, `hum_max 70`, `lux_min 0`, `lux_max 30`; exatamente **3** subscriptions com `urn:ngsi-ld:Vinheria:001` (temperature, humidity, luminosity); nenhuma entidade `Thing` nova. Se der 409 do IoT Agent mesmo com a 3.7b, **pare** e reporte (o autoprovisionamento está mais rápido que o previsto).
 
-- [ ] **Passo 4: leitura atual avançando**
+- [ ] **Passo 5: leitura atual avançando**
 
 Run: `curl -s http://localhost:8000/api/devices/vinheria001/current`, esperar 5 s e rodar de novo.
 Expected: valores reais (não `null`) e `time_instant` diferente entre as duas chamadas. Se ficar `null` por mais de 10 s com o Wokwi rodando, **pare** e reporte (o offline da Task 4 depende disso).
 
-- [ ] **Passo 5: histórico e score**
+- [ ] **Passo 6: comando ainda chega ao ESP32**
+
+A entidade agora é criada pelo upsert da faixa antes da primeira leitura; é preciso provar que os comandos continuam encaminhados. `alert_off` é inofensivo (desliga alertas).
+
+Run:
+```bash
+.venv/Scripts/python -c "import json; json.dump({'alert_off': {'type': 'command', 'value': ''}}, open('<SCRATCH>/cmd.json', 'w'))"
+curl -s -o /dev/null -w "%{http_code}\n" $H -H "Content-Type: application/json" -X PATCH --data-binary @<SCRATCH>/cmd.json "http://IP:1026/v2/entities/urn:ngsi-ld:Vinheria:001/attrs"
+```
+Esperar 10 s e rodar: `curl -s $H "http://IP:1026/v2/entities/urn:ngsi-ld:Vinheria:001?options=keyValues&attrs=alert_off_status,alert_off_info"`
+Expected: `204` no PATCH; depois `alert_off_status` `OK` e `alert_off_info` `ok` (o Wokwi respondeu no `cmdexe`). `PENDING` por mais de 30 s: **pare** e reporte.
+
+- [ ] **Passo 7: histórico e score**
 
 Run:
 ```bash
@@ -2108,16 +2381,16 @@ curl -s http://localhost:8000/api/devices/vinheria001/score
 ```
 Expected: lista de `{ts, value}` com pontos reais (pode incluir pontos de antes da adoção, já que o histórico do STH não é apagado); score com `available: true` e número coerente com os valores atuais e a faixa padrão.
 
-- [ ] **Passo 6: adotar a `vinheria002`**
+- [ ] **Passo 8: adotar a `vinheria002`**
 
-Repetir os Passos 3 e 4 com `vinheria002`, `<NOME_002>` e `<CIDADE_002>`.
-Expected: os mesmos resultados; `GET http://localhost:8000/api/devices` lista as duas.
+Repetir os Passos 4 e 5 com `vinheria002.json` e `urn:ngsi-ld:Vinheria:002`.
+Expected: os mesmos resultados, com `"name":"Vinheria Mineira"` e `"city":"Minas Gerais"`; `GET http://localhost:8000/api/devices` lista as duas, ordenadas.
 
-- [ ] **Passo 7: ciclo descartável com a `vinheria099`**
+- [ ] **Passo 9: ciclo descartável com a `vinheria099`**
 
 Run:
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:8000/api/devices -H "Content-Type: application/json" -d "{\"device_id\": \"vinheria099\", \"name\": \"Teste\", \"city\": \"Teste\"}"
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:8000/api/devices -H "Content-Type: application/json" --data-binary @<SCRATCH>/vinheria099.json
 curl -s http://localhost:8000/api/devices/vinheria099/score
 curl -s -o /dev/null -w "%{http_code}\n" -X DELETE http://localhost:8000/api/devices/vinheria099
 curl -s -o /dev/null -w "%{http_code}\n" $H http://IP:4041/iot/devices/vinheria099
@@ -2126,16 +2399,16 @@ curl -s $H "http://IP:1026/v2/subscriptions?limit=1000" | grep -c "Vinheria:099"
 ```
 Expected, na ordem: `201`; score com `"available":false` e `"message":"Score indisponível: aguardando leitura de temperatura, umidade e luminosidade"`; `204`; `404`; `404`; `0`.
 
-- [ ] **Passo 8: parar o backend e conferir segredos fora do Git**
+- [ ] **Passo 10: parar o backend, limpar e conferir segredos fora do Git**
 
-Parar o uvicorn. Na raiz: `git status --short`.
+Parar o uvicorn; apagar os `.json` do scratchpad. Na raiz: `git status --short`.
 Expected: nenhum `backend/.env` nem `*.db` listado.
 
-- [ ] **Passo 9: marcar a Task 3 como feita**
+- [ ] **Passo 11: marcar a Task 3 como feita**
 
-Em `PLANO-CP5-VINHERIA.md`, na seção `### Task 3`, marcar os passos com `[x]` e trocar a nota de planejamento por: `> **FEITA em <data>** — executada pelo plano docs/specs/task-3-cadastro-historico-score/plan.md (commits <primeiro>..<último>). <resumo de 1 linha da verificação real>`. Em `README.md`, na seção Roadmap, marcar `[x] Backend: cadastro de vinherias, histórico e score`.
+Em `PLANO-CP5-VINHERIA.md`, na seção `### Task 3`, marcar os passos com `[x]` e trocar a nota de planejamento por: `> **FEITA em <data>** — executada pelo plano docs/specs/task-3-cadastro-historico-score/plan.md (commits <primeiro>..<último>). <resumo de 1 linha da verificação real, citando a correção do upsert (F4)>`. Em `README.md`, na seção Roadmap, marcar `[x] Backend: cadastro de vinherias, histórico e score`.
 
-- [ ] **Passo 10: commit**
+- [ ] **Passo 12: commit**
 
 ```bash
 git add PLANO-CP5-VINHERIA.md README.md
@@ -2148,11 +2421,11 @@ git commit -m "docs: fecha task 3 com cadastro, historico e score das vinherias"
 
 ## Como verificar (aceite final)
 
-Os sete itens da seção 6 da [`spec.md`](spec.md), todos com evidência colada no chat:
+Os itens da seção 6 da [`spec.md`](spec.md), todos com evidência colada no chat:
 
-1. `pytest -q` → 157 testes passando, sem rede.
+1. `pytest -q` → 160 testes passando, sem rede.
 2. Swagger com as 7 rotas novas.
-3. `vinheria001` adotada: `set_limits` no IoT Agent, faixa padrão no Orion, `/current` com `time_instant` avançando.
+3. `vinheria001` adotada: `set_limits` no IoT Agent, faixa padrão no Orion, 3 subscriptions, `/current` com `time_instant` avançando e `alert_off` respondido pelo Wokwi.
 4. `vinheria002` adotada da mesma forma.
 5. Histórico real em `{ts, value}` e score coerente.
 6. Ciclo da `vinheria099`: 201, score indisponível com mensagem, 204, e nada sobrando no FIWARE.

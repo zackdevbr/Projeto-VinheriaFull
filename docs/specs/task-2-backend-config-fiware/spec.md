@@ -83,6 +83,7 @@ Formato: **QUANDO** <situação>, o backend **DEVE** <comportamento>. Cada requi
 - **R7.4** `send_command(entity_id, command, value="")` DEVE fazer `PATCH /v2/entities/<id>/attrs` com `{ command: { type: "command", value } }`. Comando fora da lista canônica DEVE dar `ValueError` sem chamar a rede.
   Testes: `test_send_command_envia_patch`, `test_send_command_set_limits_com_valor`, `test_send_command_rejeita_comando_invalido`.
 - **R7.5** `update_attrs(entity_id, attrs)` DEVE fazer `POST /v2/entities/<id>/attrs` (cria ou atualiza) com cada valor como `{ type: "Number", value }`.
+  > **Emenda de 07/10/2026 (Task 3, fato F4):** na EC2, esse `POST` responde 404 antes da primeira leitura do device. O `update_attrs` passa a usar `POST /v2/op/update` com `actionType: append` e o teste vira `test_update_attrs_usa_op_update_append` (subtarefa 3.7a do plano da Task 3).
   Teste: `test_update_attrs_envia_post`.
 - **R7.6** `delete_entity(entity_id)` DEVE remover a entidade; 404 conta como sucesso.
   Teste: `test_delete_entity_aceita_404`.

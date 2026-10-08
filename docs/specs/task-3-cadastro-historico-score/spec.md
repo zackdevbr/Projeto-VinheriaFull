@@ -16,9 +16,11 @@
 - Firmware publicando `t|h|l` a cada 2 s. O `ID_DEVICE` é escrito à mão em cada firmware.
 
 **Fatos verificados na EC2 em 07/10/2026** (IoT Agent 3.7.0, `iotagent-node-lib` 4.7.0, sonda com `vinheria099` descartável, já removida):
-- F1: o `POST /iot/devices` **cria a entidade no Orion na hora**, só com os atributos de comando. `temperature`, `humidity` e `luminosity` só aparecem na primeira leitura.
+- F1 (**corrigido em 07/10/2026, ver F4**): logo após o `POST /iot/devices`, o `GET` da entidade responde 200, só com os atributos de comando. Isso **não** significa que a entidade está armazenada no Orion: o `GET` é atendido pela registration do IoT Agent. `temperature`, `humidity` e `luminosity` só aparecem na primeira leitura.
 - F2: o `DELETE /iot/devices/{id}` **apaga também a entidade e a registration no Orion**. As subscriptions não são apagadas.
 - F3: o `PUT /iot/devices/{id}` para acrescentar comandos **falha** (`404 ENTITY_GENERIC_ERROR`). Para um device ganhar `set_limits`, é preciso removê-lo e provisioná-lo de novo.
+- F4 (primeira tentativa da 3.8, `vinheria077` descartável, já removida): antes da primeira leitura, `POST /v2/entities/{id}/attrs` responde **404** (3 de 3 rodadas, com e sem `?type=`). `POST /v2/op/update` com `actionType: append` responde **204**, cria a entidade, mantém os atributos de comando e aceita repetição.
+- F5 (risco, **não verificado**): com o ESP32 ligado, uma leitura pode chegar entre a remoção e o provisionamento do device. Se o service group autoprovisiona (provável padrão do IoT Agent), o device é recriado sozinho e o `POST /iot/devices` responde 409.
 
 **O que depende desta task.**
 - Task 4: `DeviceRegistry.list/get`, `LimitsStore` (ganha `update`), `ReadingsService`, `quality_score`, e a faixa já publicada no Orion.
@@ -66,7 +68,7 @@ Formato: **QUANDO** <situação>, o backend **DEVE** <comportamento>. Cada requi
   3. `provision_device` (5 comandos, 3 atributos);
   4. `delete_subscriptions` da entidade;
   5. `subscribe_attr` de `temperature`, `humidity` e `luminosity`;
-  6. `update_attrs` com a faixa padrão.
+  6. `update_attrs` com a faixa padrão, que é um upsert por `POST /v2/op/update` (`append`), conforme F4.
 
   Teste: `test_create_sequencia_completa_no_fiware`.
 - **R4.3** Só depois do FIWARE, `create` DEVE gravar numa única transação a linha em `devices` (com `created_at` em ISO 8601 UTC) e a faixa padrão em `triggers`. Também DEVE devolver o `Device`.
@@ -77,6 +79,8 @@ Formato: **QUANDO** <situação>, o backend **DEVE** <comportamento>. Cada requi
   Teste: `test_create_reprovisiona_device_existente`.
 - **R4.6** Dois cadastros DEVEM gerar duas sequências completas e independentes.
   Teste: `test_create_dois_devices_duas_sequencias`.
+- **R4.7** QUANDO o `POST /iot/devices` responde 409 durante o cadastro (F5), `create` DEVE remover o device e provisioná-lo de novo **uma vez**. Um segundo 409 DEVE propagar `FiwareConflict` sem gravar nada.
+  Testes: `test_create_device_autoprovisionado_no_meio_tenta_de_novo`, `test_create_conflito_persistente_propaga`.
 
 ### R5 — Listagem e consulta
 - **R5.1** `list()` DEVE devolver os devices do SQLite ordenados por `device_id`.
@@ -225,10 +229,10 @@ class ReadingsService:
 |---|---|---|
 | 1 | `POST /iot/services` | 409 |
 | 2 | `DELETE /iot/devices/{device_id}` | 404 |
-| 3 | `POST /iot/devices` | — (409 aqui seria corrida com outro cadastro; propaga) |
+| 3 | `POST /iot/devices` | 409 → remove o device e provisiona de novo uma vez (R4.7); o segundo 409 propaga |
 | 4 | `GET /v2/subscriptions` e `DELETE` das subscriptions da entidade | 404 no DELETE |
 | 5 | `POST /v2/subscriptions` × 3 (temperature, humidity, luminosity) | — |
-| 6 | `POST /v2/entities/{entity_id}/attrs` com `temp_min`…`lux_max` | — |
+| 6 | `POST /v2/op/update` (`append`) com `temp_min`…`lux_max` (F4) | — |
 | 7 | SQLite: `INSERT devices` + 3 × `INSERT triggers`, numa transação | — |
 
 **Remoção** (`delete`): `delete_subscriptions` → `DELETE /iot/devices/{id}` (404 ok) → `DELETE /v2/entities/{entity_id}` (404 ok; pela F2 já costuma ter sumido) → `DELETE FROM devices` (os `triggers` saem em cascata; os `alerts` ficam).
@@ -254,7 +258,7 @@ As rotas só chamam `DeviceRegistry` e `ReadingsService`, que chegam por injeç�
 | D1 | FIWARE primeiro, SQLite por último, com todas as etapas aceitando repetição. Sem rollback compensatório. | Se o FIWARE falha, nada fica gravado localmente, e repetir o cadastro conserta. É mais simples que um estado `pendente` (decisão do usuário: abordagem A). |
 | D2 | **Re-provisionar sempre**: o cadastro remove o device no IoT Agent antes de provisionar. | A F3 mostra que não dá para acrescentar `set_limits` com `PUT`. A 001 e a 002 precisam ganhá-lo (decisão do usuário). A entidade é recriada e os valores voltam na próxima leitura, cerca de 2 s depois. O histórico do STH não é afetado. |
 | D3 | As subscriptions são apagadas e recriadas a cada cadastro. | Evita duplicar subscriptions ao adotar um device que já as tinha, e uma subscription duplicada grava o histórico em dobro. |
-| D4 | A faixa padrão é publicada no Orion já no cadastro. | Pela F1, a entidade existe logo após o provisionamento, então o `POST /attrs` funciona. Assim o Orion fica coerente com o SQLite desde o início (RF06). |
+| D4 | A faixa padrão é publicada no Orion já no cadastro, por `POST /v2/op/update` (`append`). | O `POST /attrs` falha antes da primeira leitura (F4); o upsert cria a entidade e funciona sempre. Assim o Orion fica coerente com o SQLite desde o início (RF06). A Task 4 herda o mesmo `update_attrs`. |
 | D5 | O usuário digita o `device_id`, que precisa bater com o `ID_DEVICE` do firmware. | Decisão do usuário. A atribuição automática vira tarefa opcional futura (seção 4.6). |
 | D6 | Score pela média proporcional; `None` se qualquer atributo faltar, com `available: false` e uma mensagem de motivo. | Decisão do usuário. Não dá score bom a partir de dado incompleto, e o painel mostra "indisponível" com o motivo em vez de um número enganoso. |
 | D7 | `/current` devolve `null` em vez de erro quando não há leitura. | Uma vinheria recém-cadastrada não tem sensores no Orion (F1). O painel mostra "aguardando primeira leitura". |
@@ -262,6 +266,7 @@ As rotas só chamam `DeviceRegistry` e `ReadingsService`, que chegam por injeç�
 | D9 | O resolver fica só como serviço, sem rota. | Quem consome é o chatbot (7A). Expor a rota agora seria escopo sem uso. |
 | D10 | O `HistoryQuery` é validado pelo Pydantic na query string. | Erro de janela vira 422 automático, sem lógica de validação dentro da rota. |
 | D11 | Corrida entre dois cadastros do mesmo id: o `IntegrityError` do SQLite vira `DeviceAlreadyExists`. | Fecha a janela entre a checagem inicial e o `INSERT`. |
+| D12 | Falha no meio do cadastro deixa resíduo no FIWARE (device, subscriptions) sem linha no SQLite. Não há limpeza compensatória. | Visto na primeira tentativa da 3.8. Repetir o cadastro do mesmo id re-provisiona e recria as subscriptions sem duplicar (D2, D3). Uma limpeza compensatória falharia pelo mesmo motivo da falha original (EC2 instável). |
 
 ### 4.6 Fora de escopo
 
@@ -286,7 +291,9 @@ As rotas só chamam `DeviceRegistry` e `ReadingsService`, que chegam por injeç�
 3. Com a EC2 e o Wokwi ligados, `POST /api/devices` da `vinheria001` responde 201. Depois disso:
    - `GET :4041/iot/devices/vinheria001` lista os 5 comandos, `set_limits` incluído;
    - a entidade no Orion tem `temp_min`…`lux_max` com a faixa padrão;
-   - o `GET /current` mostra valores reais e um `time_instant` que avança entre duas chamadas.
+   - há exatamente 3 subscriptions da entidade;
+   - o `GET /current` mostra valores reais e um `time_instant` que avança entre duas chamadas;
+   - um `alert_off` enviado pelo Orion é respondido pelo Wokwi (`alert_off_status: OK`), provando que o upsert não quebrou o encaminhamento de comandos.
 4. O mesmo vale para a `vinheria002`.
 5. `GET /history?attr=temperature&last_n=20` devolve pontos `{ts, value}` reais, e `GET /score` devolve um número coerente com os valores atuais.
 6. Ciclo descartável com a `vinheria099`:
