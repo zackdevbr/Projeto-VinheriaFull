@@ -20,7 +20,7 @@
 - F2 (**refinado em 08/10/2026**): o `DELETE /iot/devices/{id}` apaga a registration dos comandos e uma entidade que só tem atributos de comando (caso da sonda). Uma entidade **com medições já gravadas sobrevive** à remoção do device: na adoção da 001, a primeira leitura veio com `time_instant` anterior ao cadastro. Não faz mal, porque o `delete` explícito da entidade na remoção cobre esse caso e o upsert da faixa só acrescenta atributos. As subscriptions não são apagadas.
 - F3: o `PUT /iot/devices/{id}` para acrescentar comandos **falha** (`404 ENTITY_GENERIC_ERROR`). Para um device ganhar `set_limits`, é preciso removê-lo e provisioná-lo de novo.
 - F4 (primeira tentativa da 3.8, `vinheria077` descartável, já removida): antes da primeira leitura, `POST /v2/entities/{id}/attrs` responde **404** (3 de 3 rodadas, com e sem `?type=`). `POST /v2/op/update` com `actionType: append` responde **204**, cria a entidade, mantém os atributos de comando e aceita repetição.
-- F5 (risco): com o ESP32 ligado, uma leitura pode chegar entre a remoção e o provisionamento do device. Se o service group autoprovisiona, o device é recriado sozinho e o `POST /iot/devices` responde 409. **Verificação de 08/10/2026:** nas adoções da 001 e da 002 (Wokwi publicando) o 409 não ocorreu e não apareceu nenhuma entidade `Thing`; o tratamento do R4.7 fica como proteção, coberto por teste, sem ter sido acionado na EC2.
+- F5 (**refutado em 08/10/2026**): a hipótese era que, com o ESP32 ligado, o IoT Agent autoprovisionasse o device entre a remoção e o provisionamento, causando 409. Medido na EC2: (a) removida a `vinheria001` com o ESP32 publicando, durante 60 s (5 a 6 leituras), o IoT Agent **não** recriou device nem entidade, e nenhuma `Thing` apareceu; (b) em 8 ciclos seguidos de cadastrar e remover a 001 com o ESP32 publicando, houve 8 × `201`, 8 × `204`, **0 retries** e 0 erros. O service group da EC2 não autoprovisiona.
 
 **O que depende desta task.**
 - Task 4: `DeviceRegistry.list/get`, `LimitsStore` (ganha `update`), `ReadingsService`, `quality_score`, e a faixa já publicada no Orion.
@@ -79,8 +79,8 @@ Formato: **QUANDO** <situação>, o backend **DEVE** <comportamento>. Cada requi
   Teste: `test_create_reprovisiona_device_existente`.
 - **R4.6** Dois cadastros DEVEM gerar duas sequências completas e independentes.
   Teste: `test_create_dois_devices_duas_sequencias`.
-- **R4.7** QUANDO o `POST /iot/devices` responde 409 durante o cadastro (F5), `create` DEVE remover o device e provisioná-lo de novo **uma vez**. Um segundo 409 DEVE propagar `FiwareConflict` sem gravar nada.
-  Testes: `test_create_device_autoprovisionado_no_meio_tenta_de_novo`, `test_create_conflito_persistente_propaga`.
+- **R4.7** QUANDO o `POST /iot/devices` responde 409 durante o cadastro, `create` DEVE remover o device e provisioná-lo de novo **uma vez**, registrando um aviso no log. Um segundo 409 DEVE propagar `FiwareConflict` sem gravar nada. Como o F5 foi refutado, isto é só proteção contra uma recriação por outro agente (outro cadastro do mesmo id, por exemplo); o aviso no log torna o caso visível se um dia acontecer.
+  Testes: `test_create_device_autoprovisionado_no_meio_tenta_de_novo`, `test_create_avisa_no_log_quando_refaz_o_provisionamento`, `test_create_sem_conflito_nao_avisa`, `test_create_conflito_persistente_propaga`.
 
 ### R5 — Listagem e consulta
 - **R5.1** `list()` DEVE devolver os devices do SQLite ordenados por `device_id`.

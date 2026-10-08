@@ -2401,7 +2401,7 @@ Expected, na ordem: `201`; score com `"available":false` e `"message":"Score ind
 
 - [ ] **Passo 10: parar o backend, limpar e conferir segredos fora do Git**
 
-Parar o uvicorn; apagar os `.json` do scratchpad. Na raiz: `git status --short`.
+Parar o uvicorn; apagar os `.json` do scratchpad. **Não apagar `backend/vinheria.db`:** ele é o único registro local de nome e cidade das vinherias (apagá-lo na primeira execução deixou o cadastro vazio, e foi preciso readotar a 001 e a 002). Na raiz: `git status --short`.
 Expected: nenhum `backend/.env` nem `*.db` listado.
 
 - [ ] **Passo 11: marcar a Task 3 como feita**
