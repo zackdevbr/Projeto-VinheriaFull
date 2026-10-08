@@ -78,11 +78,17 @@ class OrionOperations(FiwareBase):
     async def update_attrs(self, entity_id: str, attrs: dict[str, float]) -> None:
         """Cria ou atualiza atributos numéricos na entidade (ex.: faixa ideal).
 
-        Usa POST (upsert) porque PATCH falha quando o atributo ainda não existe.
+        Usa POST /v2/op/update com actionType append, que cria a entidade se
+        ela ainda não estiver armazenada. Logo após o provisionamento, a
+        entidade só existe pela registration do IoT Agent até a primeira
+        leitura, e POST /v2/entities/<id>/attrs responde 404 (verificado na
+        EC2 em 07/10/2026). Repetir a chamada é seguro.
         """
-        corpo = {nome: {"type": "Number", "value": valor} for nome, valor in attrs.items()}
-        await self._request("orion", "POST", self.orion_url(f"/v2/entities/{entity_id}/attrs"),
-                            json=corpo)
+        entidade = {"id": entity_id, "type": ENTITY_TYPE}
+        entidade.update(
+            {nome: {"type": "Number", "value": valor} for nome, valor in attrs.items()})
+        await self._request("orion", "POST", self.orion_url("/v2/op/update"),
+                            json={"actionType": "append", "entities": [entidade]})
 
     async def delete_entity(self, entity_id: str) -> None:
         """Remove a entidade do Orion; se já não existe (404), segue."""

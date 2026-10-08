@@ -63,13 +63,14 @@ async def test_send_command_rejeita_comando_invalido(fiware):
 
 
 @respx.mock
-async def test_update_attrs_envia_post(fiware):
-    rota = respx.post(f"{ORION}/v2/entities/{E1}/attrs").mock(return_value=httpx.Response(204))
+async def test_update_attrs_usa_op_update_append(fiware):
+    rota = respx.post(f"{ORION}/v2/op/update").mock(return_value=httpx.Response(204))
     await fiware.update_attrs(E1, {"temp_min": 12, "temp_max": 18.5})
-    assert _corpo(rota) == {
+    assert _corpo(rota) == {"actionType": "append", "entities": [{
+        "id": E1, "type": "Vinheria",
         "temp_min": {"type": "Number", "value": 12},
         "temp_max": {"type": "Number", "value": 18.5},
-    }
+    }]}
 
 
 @respx.mock

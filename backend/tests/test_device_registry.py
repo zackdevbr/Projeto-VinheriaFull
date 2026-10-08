@@ -27,7 +27,6 @@ def _mock_cadastro(numero="001", device_existente=False, subscricao=None, faixa=
     `subscricao` e `faixa` permitem trocar a resposta (ou side_effect) do
     POST de subscriptions e do POST da faixa no Orion.
     """
-    entidade = f"urn:ngsi-ld:Vinheria:{numero}"
     respx.post(f"{IOTA}/iot/services").mock(return_value=httpx.Response(201))
     respx.delete(f"{IOTA}/iot/devices/vinheria{numero}").mock(
         return_value=httpx.Response(204 if device_existente else 404))
@@ -38,7 +37,7 @@ def _mock_cadastro(numero="001", device_existente=False, subscricao=None, faixa=
         rota_sub.mock(return_value=CRIADA)
     else:
         rota_sub.mock(side_effect=subscricao)
-    rota_faixa = respx.post(f"{ORION}/v2/entities/{entidade}/attrs")
+    rota_faixa = respx.post(f"{ORION}/v2/op/update")
     if faixa is None:
         rota_faixa.mock(return_value=httpx.Response(204))
     else:
@@ -79,7 +78,7 @@ async def test_create_sequencia_completa_no_fiware(registry):
         ("POST", "/v2/subscriptions"),
         ("POST", "/v2/subscriptions"),
         ("POST", "/v2/subscriptions"),
-        ("POST", f"/v2/entities/{E1}/attrs"),
+        ("POST", "/v2/op/update"),
     ]
     assinados = [
         json.loads(c.request.content)["subject"]["condition"]["attrs"][0]
@@ -88,14 +87,15 @@ async def test_create_sequencia_completa_no_fiware(registry):
     ]
     assert assinados == ["temperature", "humidity", "luminosity"]
     faixa = json.loads(respx.calls[-1].request.content)
-    assert faixa == {
+    assert faixa == {"actionType": "append", "entities": [{
+        "id": E1, "type": "Vinheria",
         "temp_min": {"type": "Number", "value": 12},
         "temp_max": {"type": "Number", "value": 18},
         "hum_min": {"type": "Number", "value": 50},
         "hum_max": {"type": "Number", "value": 70},
         "lux_min": {"type": "Number", "value": 0},
         "lux_max": {"type": "Number", "value": 30},
-    }
+    }]}
 
 
 @respx.mock
