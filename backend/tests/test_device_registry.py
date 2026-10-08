@@ -8,7 +8,7 @@ import respx
 
 from app.models.schemas import DeviceCreate
 from app.services.device_registry import entity_id_for
-from app.services.fiware_errors import FiwareError
+from app.services.fiware_errors import FiwareConflict, FiwareError
 from app.services.limits import DEFAULT_LIMITS
 from app.services.registry_errors import DeviceAlreadyExists, DeviceNotFound
 
@@ -21,16 +21,22 @@ NOVA = DeviceCreate(device_id="vinheria001", name="Vinheria Paulista", city="Sã
 CRIADA = httpx.Response(201, headers={"Location": "/v2/subscriptions/abc"})
 
 
-def _mock_cadastro(numero="001", device_existente=False, subscricao=None, faixa=None):
+def _mock_cadastro(numero="001", device_existente=False, subscricao=None, faixa=None,
+                   provisionamento=None):
     """Registra no respx todas as rotas do cadastro de uma vinheria.
 
-    `subscricao` e `faixa` permitem trocar a resposta (ou side_effect) do
-    POST de subscriptions e do POST da faixa no Orion.
+    `subscricao`, `faixa` e `provisionamento` permitem trocar a resposta (ou
+    side_effect) do POST de subscriptions, do upsert da faixa no Orion e do
+    POST do device no IoT Agent.
     """
     respx.post(f"{IOTA}/iot/services").mock(return_value=httpx.Response(201))
     respx.delete(f"{IOTA}/iot/devices/vinheria{numero}").mock(
         return_value=httpx.Response(204 if device_existente else 404))
-    respx.post(f"{IOTA}/iot/devices").mock(return_value=httpx.Response(201))
+    rota_device = respx.post(f"{IOTA}/iot/devices")
+    if provisionamento is None:
+        rota_device.mock(return_value=httpx.Response(201))
+    else:
+        rota_device.mock(side_effect=provisionamento)
     respx.get(f"{ORION}/v2/subscriptions").mock(return_value=httpx.Response(200, json=[]))
     rota_sub = respx.post(f"{ORION}/v2/subscriptions")
     if subscricao is None:
@@ -140,6 +146,31 @@ async def test_create_reprovisiona_device_existente(registry):
         for c in json.loads(respx.calls[provisionamento].request.content)["devices"][0]["commands"]
     ]
     assert "set_limits" in comandos
+
+
+DUPLICADO = httpx.Response(409, json={"name": "DUPLICATE_DEVICE_ID"})
+
+
+@respx.mock
+async def test_create_device_autoprovisionado_no_meio_tenta_de_novo(registry):
+    _mock_cadastro(device_existente=True, provisionamento=[DUPLICADO, httpx.Response(201)])
+    await registry.create(NOVA)
+    assert _chamadas()[1:5] == [
+        ("DELETE", "/iot/devices/vinheria001"),
+        ("POST", "/iot/devices"),
+        ("DELETE", "/iot/devices/vinheria001"),
+        ("POST", "/iot/devices"),
+    ]
+    assert [d.device_id for d in registry.list()] == ["vinheria001"]
+
+
+@respx.mock
+async def test_create_conflito_persistente_propaga(registry):
+    _mock_cadastro(device_existente=True, provisionamento=[DUPLICADO, DUPLICADO])
+    with pytest.raises(FiwareConflict):
+        await registry.create(NOVA)
+    assert _chamadas().count(("POST", "/iot/devices")) == 2  # tentou de novo uma vez
+    assert registry.list() == []
 
 
 @respx.mock

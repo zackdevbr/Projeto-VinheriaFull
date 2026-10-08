@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from app.models.schemas import Device, DeviceCreate, DeviceDetail
 from app.services.fiware_client import FiwareClient
 from app.services.fiware_constants import ATRIBUTOS_LONGOS
+from app.services.fiware_errors import FiwareConflict
 from app.services.limits import DEFAULT_LIMITS, LimitsStore, limits_to_orion_attrs
 from app.services.registry_errors import DeviceAlreadyExists, DeviceNotFound
 
@@ -53,7 +54,7 @@ class DeviceRegistry:
         await self._fiware.provision_service_group()
         # Remove antes de provisionar: re-provisiona quem já existe (adoção)
         await self._fiware.delete_device(device.device_id)
-        await self._fiware.provision_device(device)
+        await self._provisionar(device)
         # Recria as subscriptions do STH sem deixar duplicatas
         await self._fiware.delete_subscriptions(device.entity_id)
         for attr in ATRIBUTOS_LONGOS:
@@ -106,6 +107,19 @@ class DeviceRegistry:
         await self._fiware.delete_entity(device.entity_id)
         with self._conn:
             self._conn.execute("DELETE FROM devices WHERE device_id = ?", (device_id,))
+
+    async def _provisionar(self, device: Device) -> None:
+        """Provisiona o device; se o IoT Agent já o recriou sozinho, tenta de novo uma vez.
+
+        Com o ESP32 ligado, uma leitura pode chegar entre a remoção e o
+        provisionamento, e o IoT Agent autoprovisiona o device (409). Remover
+        de novo e provisionar resolve; um segundo 409 propaga.
+        """
+        try:
+            await self._fiware.provision_device(device)
+        except FiwareConflict:
+            await self._fiware.delete_device(device.device_id)
+            await self._fiware.provision_device(device)
 
     def _exists(self, device_id: str) -> bool:
         """True se o id já está no SQLite."""
