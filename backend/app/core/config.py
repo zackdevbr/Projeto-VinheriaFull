@@ -9,12 +9,12 @@ Configuração do backend em dois níveis.
 """
 import json
 import os
-import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+from app.core.db import Database
 from app.models.schemas import ConfigUpdate, RuntimeConfig, normalize_host
 
 # Pasta backend/: âncora do .env e do banco, para não depender de onde o
@@ -83,7 +83,7 @@ def load_settings(env_file: str | None = str(BACKEND_DIR / ".env")) -> Settings:
 class ConfigStore:
     """Configuração de runtime: defaults do Settings + alterações salvas no SQLite."""
 
-    def __init__(self, conn: sqlite3.Connection, settings: Settings):
+    def __init__(self, conn: Database, settings: Settings):
         self._conn = conn
         self._settings = settings
 

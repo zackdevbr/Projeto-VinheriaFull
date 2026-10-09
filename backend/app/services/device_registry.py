@@ -12,6 +12,7 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 
+from app.core.db import Database
 from app.models.schemas import Device, DeviceCreate, DeviceDetail
 from app.services.fiware_client import FiwareClient
 from app.services.fiware_constants import ATRIBUTOS_LONGOS
@@ -38,7 +39,7 @@ def _linha_para_device(linha: sqlite3.Row) -> Device:
 class DeviceRegistry:
     """Cadastro, consulta e remoção das vinherias."""
 
-    def __init__(self, conn: sqlite3.Connection, fiware: FiwareClient, limits: LimitsStore):
+    def __init__(self, conn: Database, fiware: FiwareClient, limits: LimitsStore):
         self._conn = conn
         self._fiware = fiware
         self._limits = limits

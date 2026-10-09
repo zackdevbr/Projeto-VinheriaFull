@@ -5,8 +5,7 @@ A faixa é única por atributo e serve a dois usos: limite dos alertas
 (Task 4) e referência do score de qualidade. Vinheria recém-cadastrada
 recebe a faixa padrão. A Task 4 acrescenta aqui a edição da faixa.
 """
-import sqlite3
-
+from app.core.db import Database
 from app.models.schemas import AttrLimits, Limits
 
 # Faixa padrão do PRD (RF11): 12–18 °C, 50–70 % de umidade, luz de 0 a 30 %
@@ -37,7 +36,7 @@ def limits_to_orion_attrs(limits: Limits) -> dict[str, float]:
 class LimitsStore:
     """Leitura e gravação da faixa ideal no SQLite."""
 
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn: Database):
         self._conn = conn
 
     def seed_defaults(self, device_id: str) -> None:
