@@ -1,15 +1,18 @@
 """
 Dependências do FastAPI.
 
-As rotas recebem o ConfigStore e o FiwareClient por injeção, lidos de
-app.state, em vez de importar instâncias globais. Assim os testes trocam
-qualquer peça sem mexer nas rotas.
+As rotas recebem os services por injeção, lidos de app.state, em vez de
+importar instâncias globais. Assim os testes trocam qualquer peça sem
+mexer nas rotas.
 """
 from fastapi import Request
 
 from app.core.config import ConfigStore
+from app.services.alert_log import AlertLog
+from app.services.device_control import DeviceControl
 from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
+from app.services.fleet_state import FleetState
 from app.services.readings import ReadingsService
 
 
@@ -31,3 +34,18 @@ def get_registry(request: Request) -> DeviceRegistry:
 def get_readings(request: Request) -> ReadingsService:
     """Serviço de leituras da aplicação."""
     return request.app.state.readings
+
+
+def get_alert_log(request: Request) -> AlertLog:
+    """Log de alertas da aplicação."""
+    return request.app.state.alerts
+
+
+def get_fleet(request: Request) -> FleetState:
+    """Retrato da frota da aplicação."""
+    return request.app.state.fleet
+
+
+def get_control(request: Request) -> DeviceControl:
+    """Controle de faixa e comandos da aplicação."""
+    return request.app.state.control

@@ -17,6 +17,7 @@ from app.services.fiware_errors import (
 from app.services.registry_errors import (
     AmbiguousVinheria,
     DeviceAlreadyExists,
+    DeviceUnavailable,
     RegistryError,
 )
 
@@ -33,8 +34,8 @@ def _status_para(erro: FiwareError) -> int:
 
 
 def _status_registry(erro: RegistryError) -> int:
-    """Conflito de cadastro ou referência ambígua dão 409; o resto é 'não encontrado'."""
-    if isinstance(erro, (DeviceAlreadyExists, AmbiguousVinheria)):
+    """Conflito (cadastro repetido, referência ambígua, vinheria indisponível) dá 409; o resto é 404."""
+    if isinstance(erro, (DeviceAlreadyExists, AmbiguousVinheria, DeviceUnavailable)):
         return 409
     return 404
 
