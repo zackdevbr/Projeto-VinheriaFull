@@ -7,6 +7,7 @@ from app.models.schemas import Device
 from app.services.alert_log import AlertLog
 from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
+from app.services.fleet_state import FleetState
 from app.services.limits import LimitsStore
 from app.services.readings import ReadingsService
 
@@ -93,3 +94,9 @@ def readings(registry, fiware, limits):
 def alert_log(conn):
     """AlertLog sobre o banco de teste."""
     return AlertLog(conn)
+
+
+@pytest.fixture
+def fleet():
+    """Retrato da frota vazio."""
+    return FleetState()
