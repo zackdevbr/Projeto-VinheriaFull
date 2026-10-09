@@ -13,6 +13,7 @@ VARIAVEIS = (
     "FIWARE_SERVICE", "FIWARE_SERVICEPATH", "FIWARE_APIKEY", "STH_INTERNAL_URL",
     "POLL_SECONDS", "OFFLINE_SECONDS", "HTTP_TIMEOUT_SECONDS",
     "DATABASE_PATH", "CORS_ORIGINS",
+    "BACKUP_DIR", "BACKUP_MINUTES", "BACKUP_KEEP",
 )
 
 
@@ -26,14 +27,17 @@ def ambiente_limpo(monkeypatch):
 
 def test_load_settings_usa_defaults(ambiente_limpo):
     s = load_settings(env_file=None)
-    # O caminho do banco é resolvido para absoluto; o resto é o padrão da classe
-    assert s == Settings(database_path=s.database_path)
+    # Banco e backup são resolvidos para caminhos absolutos, e a produção liga o fundo
+    assert s == Settings(database_path=s.database_path, backup_dir=s.backup_dir,
+                         run_background=True)
     assert s.fiware_host == ""
     assert (s.orion_port, s.iota_port, s.sth_port) == (1026, 4041, 8666)
     assert (s.fiware_service, s.fiware_servicepath, s.fiware_apikey) == ("smart", "/", "TEF")
     assert s.sth_internal_url == "http://sth-comet:8666"
     assert (s.poll_seconds, s.offline_seconds) == (5, 30)
     assert s.cors_origins == ("http://localhost:5173",)
+    assert Path(s.backup_dir) == Path.home() / "SmartSolutions" / "backups"
+    assert (s.backup_minutes, s.backup_keep) == (10, 20)
 
 
 def test_load_settings_le_variaveis_de_ambiente(ambiente_limpo):
@@ -136,3 +140,18 @@ def test_env_file_padrao_fica_em_backend():
     import inspect
     padrao = inspect.signature(load_settings).parameters["env_file"].default
     assert Path(padrao) == BACKEND_DIR / ".env"
+
+
+def test_load_settings_le_backup_do_ambiente(ambiente_limpo, tmp_path):
+    ambiente_limpo.setenv("BACKUP_DIR", str(tmp_path / "bk"))
+    ambiente_limpo.setenv("BACKUP_MINUTES", "3")
+    ambiente_limpo.setenv("BACKUP_KEEP", "7")
+    s = load_settings(env_file=None)
+    assert (s.backup_dir, s.backup_minutes, s.backup_keep) == (str(tmp_path / "bk"), 3, 7)
+
+
+def test_settings_direto_desliga_backup_e_fundo():
+    """Testes criam Settings direto: nada de backup na pasta do usuário nem poller."""
+    s = Settings()
+    assert s.backup_dir == ""
+    assert s.run_background is False

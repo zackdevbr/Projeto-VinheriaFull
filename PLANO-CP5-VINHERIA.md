@@ -160,7 +160,7 @@ projetovinheria/
 - `device_id`: `vinheria00N` (regex `^vinheria\d{3}$`) · `entity_name`: `urn:ngsi-ld:Vinheria:00N` · `entity_type`: `Vinheria`
 - Headers: `fiware-service: smart` · `fiware-servicepath: /`
 - API key: `TEF` · protocolo `PDI-IoTA-UltraLight` (MQTT)
-- Atributos: `t` (temperature), `h` (humidity), `l` (luminosity)
+- Atributos: `t` (temperature), `h` (humidity), `l` (luminosity), `c` (configured: 1 depois do `set_limits`, 0 antes; desde a Task 4, sem subscription no STH)
 - Comandos: `blink_temp`, `blink_hum`, `blink_lux`, `alert_off`, `set_limits` (revisão 3)
 - Atributos da faixa ideal no Orion (revisão 3): `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max`
 
@@ -256,12 +256,14 @@ GET      /api/report                   # ?device_id&format=csv|pdf
 POST     /api/chat                     # { message, history[] } -> resposta Gemini (sem device_id: o bot resolve a vinheria pelo texto)
 ```
 
-**Resposta de `GET /api/fleet`:**
+**Resposta de `GET /api/fleet`** (formato revisado na Task 4, em 09/10/2026: objeto com o estado da EC2):
 ```json
-[{ "device_id": "vinheria001", "name": "Vinheria São Paulo", "city": "São Paulo",
-   "status": "ok|alerta|offline", "last_seen": "2026-10-20T14:03:11Z", "seconds_since": 4,
-   "current": { "temperature": 14.2, "humidity": 62, "luminosity": 20 },
-   "score": 92, "active_alerts": [{ "attr": "temperature", "value": 21.3, "since": "..." }] }]
+{ "fiware_online": true, "fiware_offline_since": null, "updated_at": "2026-10-20T14:03:15+00:00",
+  "vinherias": [{ "device_id": "vinheria001", "name": "Vinheria São Paulo", "city": "São Paulo",
+    "status": "ok|alerta|offline|configurando", "offline_reason": "sem_leitura|fiware|null",
+    "last_seen": "2026-10-20T14:03:11Z", "seconds_since": 4,
+    "current": { "temperature": 14.2, "humidity": 62, "luminosity": 20 },
+    "score": 92, "active_alerts": [{ "attr": "temperature", "value": 21.3, "since": "..." }] }] }
 ```
 
 **Função do trigger engine** (estado por `(device_id, attr)`, com histerese para não tremer):
@@ -405,6 +407,17 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 4: Backend — triggers, poller e log de alertas
 
+> **Planejada em 08/10/2026 e revisada em 09/10/2026 (spec-driven).** Executar por [`docs/specs/task-4-triggers-poller-alertas/plan.md`](docs/specs/task-4-triggers-poller-alertas/plan.md), que segue a [`spec.md`](docs/specs/task-4-triggers-poller-alertas/spec.md) da mesma pasta (17 subtarefas, inclusive firmware). Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Decisões tomadas com o usuário:
+> - **Aviso 1:** wrapper `Database` com `RLock` em volta de cada transação (`connect()` passa a devolvê-lo); o defeito foi reproduzido antes (rollback de uma thread apagou o alerta da outra).
+> - **Aviso 2:** backup a cada 10 min e no desligamento em `~/SmartSolutions/backups` (`BACKUP_DIR`, pode ser pasta do OneDrive), 20 mantidos; restauração automática só quando o banco não existe; CLI `python -m app.tools.restore_backup`.
+> - **RF09 entra aqui:** `POST /api/devices/{id}/commands` (sem `set_limits`; 409 se offline ou configurando).
+> - **ESP32 nasce sem faixa (revisão de 09/10):** mostra "Configure o dispositivo" e recusa `blink_*` até receber o `set_limits`; publica `c|0`/`c|1` (atributo `configured`, provisionado no IoT Agent). O backend manda a faixa no mesmo ciclo em que vê `c≠1` e não avalia alertas antes disso (status `configurando`). Exige recadastrar a 001 e a 002.
+> - **Faixa na hora:** o `PUT /triggers` envia o `set_limits` na mesma requisição; vinheria offline ou falha deixa pendente para o motor.
+> - **EC2 fora (revisão de 09/10):** sem resposta do FIWARE por mais de 30 s, `/api/fleet` traz `fiware_online: false`, todas as vinherias `offline` (motivo `fiware`) e um único alerta `device_id="fiware"` no histórico. Na volta, carência de 30 s antes de alertas offline por vinheria.
+> - **Duas anomalias:** a cada mudança do conjunto ativo, o motor manda `alert_off` + um `blink_*` por atributo ativo, temperatura por último. Só comanda quando o conjunto muda, então não desfaz o comando manual.
+> - **Folga (histerese)** só no fechamento e só do lado violado (0,5 °C · 2 % · 2 %, no máximo 25 % da largura da faixa).
+> - **Novos módulos:** `core/backup.py`, `tools/restore_backup.py`, `models/schemas_fleet.py`, `services/trigger_rules.py`, `services/alert_tracker.py`, `services/device_control.py`, `api/routes_triggers.py`, `firmware/limites.h` (os demais da lista abaixo continuam).
+>
 > **Avisos para o planejamento desta task (registrados em 08/10/2026, ao fechar a Task 3).** Resolver as duas decisões abaixo **antes** de escrever o plano detalhado.
 >
 > 1. **Conexão SQLite compartilhada.** O backend abre uma única conexão (`check_same_thread=False`) e a usa em threads diferentes: as rotas síncronas (`def`) rodam no threadpool do FastAPI e as assíncronas (`async def`) rodam no loop de eventos. Hoje isso é seguro, porque as escritas são curtas e raras. A Task 4 muda o quadro: o poller (`TriggerEngine.run()`) passa a escrever alertas de forma contínua no loop de eventos, ao mesmo tempo em que rotas como `PUT /triggers` escrevem em threads do pool. Duas transações intercaladas na mesma conexão podem se misturar (um `commit` de uma thread confirma o que a outra ainda estava montando). Decidir: (a) uma conexão por operação ou por thread; (b) um `Lock` em volta de cada transação; ou (c) mover o acesso ao banco para uma única thread. Qualquer que seja a escolha, ela precisa de um teste de escrita concorrente (poller + `PUT /triggers` ao mesmo tempo) que falhe antes da correção.
@@ -418,6 +431,16 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 - [ ] **Passo 3:** implementar `trigger_engine` (dict de estado por `(device_id, attr)`, histerese configurável, `tick()` puro + `run()` com `asyncio.sleep(poll_seconds)`), `alert_log`, rotas de triggers (GET/PUT por device, defaults de vinheria) e de alertas; iniciar/parar a task no lifespan do FastAPI.
 - [ ] **Passo 4:** testes passam; teste manual: baixar o máximo de temperatura pelo `PUT /triggers` e ver o ESP32 piscar/apitar, depois voltar e ver parar.
 - [ ] **Passo 5:** commit `feat: add trigger engine with remote alert dispatch and alert log`.
+
+### Task 4B: Firmware — `set_limits` no formato do contrato e faixa no carrossel
+
+> **Absorvida pela Task 4 em 09/10/2026 (subtarefa 4.15),** a pedido do usuário: o firmware passa a nascer sem faixa, mostrar "Configure o dispositivo", recusar alertas antes do `set_limits` e publicar `c`. O texto abaixo fica como registro do achado.
+>
+> *Registrada em 08/10/2026, no planejamento da Task 4.*
+
+**Achado (código do firmware em 08/10/2026):** o `parseLimites()` de `firmware/vinheria_full.ino` já trata `set_limits`, mas separa os 6 valores por `|` e só aceita inteiros. O contrato (`CLAUDE.md` §6, revisão 3) usa `;` e a faixa é float (ex.: `"12.5;18;50;70;0;30"`). O backend da Task 4 envia no formato do contrato, então até esta task o ESP32 responde `set_limits|erro` e mantém a faixa antiga no LCD. Os alertas não são afetados, porque quem decide é o backend.
+
+**Escopo previsto:** trocar o separador para `;`, aceitar decimais (decidir no planejamento se o LCD mostra com 1 casa ou arredondado), manter a validação atômica dos 6 campos e o ack `ok`/`erro`, e conferir a tela da faixa no carrossel (RF19).
 
 ### Task 5: Front-end React — base, config de IP e devices
 

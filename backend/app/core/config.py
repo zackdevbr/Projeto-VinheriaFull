@@ -21,6 +21,10 @@ from app.models.schemas import ConfigUpdate, RuntimeConfig, normalize_host
 # comando foi executado (uvicorn na raiz, pytest em backend/, etc.)
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
+# Pasta padrão dos backups do banco: fora do repositório (o *.db é ignorado
+# pelo Git) e na pasta do usuário, para sobreviver a um clone novo
+DEFAULT_BACKUP_DIR = Path.home() / "SmartSolutions" / "backups"
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -38,6 +42,13 @@ class Settings:
     http_timeout_seconds: float = 5.0
     database_path: str = "vinheria.db"
     cors_origins: tuple[str, ...] = ("http://localhost:5173",)
+    # Backup do banco. Pasta vazia desliga: é o padrão da classe, usado nos
+    # testes; load_settings preenche com DEFAULT_BACKUP_DIR
+    backup_dir: str = ""
+    backup_minutes: int = 10
+    backup_keep: int = 20
+    # Poller e backup em fundo: só load_settings (produção) liga
+    run_background: bool = False
 
 
 def _env(nome: str, padrao):
@@ -57,7 +68,8 @@ def load_settings(env_file: str | None = str(BACKEND_DIR / ".env")) -> Settings:
 
     Variáveis já definidas no ambiente têm prioridade sobre o arquivo.
     O .env padrão é o de backend/. `env_file=None` ignora o arquivo
-    (usado nos testes).
+    (usado nos testes). Liga o poller e o backup em fundo (run_background),
+    que ficam desligados quando os testes criam Settings direto.
     """
     if env_file:
         load_dotenv(env_file, override=False)
@@ -77,6 +89,10 @@ def load_settings(env_file: str | None = str(BACKEND_DIR / ".env")) -> Settings:
         http_timeout_seconds=float(_env("HTTP_TIMEOUT_SECONDS", p.http_timeout_seconds)),
         database_path=_resolve_db_path(_env("DATABASE_PATH", p.database_path)),
         cors_origins=tuple(o.strip() for o in origens.split(",") if o.strip()),
+        backup_dir=_env("BACKUP_DIR", str(DEFAULT_BACKUP_DIR)),
+        backup_minutes=int(_env("BACKUP_MINUTES", p.backup_minutes)),
+        backup_keep=int(_env("BACKUP_KEEP", p.backup_keep)),
+        run_background=True,
     )
 
 
