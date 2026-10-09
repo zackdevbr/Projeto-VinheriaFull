@@ -4,6 +4,7 @@ import pytest
 from app.core.config import ConfigStore, Settings
 from app.core.db import connect
 from app.models.schemas import Device
+from app.services.alert_log import AlertLog
 from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
 from app.services.limits import LimitsStore
@@ -86,3 +87,9 @@ def cadastrar(conn, limits):
 def readings(registry, fiware, limits):
     """ReadingsService com FIWARE interceptado pelo respx."""
     return ReadingsService(registry, fiware, limits)
+
+
+@pytest.fixture
+def alert_log(conn):
+    """AlertLog sobre o banco de teste."""
+    return AlertLog(conn)
