@@ -34,6 +34,31 @@ def to_float(valor) -> float | None:
     return numero
 
 
+def _to_configured(valor) -> bool | None:
+    """Atributo configured do ESP32: 1 -> True, 0 -> False, ausente ou inválido -> None."""
+    numero = to_float(valor)
+    if numero is None:
+        return None
+    return numero == 1
+
+
+def reading_from_entity(device_id: str, entidade: dict) -> CurrentReading:
+    """Converte uma entidade do Orion (keyValues) no estado atual da vinheria.
+
+    Usada na consulta de uma vinheria e pelo poller da frota. Entidade vazia
+    ({}) vira todos os valores None.
+    """
+    instante = entidade.get("TimeInstant")
+    return CurrentReading(
+        device_id=device_id,
+        temperature=to_float(entidade.get("temperature")),
+        humidity=to_float(entidade.get("humidity")),
+        luminosity=to_float(entidade.get("luminosity")),
+        time_instant=instante if isinstance(instante, str) and instante.strip() else None,
+        configured=_to_configured(entidade.get("configured")),
+    )
+
+
 class ReadingsService:
     """Consulta de estado atual, histórico e score por vinheria."""
 
@@ -49,14 +74,7 @@ class ReadingsService:
             entidade = await self._fiware.get_entity(device.entity_id)
         except FiwareNotFound:
             entidade = {}
-        instante = entidade.get("TimeInstant")
-        return CurrentReading(
-            device_id=device.device_id,
-            temperature=to_float(entidade.get("temperature")),
-            humidity=to_float(entidade.get("humidity")),
-            luminosity=to_float(entidade.get("luminosity")),
-            time_instant=instante if isinstance(instante, str) and instante.strip() else None,
-        )
+        return reading_from_entity(device.device_id, entidade)
 
     async def history(self, device_id: str, query: HistoryQuery) -> list[HistoryPoint]:
         """Histórico de um atributo, normalizado e sem pontos inválidos."""

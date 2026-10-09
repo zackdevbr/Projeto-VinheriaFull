@@ -2,8 +2,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.models.schemas import AttrLimits
-from app.services.limits import DEFAULT_LIMITS, limits_to_orion_attrs
+from app.models.schemas import AttrLimits, Limits
+from app.services.limits import DEFAULT_LIMITS, limits_to_command_value, limits_to_orion_attrs
 
 
 def _grava_device(conn, device_id="vinheria001"):
@@ -53,3 +53,26 @@ def test_limits_to_orion_attrs():
         "hum_min": 50, "hum_max": 70,
         "lux_min": 0, "lux_max": 30,
     }
+
+
+def test_limits_update_substitui_faixa(conn, limits):
+    _grava_device(conn)
+    with conn:
+        limits.seed_defaults("vinheria001")
+    nova = Limits(temperature=AttrLimits(min=10, max=16),
+                  humidity=AttrLimits(min=55, max=75),
+                  luminosity=AttrLimits(min=0, max=20))
+    limits.update("vinheria001", nova)
+    assert limits.get("vinheria001") == nova
+    assert conn.execute("SELECT COUNT(*) FROM triggers").fetchone()[0] == 3
+
+
+def test_command_value_padrao():
+    assert limits_to_command_value(DEFAULT_LIMITS) == "12;18;50;70;0;30"
+
+
+def test_command_value_com_decimais():
+    faixa = Limits(temperature=AttrLimits(min=12.5, max=18),
+                   humidity=AttrLimits(min=50, max=70.5),
+                   luminosity=AttrLimits(min=0, max=30))
+    assert limits_to_command_value(faixa) == "12.5;18;50;70.5;0;30"

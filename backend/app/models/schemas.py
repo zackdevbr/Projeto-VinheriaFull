@@ -132,6 +132,8 @@ class CurrentReading(BaseModel):
     humidity: float | None = None
     luminosity: float | None = None
     time_instant: str | None = None
+    # True quando o ESP32 já recebeu a faixa (set_limits); False aguardando; None sem dado
+    configured: bool | None = None
 
 
 class AttrScores(BaseModel):

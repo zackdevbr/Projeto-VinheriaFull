@@ -3,7 +3,7 @@ Faixa ideal de cada vinheria (tabela triggers do SQLite).
 
 A faixa é única por atributo e serve a dois usos: limite dos alertas
 (Task 4) e referência do score de qualidade. Vinheria recém-cadastrada
-recebe a faixa padrão. A Task 4 acrescenta aqui a edição da faixa.
+recebe a faixa padrão; o painel pode editá-la depois (Task 4).
 """
 from app.core.db import Database
 from app.models.schemas import AttrLimits, Limits
@@ -33,6 +33,15 @@ def limits_to_orion_attrs(limits: Limits) -> dict[str, float]:
     return attrs
 
 
+def limits_to_command_value(limits: Limits) -> str:
+    """Valor do comando set_limits: "tmin;tmax;hmin;hmax;lmin;lmax".
+
+    O separador é ; para não colidir com o | do UltraLight. Inteiros saem
+    sem ".0" (12) e decimais saem como estão (12.5).
+    """
+    return ";".join(f"{valor:g}" for valor in limits_to_orion_attrs(limits).values())
+
+
 class LimitsStore:
     """Leitura e gravação da faixa ideal no SQLite."""
 
@@ -52,6 +61,19 @@ class LimitsStore:
                 "VALUES (?, ?, ?, ?)",
                 (device_id, attr, faixa.min, faixa.max),
             )
+
+    def update(self, device_id: str, limits: Limits) -> None:
+        """Substitui a faixa da vinheria numa transação própria (edição pelo painel)."""
+        with self._conn:
+            for attr in ORION_LIMIT_NAMES:
+                faixa = getattr(limits, attr)
+                self._conn.execute(
+                    "INSERT INTO triggers (device_id, attr, min_value, max_value) "
+                    "VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(device_id, attr) DO UPDATE SET "
+                    "min_value = excluded.min_value, max_value = excluded.max_value",
+                    (device_id, attr, faixa.min, faixa.max),
+                )
 
     def get(self, device_id: str) -> Limits:
         """Faixa da vinheria; atributo sem linha no banco usa o padrão."""

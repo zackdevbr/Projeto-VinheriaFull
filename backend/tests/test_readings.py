@@ -161,3 +161,20 @@ def test_history_query_exige_um_modo(campos):
 def test_history_query_valida_data():
     with pytest.raises(ValidationError):
         HistoryQuery(attr="temperature", date_from="ontem")
+
+
+@pytest.mark.parametrize("bruto, esperado", [(1, True), ("1", True), (0, False),
+                                             (None, None), ("x", None)])
+def test_reading_from_entity_converte(bruto, esperado):
+    from app.services.readings import reading_from_entity
+
+    entidade = {"temperature": "14.5", "humidity": 60, "luminosity": " ",
+                "TimeInstant": "2026-10-08T11:59:58.000Z"}
+    if bruto is not None:
+        entidade["configured"] = bruto
+    leitura = reading_from_entity("vinheria001", entidade)
+    assert (leitura.temperature, leitura.humidity, leitura.luminosity) == (14.5, 60.0, None)
+    assert leitura.time_instant == "2026-10-08T11:59:58.000Z"
+    assert leitura.configured is esperado
+    vazia = reading_from_entity("vinheria001", {})
+    assert vazia.temperature is None and vazia.time_instant is None and vazia.configured is None
