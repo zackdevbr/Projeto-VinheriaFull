@@ -10,6 +10,8 @@ from app.services.fiware_client import FiwareClient
 from app.services.fleet_state import FleetState
 from app.services.limits import LimitsStore
 from app.services.readings import ReadingsService
+from app.services.trigger_engine import TriggerEngine
+from tests.fakes import FiwareFalso, Relogio
 
 
 @pytest.fixture
@@ -68,10 +70,11 @@ def registry(conn, fiware, limits):
 @pytest.fixture
 def cadastrar(conn, limits):
     """Grava vinherias direto no SQLite, sem FIWARE (para testes de leitura e remoção)."""
-    def _cadastrar(numero="001", name="Vinheria Paulista", city="São Paulo"):
+    def _cadastrar(numero="001", name="Vinheria Paulista", city="São Paulo",
+                   created_at="2026-10-07T21:00:00+00:00"):
         device = Device(device_id=f"vinheria{numero}",
                         entity_id=f"urn:ngsi-ld:Vinheria:{numero}",
-                        name=name, city=city, created_at="2026-10-07T21:00:00+00:00")
+                        name=name, city=city, created_at=created_at)
         with conn:
             conn.execute(
                 "INSERT INTO devices (device_id, entity_id, name, city, created_at) "
@@ -100,3 +103,21 @@ def alert_log(conn):
 def fleet():
     """Retrato da frota vazio."""
     return FleetState()
+
+
+@pytest.fixture
+def fiware_falso():
+    """FIWARE falso para o motor e o controle (sem respx)."""
+    return FiwareFalso()
+
+
+@pytest.fixture
+def relogio():
+    """Relógio parado em 2026-10-08 12:00:00 UTC, avançado pelo teste."""
+    return Relogio()
+
+
+@pytest.fixture
+def engine(registry, limits, alert_log, fiware_falso, store, fleet, relogio):
+    """TriggerEngine com FIWARE falso, banco de teste e relógio controlado."""
+    return TriggerEngine(registry, limits, alert_log, fiware_falso, store, fleet, clock=relogio)
