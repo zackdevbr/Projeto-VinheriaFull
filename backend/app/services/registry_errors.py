@@ -23,6 +23,10 @@ class DeviceAlreadyExists(RegistryError):
     """O device_id já está cadastrado."""
 
 
+class DeviceUnavailable(RegistryError):
+    """A vinheria está offline ou aguardando a faixa e não recebe comandos de alerta."""
+
+
 class VinheriaNotFound(RegistryError):
     """Nenhuma vinheria corresponde ao texto informado (resolver)."""
 
