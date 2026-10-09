@@ -13,6 +13,11 @@ SENSOR_ATTRS = (
 )
 # Comandos que o firmware entende
 COMMANDS = ("blink_temp", "blink_hum", "blink_lux", "alert_off", "set_limits")
+# Atributos de estado do dispositivo, fora do STH: c = 1 quando o ESP32 já
+# recebeu a faixa por set_limits, 0 enquanto mostra "Configure o dispositivo"
+STATUS_ATTRS = (
+    ("c", "configured", "Integer"),
+)
 ENTITY_TYPE = "Vinheria"
 # Máximo de itens por listagem no Orion (frota e subscriptions)
 ORION_LIST_LIMIT = 1000

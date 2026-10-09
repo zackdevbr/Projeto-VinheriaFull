@@ -6,7 +6,7 @@ fornecidos por FiwareBase.
 """
 from app.models.schemas import Device
 from app.services.fiware_base import FiwareBase
-from app.services.fiware_constants import COMMANDS, ENTITY_TYPE, SENSOR_ATTRS
+from app.services.fiware_constants import COMMANDS, ENTITY_TYPE, SENSOR_ATTRS, STATUS_ATTRS
 
 
 class IotaOperations(FiwareBase):
@@ -44,7 +44,7 @@ class IotaOperations(FiwareBase):
             "commands": [{"name": nome, "type": "command"} for nome in COMMANDS],
             "attributes": [
                 {"object_id": curto, "name": longo, "type": tipo}
-                for curto, longo, tipo in SENSOR_ATTRS
+                for curto, longo, tipo in SENSOR_ATTRS + STATUS_ATTRS
             ],
         }]}
         await self._request("iota", "POST", self.iota_url("/iot/devices"), json=corpo)

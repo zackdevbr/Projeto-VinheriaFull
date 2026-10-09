@@ -61,6 +61,7 @@ async def test_provision_device_envia_body(fiware):
         {"object_id": "t", "name": "temperature", "type": "Float"},
         {"object_id": "h", "name": "humidity", "type": "Float"},
         {"object_id": "l", "name": "luminosity", "type": "Integer"},
+        {"object_id": "c", "name": "configured", "type": "Integer"},
     ]
 
 
