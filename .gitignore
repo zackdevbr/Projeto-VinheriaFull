@@ -13,3 +13,5 @@ __pycache__/
 # Front-end
 node_modules/
 dist/
+# Exceção: fotos do banco guardadas de propósito no repositório (sem segredos)
+!backend/snapshots/*.db
