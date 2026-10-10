@@ -108,3 +108,15 @@ async def test_alerta_da_ec2_retomado_apos_reinicio_fecha_quando_volta(engine, f
     await engine.tick()
     assert alert_log.open_alerts() == []
     assert fleet.fiware_online is True
+
+
+async def test_alerta_da_ec2_fecha_mesmo_sem_nenhuma_vinheria_cadastrada(engine, fiware_falso,
+                                                                         alert_log, fleet):
+    alert_log.open("fiware", "offline", None, "2026-10-08T11:50:00+00:00")
+    fiware_falso.erro_listar = FORA
+    await engine.tick()
+    assert fleet.fiware_online is False  # segue fora e o painel sabe, mesmo sem vinherias
+    fiware_falso.erro_listar = None
+    await engine.tick()
+    assert alert_log.open_alerts() == []
+    assert fleet.fiware_online is True

@@ -11,6 +11,7 @@ Database embrulha a conexão com um lock para que duas transações nunca se
 misturem: sem ele, o rollback de uma thread desfaria o que a outra ainda
 estava gravando.
 """
+import os
 import sqlite3
 import threading
 
@@ -109,13 +110,22 @@ class Database:
         """Copia o banco inteiro para `destino` com a API de backup do sqlite3.
 
         Roda sob o lock, então a cópia nunca pega uma transação pela metade.
+        Grava num arquivo temporário e só renomeia no fim: se a cópia falhar,
+        nada sobra na pasta (um arquivo pela metade viraria o "backup mais
+        novo" e seria restaurado depois).
         """
+        temporario = destino + ".tmp"
         with self._lock:
-            alvo = sqlite3.connect(destino)
+            alvo = sqlite3.connect(temporario)
             try:
                 self._conn.backup(alvo)
-            finally:
                 alvo.close()
+                os.replace(temporario, destino)
+            except BaseException:
+                alvo.close()
+                if os.path.exists(temporario):
+                    os.remove(temporario)
+                raise
 
     def close(self) -> None:
         """Fecha a conexão."""

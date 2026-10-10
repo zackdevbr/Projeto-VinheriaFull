@@ -122,3 +122,41 @@ async def test_run_sobrevive_a_falha_de_disco(conn, tmp_path, monkeypatch):
     with pytest.raises(_Parar):
         await servico.run()
     assert len(esperas) == 3
+
+
+async def test_run_sobrevive_a_erro_do_sqlite(conn, tmp_path, monkeypatch):
+    """Banco travado ou disco cheio (sqlite3.Error) não pode matar o laço de backup."""
+    esperas = []
+
+    async def sleep_falso(segundos):
+        esperas.append(segundos)
+        if len(esperas) == 3:
+            raise _Parar
+
+    servico = BackupService(conn, str(tmp_path / "bk"), keep=20, minutes=10, sleep=sleep_falso)
+
+    def falha():
+        raise sqlite3.OperationalError("database is locked")
+    monkeypatch.setattr(servico, "backup_now", falha)
+    with pytest.raises(_Parar):
+        await servico.run()
+    assert len(esperas) == 3
+
+
+def test_backup_com_falha_nao_deixa_arquivo_na_pasta(conn, tmp_path):
+    """Cópia que falha no meio não pode virar o 'backup mais novo' nem sobrar na pasta."""
+    class ConexaoQuebrada:
+        def backup(self, alvo):
+            raise sqlite3.OperationalError("disk I/O error")
+
+    real = conn._conn
+    conn._conn = ConexaoQuebrada()
+    pasta = tmp_path / "bk"
+    servico = BackupService(conn, str(pasta), keep=20, minutes=10, clock=_relogio())
+    try:
+        with pytest.raises(sqlite3.Error):
+            servico.backup_now()
+    finally:
+        conn._conn = real
+    assert list_backups(pasta) == []
+    assert list(pasta.iterdir()) == []

@@ -12,6 +12,7 @@ backend/).
 """
 import asyncio
 import logging
+import sqlite3
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
@@ -62,7 +63,7 @@ async def lifespan(app: FastAPI):
             await tarefa
     try:
         app.state.backup.backup_now()
-    except OSError:
+    except (OSError, sqlite3.Error):
         log.exception("falha ao gravar o backup final do banco")
     await app.state.fiware.aclose()
     app.state.conn.close()

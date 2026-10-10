@@ -10,6 +10,7 @@ sozinho quando o arquivo some (apagado por engano ou máquina nova).
 import asyncio
 import logging
 import shutil
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 
@@ -75,10 +76,10 @@ class BackupService:
         return destino
 
     async def run(self) -> None:
-        """Laço em fundo: um backup a cada `minutes`. Falha de disco não para o laço."""
+        """Laço em fundo: um backup a cada `minutes`. Falha de disco ou do SQLite não para o laço."""
         while True:
             await self._sleep(self._minutes * 60)
             try:
                 self.backup_now()
-            except OSError:
+            except (OSError, sqlite3.Error):
                 log.exception("falha ao gravar o backup do banco; tento de novo no próximo intervalo")

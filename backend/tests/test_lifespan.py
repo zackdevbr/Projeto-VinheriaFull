@@ -64,3 +64,20 @@ def test_create_app_restaura_banco_ausente(tmp_path):
                               backup_dir=str(pasta)))
     assert [d.device_id for d in app.state.registry.list()] == ["vinheria001"]
     app.state.conn.close()
+
+
+def test_erro_do_sqlite_no_backup_final_nao_impede_fechar_o_banco(tmp_path, monkeypatch):
+    import sqlite3
+
+    import pytest
+
+    app = create_app(Settings(fiware_host="10.0.0.1", database_path=str(tmp_path / "v.db"),
+                              backup_dir=str(tmp_path / "bk")))
+
+    def falha():
+        raise sqlite3.OperationalError("database is locked")
+    monkeypatch.setattr(app.state.backup, "backup_now", falha)
+    with TestClient(app) as cliente:
+        cliente.get("/api/config")
+    with pytest.raises(sqlite3.ProgrammingError):  # conexão fechada
+        app.state.conn.execute("SELECT 1")

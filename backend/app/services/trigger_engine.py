@@ -107,7 +107,7 @@ class TriggerEngine:
         registrados = {device.device_id for device in devices}
         self._tracker.close_except(registrados | {FIWARE_ALERT_ID}, _iso(agora))
         self._esquecer_removidos(registrados)
-        if not devices:
+        if not devices and not self._fiware_offline:
             self._publicar([], agora)
             return
         try:
