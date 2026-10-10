@@ -26,7 +26,7 @@ async def test_primeira_passada_sincroniza_faixa_e_desliga_alerta(engine, fiware
     cadastrar("001")
     fiware_falso.entidades = [entidade("001")]
     await engine.tick()
-    assert fiware_falso.comandos == [(E1, "set_limits", "12;18;50;70;0;30"),
+    assert fiware_falso.comandos == [(E1, "set_limits", "12,18,50,70,0,30"),
                                      (E1, "alert_off", "")]
 
 
@@ -197,7 +197,7 @@ async def test_faixa_pendente_envia_set_limits(engine, fiware_falso, cadastrar, 
                                         luminosity=DEFAULT_LIMITS.luminosity))
     engine.mark_limits_pending("vinheria001")
     await engine.tick()
-    assert fiware_falso.comandos == [(E1, "set_limits", "10;16;50;70;0;30")]
+    assert fiware_falso.comandos == [(E1, "set_limits", "10,16,50,70,0,30")]
     fiware_falso.comandos.clear()
     await engine.tick()
     assert fiware_falso.comandos == []

@@ -67,7 +67,7 @@ class OrionOperations(FiwareBase):
     async def send_command(self, entity_id: str, command: str, value: str = "") -> None:
         """Envia um comando à vinheria pelo Orion (que repassa ao IoT Agent).
 
-        `value` só é usado pelo set_limits ("tmin;tmax;hmin;hmax;lmin;lmax").
+        `value` só é usado pelo set_limits ("tmin,tmax,hmin,hmax,lmin,lmax").
         """
         if command not in COMMANDS:
             raise ValueError(f"comando inválido: {command!r}; use um de {COMMANDS}")

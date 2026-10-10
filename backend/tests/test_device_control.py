@@ -46,7 +46,7 @@ async def test_update_limits_publica_grava_e_envia_na_hora(control, cadastrar, f
     assert fiware_falso.atualizacoes == [(E1, {"temp_min": 10, "temp_max": 16,
                                                "hum_min": 55, "hum_max": 75,
                                                "lux_min": 0, "lux_max": 20})]
-    assert fiware_falso.comandos == [(E1, "set_limits", "10;16;55;75;0;20")]
+    assert fiware_falso.comandos == [(E1, "set_limits", "10,16,55,75,0,20")]
     assert limits.get("vinheria001") == NOVA
     assert motor_falso.pendentes == []
 

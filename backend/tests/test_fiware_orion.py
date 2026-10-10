@@ -51,8 +51,8 @@ async def test_send_command_envia_patch(fiware):
 @respx.mock
 async def test_send_command_set_limits_com_valor(fiware):
     rota = respx.patch(f"{ORION}/v2/entities/{E1}/attrs").mock(return_value=httpx.Response(204))
-    await fiware.send_command(E1, "set_limits", "12;18;50;70;0;30")
-    assert _corpo(rota) == {"set_limits": {"type": "command", "value": "12;18;50;70;0;30"}}
+    await fiware.send_command(E1, "set_limits", "12,18,50,70,0,30")
+    assert _corpo(rota) == {"set_limits": {"type": "command", "value": "12,18,50,70,0,30"}}
 
 
 async def test_send_command_rejeita_comando_invalido(fiware):

@@ -68,11 +68,11 @@ def test_limits_update_substitui_faixa(conn, limits):
 
 
 def test_command_value_padrao():
-    assert limits_to_command_value(DEFAULT_LIMITS) == "12;18;50;70;0;30"
+    assert limits_to_command_value(DEFAULT_LIMITS) == "12,18,50,70,0,30"
 
 
 def test_command_value_com_decimais():
     faixa = Limits(temperature=AttrLimits(min=12.5, max=18),
                    humidity=AttrLimits(min=50, max=70.5),
                    luminosity=AttrLimits(min=0, max=30))
-    assert limits_to_command_value(faixa) == "12.5;18;50;70.5;0;30"
+    assert limits_to_command_value(faixa) == "12.5,18,50,70.5,0,30"

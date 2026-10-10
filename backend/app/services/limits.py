@@ -34,12 +34,13 @@ def limits_to_orion_attrs(limits: Limits) -> dict[str, float]:
 
 
 def limits_to_command_value(limits: Limits) -> str:
-    """Valor do comando set_limits: "tmin;tmax;hmin;hmax;lmin;lmax".
+    """Valor do comando set_limits: "tmin,tmax,hmin,hmax,lmin,lmax".
 
-    O separador é ; para não colidir com o | do UltraLight. Inteiros saem
+    O separador é vírgula: ; seria barrado pelo Orion ("Invalid characters in attribute value")
+    e | colide com o UltraLight. Inteiros saem
     sem ".0" (12) e decimais saem como estão (12.5).
     """
-    return ";".join(f"{valor:g}" for valor in limits_to_orion_attrs(limits).values())
+    return ",".join(f"{valor:g}" for valor in limits_to_orion_attrs(limits).values())
 
 
 class LimitsStore:

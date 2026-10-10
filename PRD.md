@@ -154,7 +154,7 @@ Diagramas e fluxos detalhados: `docs/arquitetura.md`.
 | Tópico | Direção | Exemplo |
 |---|---|---|
 | `/TEF/<device_id>/attrs` | ESP32 → IoT Agent | `t\|24.3\|h\|58\|l\|42` |
-| `/TEF/<device_id>/cmd` | IoT Agent → ESP32 | `vinheria001@blink_temp\|` · `vinheria001@set_limits\|12;18;50;70;0;30` |
+| `/TEF/<device_id>/cmd` | IoT Agent → ESP32 | `vinheria001@blink_temp\|` · `vinheria001@set_limits\|12,18,50,70,0,30` |
 | `/TEF/<device_id>/cmdexe` | ESP32 → IoT Agent | `vinheria001@blink_temp\|ok` |
 
 **Comando enviado pelo backend**
@@ -168,7 +168,7 @@ PATCH http://<EC2>:1026/v2/entities/urn:ngsi-ld:Vinheria:001/attrs
 
 ```
 PATCH http://<EC2>:1026/v2/entities/urn:ngsi-ld:Vinheria:001/attrs
-{ "set_limits": { "type": "command", "value": "12;18;50;70;0;30" } }
+{ "set_limits": { "type": "command", "value": "12,18,50,70,0,30" } }
 ```
 
 **Padrões de alerta no ESP32**

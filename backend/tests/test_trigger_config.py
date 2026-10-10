@@ -18,7 +18,7 @@ async def test_sem_configuracao_recebe_faixa_na_hora_e_nao_avalia(engine, fiware
     cadastrar("001")
     fiware_falso.entidades = [entidade("001", t=21.0, c=0)]  # fora da faixa, mas sem configurar
     await engine.tick()
-    assert fiware_falso.comandos == [(E1, "set_limits", "12;18;50;70;0;30")]
+    assert fiware_falso.comandos == [(E1, "set_limits", "12,18,50,70,0,30")]
     assert alert_log.open_alerts() == []
     assert fleet.status_of("vinheria001") == "configurando"
     fiware_falso.comandos.clear()

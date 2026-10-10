@@ -35,7 +35,7 @@ FIWARE e Postman já configurados pelo usuário (stack `fabiocabrini/fiware`). E
 
 **Revisão 3 (05/10/2026, durante a Task 0) — também não reabrir:**
 - **Faixa ideal = limites dos triggers.** Um único min/max por atributo por vinheria, definido pelo usuário no painel. Ele dispara os alertas e define o score 100 (penalidade proporcional fora da faixa). A faixa 12–18 °C / 50–70 % / luz 0–30 % vira só o default de vinheria recém-cadastrada.
-- **A faixa é propagada.** Ao salvar (`PUT /api/devices/{id}/triggers`): grava no SQLite, publica `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max` como atributos da entidade no Orion e envia ao ESP32 o novo comando **`set_limits`** com valor `"tmin;tmax;hmin;hmax;lmin;lmax"` (separador `;` para não colidir com o `|` do UltraLight). Também enviar no cadastro, com o default.
+- **A faixa é propagada.** Ao salvar (`PUT /api/devices/{id}/triggers`): grava no SQLite, publica `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max` como atributos da entidade no Orion e envia ao ESP32 o novo comando **`set_limits`** com valor `"tmin,tmax,hmin,hmax,lmin,lmax"` (separador `,`: o `;` é barrado pelo Orion e o `|` colide com o UltraLight). Também enviar no cadastro, com o default.
 - **No ESP32 a faixa é só informativa.** Guarda a última recebida e mostra no carrossel do LCD. "Backend decide, ESP32 obedece" continua valendo.
 - **Remoção apaga no FIWARE.** `DELETE /api/devices/{id}` remove o device no IoT Agent, a entidade e as subscriptions dela no Orion, e o cadastro local. O histórico no STH-Comet é mantido.
 - **Impacto nas tasks:** Task 2 (`FiwareClient` ganha `delete_device`, `delete_entity`, `delete_subscriptions(entity_id)` e `update_attrs(entity_id, attrs)`); Task 3 (`quality_score(reading, limits)`, provisionamento declara `set_limits`, remoção completa); Task 4 (PUT de triggers propaga a faixa; confirmar na EC2 se os atributos `*_min/*_max` vão por `PATCH` direto no Orion ou provisionados no device); nova **Task 4B** de firmware (comando `set_limits` com parse e ack, tela do carrossel com a faixa), depois da Task 4.
@@ -438,9 +438,9 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 >
 > *Registrada em 08/10/2026, no planejamento da Task 4.*
 
-**Achado (código do firmware em 08/10/2026):** o `parseLimites()` de `firmware/vinheria_full.ino` já trata `set_limits`, mas separa os 6 valores por `|` e só aceita inteiros. O contrato (`CLAUDE.md` §6, revisão 3) usa `;` e a faixa é float (ex.: `"12.5;18;50;70;0;30"`). O backend da Task 4 envia no formato do contrato, então até esta task o ESP32 responde `set_limits|erro` e mantém a faixa antiga no LCD. Os alertas não são afetados, porque quem decide é o backend.
+**Achado (código do firmware em 08/10/2026):** o `parseLimites()` de `firmware/vinheria_full.ino` já trata `set_limits`, mas separa os 6 valores por `|` e só aceita inteiros. O contrato (`CLAUDE.md` §6, revisão 3) usava `;`, mas o Orion rejeita esse caractere (achado de 10/10/2026); o separador passou a ser `,`, e a faixa é float (ex.: `"12.5,18,50,70,0,30"`). O backend da Task 4 envia no formato do contrato, então até esta task o ESP32 responde `set_limits|erro` e mantém a faixa antiga no LCD. Os alertas não são afetados, porque quem decide é o backend.
 
-**Escopo previsto:** trocar o separador para `;`, aceitar decimais (decidir no planejamento se o LCD mostra com 1 casa ou arredondado), manter a validação atômica dos 6 campos e o ack `ok`/`erro`, e conferir a tela da faixa no carrossel (RF19).
+**Escopo previsto:** trocar o separador para `,`, aceitar decimais (decidir no planejamento se o LCD mostra com 1 casa ou arredondado), manter a validação atômica dos 6 campos e o ack `ok`/`erro`, e conferir a tela da faixa no carrossel (RF19).
 
 ### Task 5: Front-end React — base, config de IP e devices
 
