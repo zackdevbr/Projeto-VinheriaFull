@@ -407,7 +407,19 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 4: Backend — triggers, poller e log de alertas
 
-> **Planejada em 08/10/2026 e revisada em 09/10/2026 (spec-driven).** Executar por [`docs/specs/task-4-triggers-poller-alertas/plan.md`](docs/specs/task-4-triggers-poller-alertas/plan.md), que segue a [`spec.md`](docs/specs/task-4-triggers-poller-alertas/spec.md) da mesma pasta (17 subtarefas, inclusive firmware). Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Decisões tomadas com o usuário:
+> **FEITA em 10/10/2026** — executada pelo plano docs/specs/task-4-triggers-poller-alertas/plan.md (commits `ec14ca8`..`76a0155`, mais o de documentação). 281 testes passando sem rede (eram 162). Verificação real na EC2 com **um Wokwi só** (`vinheria001`; a 002 ficou sem simulação e aparece `offline`): recadastro com `c → configured`; ESP32 configurado pelo backend sozinho depois do boot; alertas abertos pela faixa com a ordem `alert_off`, `blink_lux`, `blink_temp`; `PUT /triggers` respondendo em 0,56 s com `device_sync: "enviado"` e fechando os alertas com duração; comando manual não desfeito pelo motor; EC2 simulada fora (IP inexistente): 1 alerta `fiware`, frota `offline` (motivo `fiware`), sem alertas falsos por vinheria na volta; vinheria parada: alerta `offline` e comando recusado com 409; backup final no desligamento limpo e restauração automática do banco renomeado.
+>
+> **Desvios e achados da execução:**
+> - **O Orion rejeita `;` em valor de atributo** (`Invalid characters in attribute value`, HTTP 400). O separador do `set_limits` passou a ser **vírgula** (`"12.5,18,50,70,0,30"`). `CLAUDE.md`, `PRD.md`, plano, spec e firmware foram ajustados (commit `e4749fb`).
+> - **A Task 4B foi absorvida** (firmware na subtarefa 4.15): `firmware/limites.h` novo; o ESP32 nasce sem faixa, mostra "Configure o dispositivo", recusa `blink_*` e publica `c`.
+> - `trigger_engine.py` ficou com 284 linhas (limite do plano ~280); mantido, ~70 linhas são docstrings.
+> - O comando de conferência das rotas da 4.14 não funciona nesta versão do FastAPI; usado o schema OpenAPI.
+> - O Wokwi responde com 45 a 90 s de atraso nos acks quando o PC está carregado; o backend decide pelo atributo `c`, não pelo ack, então não é afetado.
+> - A volta da EC2 foi detectada em 54 s (previsto ~10 s): a requisição em andamento contra o IP inexistente ainda segura o ciclo até o timeout. Aceitável; vale reavaliar se o painel precisar de resposta mais rápida.
+> - Verificação que **ficou pendente** por usar um Wokwi só: alerta e comando em duas vinherias ao mesmo tempo (coberto só por teste automático).
+> - Arquivos fora do repositório deixados para você decidir: `~/vinheria-pre-task4.db`, `~/vinheria-copia-seguranca.db` e `~/vinheria.db.teste`.
+
+> *Planejamento original:* **Planejada em 08/10/2026 e revisada em 09/10/2026 (spec-driven).** Executar por [`docs/specs/task-4-triggers-poller-alertas/plan.md`](docs/specs/task-4-triggers-poller-alertas/plan.md), que segue a [`spec.md`](docs/specs/task-4-triggers-poller-alertas/spec.md) da mesma pasta (17 subtarefas, inclusive firmware). Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Decisões tomadas com o usuário:
 > - **Aviso 1:** wrapper `Database` com `RLock` em volta de cada transação (`connect()` passa a devolvê-lo); o defeito foi reproduzido antes (rollback de uma thread apagou o alerta da outra).
 > - **Aviso 2:** backup a cada 10 min e no desligamento em `~/SmartSolutions/backups` (`BACKUP_DIR`, pode ser pasta do OneDrive), 20 mantidos; restauração automática só quando o banco não existe; CLI `python -m app.tools.restore_backup`.
 > - **RF09 entra aqui:** `POST /api/devices/{id}/commands` (sem `set_limits`; 409 se offline ou configurando).
@@ -434,7 +446,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 4B: Firmware — `set_limits` no formato do contrato e faixa no carrossel
 
-> **Absorvida pela Task 4 em 09/10/2026 (subtarefa 4.15),** a pedido do usuário: o firmware passa a nascer sem faixa, mostrar "Configure o dispositivo", recusar alertas antes do `set_limits` e publicar `c`. O texto abaixo fica como registro do achado.
+> **Absorvida pela Task 4 em 09/10/2026 e FEITA em 10/10/2026 (subtarefa 4.15),** a pedido do usuário: o firmware passa a nascer sem faixa, mostrar "Configure o dispositivo", recusar alertas antes do `set_limits` e publicar `c`. O texto abaixo fica como registro do achado.
 >
 > *Registrada em 08/10/2026, no planejamento da Task 4.*
 
