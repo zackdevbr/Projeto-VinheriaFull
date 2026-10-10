@@ -5,6 +5,9 @@
  * MQTT em UltraLight 2.0, executa comandos de alerta (LED azul e buzzer) e
  * mostra os dados num LCD 16x2. O ID da vinheria e a rede ficam no bloco
  * "CONFIGURAÇÃO DESTA INSTÂNCIA" abaixo.
+ *
+ * Nasce sem faixa ideal: mostra "Configure o dispositivo" e recusa alertas
+ * até o backend mandar o set_limits.
  */
 
 #include <WiFi.h>
@@ -14,6 +17,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <time.h>
 #include "boot_animacao.h"
+#include "limites.h"
 
 // ===== CONFIGURAÇÃO DESTA INSTÂNCIA =====
 // Único bloco a editar ao rodar o firmware em outro computador ou ESP32.
@@ -59,19 +63,21 @@ byte CHAR_TACA_DIR[8] = {B11100, B00010, B00010, B11111, B11111, B11111, B11111,
 byte CHAR_GOTA[8] = {B00100, B00100, B01010, B01010, B10001, B10001, B10001, B01110};
 byte CHAR_SOL[8] = {B00100, B10101, B01110, B11111, B01110, B10101, B00100, B00000};
 
-// --- Limites de alerta configuráveis pelo backend (comando set_limits) ---
-// Defaults herdados do CP2 (faixa recomendada para vinheria), usados até o
-// backend mandar o primeiro set_limits. O ESP32 não decide alerta com eles
-// (quem decide é o backend); servem só para o texto exibido no LCD.
-int limTempMin = 10, limTempMax = 16;
-int limHumMin = 60, limHumMax = 80;
-int limLuxMin = 0, limLuxMax = 30;
+// --- Faixa ideal recebida do backend (comando set_limits) ---
+// O ESP32 nasce SEM faixa: até o backend mandar o set_limits, o LCD mostra
+// "Configure o dispositivo" e os comandos de alerta são recusados, para
+// nenhum alerta disparar com parâmetros que não foram cadastrados. A faixa
+// é só informativa no LCD (quem decide o alerta é o backend). `configurado`
+// vai na telemetria (c|0 ou c|1): é por ele que o backend percebe que o
+// ESP32 reiniciou e reenvia a faixa na hora.
+Faixa faixa;
+bool configurado = false;
 
 // Flags por atributo: o LCD precisa saber se cada atributo está em alerta
 // mesmo quando o alertMode (que só governa o padrão de LED/buzzer) está
 // ocupado com outro atributo — duas anomalias podem estar ativas ao mesmo
-// tempo. alert_off vindo do backend só é mandado quando nenhum atributo
-// mais está em alerta, então ele limpa as três de uma vez.
+// tempo. alert_off limpa as três de uma vez; quando uma anomalia normaliza
+// e outra continua, o backend manda alert_off e em seguida o blink da que restou.
 bool alertTemp = false;
 bool alertHum = false;
 bool alertLux = false;
@@ -173,9 +179,9 @@ void telaTemp() {
     lcd.print("TEMP FORA FAIXA");
   } else {
     lcd.print("Ideal ");
-    lcd.print(limTempMin);
+    imprimirLimite(lcd, faixa.tempMin);
     lcd.print("-");
-    lcd.print(limTempMax);
+    imprimirLimite(lcd, faixa.tempMax);
     lcd.print("C");
   }
 }
@@ -193,9 +199,9 @@ void telaUmidade() {
     lcd.print("UMID FORA FAIXA");
   } else {
     lcd.print("Ideal ");
-    lcd.print(limHumMin);
+    imprimirLimite(lcd, faixa.humMin);
     lcd.print("-");
-    lcd.print(limHumMax);
+    imprimirLimite(lcd, faixa.humMax);
     lcd.print("%");
   }
 }
@@ -213,7 +219,7 @@ void telaLuz() {
     lcd.print("LUZ FORA FAIXA");
   } else {
     lcd.print("Ideal ate ");
-    lcd.print(limLuxMax);
+    imprimirLimite(lcd, faixa.luxMax);
     lcd.print("%");
   }
 }
@@ -236,9 +242,36 @@ void telaStatus() {
   }
 }
 
+// Tela de espera enquanto o backend não mandou a faixa. Os pontos animados
+// mostram que o dispositivo está vivo; sem MQTT, avisa que está conectando.
+int pontosCarregando = 0;
+
+void telaConfigurar() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  if (MQTT.connected()) {
+    lcd.print("Configure o");
+    lcd.setCursor(0, 1);
+    lcd.print("dispositivo");
+  } else {
+    lcd.print("Conectando");
+    lcd.setCursor(0, 1);
+    lcd.print(ID_DEVICE);
+  }
+  for (int i = 0; i < pontosCarregando; i++) {
+    lcd.print(".");
+  }
+  pontosCarregando = (pontosCarregando + 1) % 4;
+}
+
 // Despacha a tela atual (0-4) e limpa o LCD antes de desenhar — evita
 // sobrepor texto de tamanhos diferentes entre uma tela e outra.
 int telaAtual = 0;
+
+// Intervalo de troca das telas do LCD e ritmo dos pontos da tela de espera.
+const unsigned long T_TELA = 3000;
+const unsigned long T_CARREGANDO = 500;
+unsigned long ultimaTela = 0;
 
 void telaLCD() {
   lcd.clear();
@@ -260,41 +293,11 @@ void setAlertMode(AlertMode modo) {
   }
 }
 
-// Converte uma String em int, rejeitando qualquer coisa não-numérica
-// (aceita sinal de menos). Vazio também é rejeitado.
-bool parseInteiro(String s, int &out) {
-  s.trim();
-  if (s.length() == 0) return false;
-  int i = (s[0] == '-') ? 1 : 0;
-  if (i >= (int)s.length()) return false;
-  for (; i < (int)s.length(); i++) {
-    if (!isDigit(s[i])) return false;
-  }
-  out = s.toInt();
-  return true;
-}
-
-// Faz o parsing de "temp_min|temp_max|hum_min|hum_max|lux_min|lux_max"
-// (ordem canônica do comando set_limits). Só retorna true se vierem
-// exatamente 6 campos numéricos — nem mais, nem menos. Validação atômica:
-// quem chama só aplica os valores se o retorno for true.
-bool parseLimites(String args, int valores[6]) {
-  int inicio = 0;
-  int count = 0;
-  while (count < 6) {
-    int fim = args.indexOf('|', inicio);
-    String campo = (fim >= 0) ? args.substring(inicio, fim) : args.substring(inicio);
-    if (!parseInteiro(campo, valores[count])) return false;
-    count++;
-    if (fim < 0) {
-      inicio = args.length();
-      break;
-    }
-    inicio = fim + 1;
-  }
-  if (count != 6) return false;
-  if (inicio < (int)args.length()) return false; // sobrou campo extra (7º valor)
-  return true;
+// Responde o comando no tópico cmdexe: "<device_id>@<comando>|<ok|erro>".
+void publicarAck(const String &cmd, const char *resultado) {
+  char ack[60];
+  snprintf(ack, sizeof(ack), "%s@%s|%s", ID_DEVICE, cmd.c_str(), resultado);
+  MQTT.publish(topicCmdExe, ack);
 }
 
 // Callback de mensagens MQTT recebidas no tópico de comando.
@@ -316,6 +319,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     cmd = (posPipe > posArroba) ? msg.substring(posArroba + 1, posPipe) : msg.substring(posArroba + 1);
   }
 
+  // Sem faixa cadastrada, nenhum alerta toca: evita disparo ao ligar com
+  // parâmetros que não vieram do backend. alert_off é sempre aceito.
+  bool ehBlink = (cmd == "blink_temp" || cmd == "blink_hum" || cmd == "blink_lux");
+  if (ehBlink && !configurado) {
+    Serial.println("Alerta recusado: dispositivo ainda nao configurado (aguardando set_limits)");
+    publicarAck(cmd, "erro");
+    return;
+  }
+
   if (cmd == "blink_temp") {
     alertTemp = true;
     setAlertMode(ALERT_TEMP);
@@ -332,30 +344,33 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     setAlertMode(ALERT_NONE);
   } else if (cmd == "set_limits") {
     String args = (posPipe >= 0) ? msg.substring(posPipe + 1) : "";
-    int valores[6];
-    if (!parseLimites(args, valores)) {
+    Faixa nova;
+    if (!parseFaixa(args, nova)) {
       Serial.print("set_limits invalido, comando ignorado: ");
       Serial.println(args);
-      char ackErro[50];
-      snprintf(ackErro, sizeof(ackErro), "%s@%s|erro", ID_DEVICE, cmd.c_str());
-      MQTT.publish(topicCmdExe, ackErro);
+      publicarAck(cmd, "erro");
       return;
     }
-    limTempMin = valores[0];
-    limTempMax = valores[1];
-    limHumMin = valores[2];
-    limHumMax = valores[3];
-    limLuxMin = valores[4];
-    limLuxMax = valores[5];
+    bool primeiraVez = !configurado;
+    faixa = nova;
+    configurado = true;
+    if (primeiraVez) {
+      // Sai da tela de espera: mostra a confirmação e o carrossel segue depois
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Configurado!");
+      lcd.setCursor(0, 1);
+      lcd.print(ID_DEVICE);
+      telaAtual = 0;
+      ultimaTela = millis();
+    }
   } else {
     Serial.print("Comando desconhecido: ");
     Serial.println(cmd);
     return;
   }
 
-  char ack[50];
-  snprintf(ack, sizeof(ack), "%s@%s|ok", ID_DEVICE, cmd.c_str());
-  MQTT.publish(topicCmdExe, ack);
+  publicarAck(cmd, "ok");
 }
 
 // Tenta reconectar ao broker sem travar o loop() — se falhar, não insiste
@@ -393,7 +408,7 @@ int lerLuminosidade() {
 const unsigned long INTERVALO_PUBLICACAO_MS = 2000;
 unsigned long ultimaPublicacao = 0;
 
-// Lê DHT+LDR e publica "t|<temp>|h|<umid>|l|<lux>" em topicAttrs.
+// Lê DHT+LDR e publica "t|<temp>|h|<umid>|l|<lux>|c|<0 ou 1>" em topicAttrs.
 // Se a leitura do DHT vier NaN, pula o ciclo (não publica) e loga no Serial.
 void publicarTelemetria() {
   float temperatura = dht.readTemperature();
@@ -410,7 +425,8 @@ void publicarTelemetria() {
   ultimaLuminosidade = luminosidade;
 
   char payload[80];
-  snprintf(payload, sizeof(payload), "t|%.1f|h|%.1f|l|%d", temperatura, umidade, luminosidade);
+  snprintf(payload, sizeof(payload), "t|%.1f|h|%.1f|l|%d|c|%d",
+           temperatura, umidade, luminosidade, configurado ? 1 : 0);
 
   MQTT.publish(topicAttrs, payload);
   Serial.print("Publicado em ");
@@ -529,10 +545,6 @@ void setup() {
   iniciarRelogio();
 }
 
-// Intervalo de troca das telas do LCD (passo 8 vai expandir para 5 telas).
-const unsigned long T_TELA = 3000;
-unsigned long ultimaTela = 0;
-
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     conectarWiFi();
@@ -548,7 +560,12 @@ void loop() {
     publicarTelemetria();
   }
 
-  if (agora - ultimaTela >= T_TELA) {
+  if (!configurado) {
+    if (agora - ultimaTela >= T_CARREGANDO) {
+      ultimaTela = agora;
+      telaConfigurar();
+    }
+  } else if (agora - ultimaTela >= T_TELA) {
     ultimaTela = agora;
     telaLCD();
   }
