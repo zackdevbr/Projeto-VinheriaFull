@@ -1,0 +1,12 @@
+/*
+ * Estilo do painel: Tailwind CSS v4, usado por classes utilitárias no JSX.
+ * Na Task 5A o visual é provisório (cinzas e cores de status). A Task 5B
+ * acrescenta aqui o @theme com as cores e fontes da marca Smart Solutions.
+ */
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900 antialiased;
+  }
+}
