@@ -7,6 +7,8 @@
  * sem recarregar: os toasts e o polling da frota continuam vivos.
  */
 import { NavLink, Route, Routes } from 'react-router-dom';
+import FiwareBar from './components/FiwareBar.jsx';
+import { ConfigProvider } from './context/ConfigContext.jsx';
 import Placeholder from './pages/Placeholder.jsx';
 
 const MENU = [
@@ -23,7 +25,8 @@ function classeDoMenu({ isActive }) {
 
 export default function App() {
   return (
-    <>
+    <ConfigProvider>
+      <FiwareBar />
       <nav className="flex gap-4 border-b border-gray-200 px-4 py-2 text-sm">
         {MENU.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === '/'} className={classeDoMenu}>
@@ -41,6 +44,6 @@ export default function App() {
           <Route path="*" element={<Placeholder titulo="Página não encontrada" />} />
         </Routes>
       </main>
-    </>
+    </ConfigProvider>
   );
 }
