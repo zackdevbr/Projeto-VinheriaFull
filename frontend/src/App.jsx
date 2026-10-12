@@ -11,6 +11,7 @@ import AlertBanner from './components/AlertBanner.jsx';
 import FiwareBar from './components/FiwareBar.jsx';
 import { ConfigProvider } from './context/ConfigContext.jsx';
 import { FleetProvider } from './context/FleetContext.jsx';
+import Devices from './pages/Devices.jsx';
 import Placeholder from './pages/Placeholder.jsx';
 
 const MENU = [
@@ -43,7 +44,7 @@ export default function App() {
             <Route path="/" element={<Placeholder titulo="Visão geral" task="Task 6" />} />
             <Route path="/vinherias/:id" element={<Placeholder titulo="Detalhe da vinheria" task="Task 6" />} />
             <Route path="/alertas" element={<Placeholder titulo="Alertas" task="Task 6" />} />
-            <Route path="/dispositivos" element={<Placeholder titulo="Dispositivos" task="subtarefa 5A.8" />} />
+            <Route path="/dispositivos" element={<Devices />} />
             <Route path="/chat" element={<Placeholder titulo="Chat" task="Task 7A" />} />
             <Route path="*" element={<Placeholder titulo="Página não encontrada" />} />
           </Routes>
