@@ -27,7 +27,7 @@ FIWARE e Postman já configurados pelo usuário (stack `fabiocabrini/fiware`). E
 - **Um poller para a frota:** uma chamada `GET /v2/entities?type=Vinheria` por tick.
 - **Aviso no site:** banner/toast global gerado no navegador a partir de `GET /api/fleet` (polling de 5 s). Sem WebSocket.
 - **Chatbot multi-vinheria (sai do adiamento):** responde por vinheria em linguagem natural ("como está a temperatura da vinheria de São Paulo?") usando os registros do STH-Comet, e avisa sozinho de vinherias em alerta ou offline. As tools aceitam id, nome ou cidade como texto livre, resolvido no backend.
-- **Ordem:** T1 (até o Passo 6b) → T1B (marca + boot animado + IP elástico) → commit final da T1 → T0 → T2 → T3 → T4 → T5 → T6 → **T7A chatbot** → T7B relatórios (primeiro corte se o prazo apertar) → T8.
+- **Ordem:** T1 (até o Passo 6b) → T1B (marca + boot animado + IP elástico) → commit final da T1 → T0 → T2 → T3 → T4 → T5A → T5B (após referências de design) → T6 → **T7A chatbot** → T7B relatórios (primeiro corte se o prazo apertar) → T8.
 
 **Revisão 2 (05/10/2026) — também não reabrir:**
 - **IP elástico na EC2.** O IP do FIWARE fica fixo. Default no `backend/.env` (`FIWARE_HOST`) e no bloco de configuração do firmware (`BROKER_MQTT`); o campo de IP do site vira configuração avançada (recolhida), e o indicador de saúde continua visível.
@@ -455,6 +455,12 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 **Escopo previsto:** trocar o separador para `,`, aceitar decimais (decidir no planejamento se o LCD mostra com 1 casa ou arredondado), manter a validação atômica dos 6 campos e o ack `ok`/`erro`, e conferir a tela da faixa no carrossel (RF19).
 
 ### Task 5: Front-end React — base, config de IP e devices
+
+> **5A FEITA em 12/10/2026** — commits 5f38195..b325dcd; 30 testes do front passando, build ok, backend 285 passed (o plano dizia 281; o backend ganhou testes na revisão da Task 4); desvios: nenhum no código. Verificado no navegador sem EC2 (rotas, Voltar/Avançar, 404, faixa e toast únicos de EC2 fora, listagem de dispositivos). **Pendente com EC2 ligada e Wokwi:** troca de IP no Avançado, toasts de offline/volta da vinheria, cadastro e remoção de `vinheria099`, backend parado e voltando. O único erro de console é o 404 de `/favicon.ico` (sem favicon até a 5B).
+
+> **Dividida em 5A e 5B em 10/10/2026, por decisão do usuário** (gate de design sem referências ainda).
+> - **5A — estrutura e comportamento, planejada em 10/10/2026 (spec-driven).** Executar por [`docs/specs/task-5a-front-base-devices/plan.md`](docs/specs/task-5a-front-base-devices/plan.md), que segue a [`spec.md`](docs/specs/task-5a-front-base-devices/spec.md) da mesma pasta (9 subtarefas). Tailwind CSS v4 instalado já na 5A (pedido do usuário), com utilitários neutros provisórios; navegação só pelo `react-router-dom`. Mudanças em relação ao resumo abaixo: o cliente usa caminhos relativos com proxy do Vite (sai a base URL em `localStorage`); Vitest entra como dependência de desenvolvimento só para a lógica pura (30 testes); o aviso também cobre `alerta → ok` ("voltou ao normal") e a queda da EC2 gera um único toast; as rotas `/`, `/vinherias/:id`, `/alertas` e `/chat` ficam como placeholder para as Tasks 6 e 7A; `chart.js` só entra na Task 6.
+> - **5B — design system e visual das telas da 5A.** Planejar em Opus só depois de o usuário enviar as referências (gate abaixo). A Task 6 já nasce dentro do design system da 5B.
 
 **Files:** criar `frontend/package.json`, `vite.config.js`, `index.html`, `src/main.jsx`, `src/App.jsx`, `src/api/client.js`, `src/context/ConfigContext.jsx`, `src/context/FleetContext.jsx`, `src/components/FiwareBar.jsx`, `AlertBanner.jsx`, `DeviceForm.jsx`, `DeviceList.jsx`, `src/pages/Devices.jsx`
 **Consumes:** `/api/config`, `/api/devices`, `/api/fleet`.
