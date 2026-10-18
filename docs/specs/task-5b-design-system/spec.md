@@ -119,7 +119,7 @@ Formato: **QUANDO** <situação>, o sistema **DEVE** <comportamento>. Testes aut
   - `ImagemReservada({ proporcao, rotulo, src, alt })`: caixa com a proporção fixa por classe (`aspect-*`).
     - Sem `src`: gradiente `bordo` → `creme` + `rotulo` discreto em overline.
     - Com `src`: `<img>` com `object-cover`, `loading="lazy"` e o `alt`.
-  - `Heroi({ titulo, subtitulo, imagem })`: `ImagemReservada` em 4:3 abaixo de 768 px e 21:9 acima, véu `bordo` a 40 % e o título `display` + subtítulo em `papel` por cima.
+  - `Heroi({ titulo, subtitulo, imagem })`: `ImagemReservada` em 4:3 abaixo de 768 px e 21:9 acima, véu em gradiente de baixo para cima (`vinho` a 85 % → `bordo` a 40 % → transparente, para o subtítulo pequeno manter ≥ 4,5:1 sobre qualquer foto) e o título `display` + subtítulo em `papel` por cima.
   - `EstadoVazio({ titulo, texto, acao })`: texto central em `taupe` com ação opcional (`Botao` ou link do router).
   - `Esqueleto({ className })`: bloco `linha` com a animação `brilho`.
 - **R4.3** Todo status de vinheria mostrado na interface DEVE usar `SeloStatus` (ícone + texto, nunca só cor).
