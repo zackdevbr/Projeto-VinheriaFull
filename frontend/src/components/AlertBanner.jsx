@@ -2,12 +2,15 @@
  * Aviso global (RF14): faixa fixa enquanto houver vinheria em alerta ou
  * offline (ou a EC2 fora do ar) e toasts empilhados, um por evento, com
  * link para o detalhe da vinheria. Os toasts só somem quando fechados.
+ * No celular, a faixa abre com um resumo ("2 vinherias precisam de
+ * atenção") e os toasts ficam acima da barra de navegação inferior.
  */
+import { TriangleAlert, X } from 'lucide-react';
 import { Fragment } from 'react';
 import { useFleet } from '../context/FleetContext.jsx';
-import { BORDA_TOAST } from '../estilo.js';
-import { bannerSummary, textoDoEvento } from '../lib/fleetEvents.js';
-import { LinkVinheria } from './ui/index.js';
+import { BORDA_TOAST, ICONE_TOAST } from '../estilo.js';
+import { bannerSummary, contarAtencao, textoDoEvento } from '../lib/fleetEvents.js';
+import { BotaoIcone, LinkVinheria } from './ui/index.js';
 
 /** Nomes das vinherias separados por vírgula, cada um com link para o detalhe. */
 function listaDeLinks(vinherias) {
@@ -19,37 +22,55 @@ function listaDeLinks(vinherias) {
   ));
 }
 
+/** Frase de resumo do celular. */
+function resumoCurto(total) {
+  return total === 1 ? '1 vinheria precisa de atenção' : `${total} vinherias precisam de atenção`;
+}
+
 export default function AlertBanner() {
   const { fleet, toasts, fecharToast } = useFleet();
   const resumo = bannerSummary(fleet);
+  const total = contarAtencao(fleet);
 
   return (
     <>
       {resumo?.visivel && (
-        <div className="flex flex-wrap gap-4 border-b border-red-600 bg-red-50 px-4 py-2 text-sm" role="alert">
-          {resumo.fiwareOffline && <span>EC2/FIWARE fora do ar: todas as vinherias offline.</span>}
-          {resumo.emAlerta.length > 0 && <span>Em alerta: {listaDeLinks(resumo.emAlerta)}</span>}
-          {resumo.offline.length > 0 && <span>Offline: {listaDeLinks(resumo.offline)}</span>}
+        <div className="border-b border-alerta bg-alerta/8" role="alert">
+          <div className="mx-auto flex max-w-pagina flex-wrap items-start gap-x-4 gap-y-1 px-4 py-2.5 text-sm md:px-6">
+            <TriangleAlert size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-alerta" aria-hidden="true" />
+            {resumo.fiwareOffline && (
+              <span className="font-medium">EC2/FIWARE fora do ar: todas as vinherias offline.</span>
+            )}
+            {!resumo.fiwareOffline && <span className="font-medium md:hidden">{resumoCurto(total)}</span>}
+            {resumo.emAlerta.length > 0 && (
+              <span className="basis-full md:basis-auto">Em alerta: {listaDeLinks(resumo.emAlerta)}</span>
+            )}
+            {resumo.offline.length > 0 && (
+              <span className="basis-full md:basis-auto">Offline: {listaDeLinks(resumo.offline)}</span>
+            )}
+          </div>
         </div>
       )}
-      <div className="fixed bottom-4 right-4 z-20 flex max-w-sm flex-col gap-2" aria-live="polite">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`flex items-center gap-2 border border-l-4 border-gray-300 bg-white px-3 py-2 text-sm shadow ${BORDA_TOAST[toast.tipo]}`}
-          >
-            <span>{textoDoEvento(toast)}</span>
-            {toast.device_id && <LinkVinheria deviceId={toast.device_id}>Ver detalhe</LinkVinheria>}
-            <button
-              type="button"
-              onClick={() => fecharToast(toast.id)}
-              aria-label="Fechar aviso"
-              className="ml-auto px-1 text-gray-500 hover:text-gray-900"
+      <div
+        className="fixed inset-x-4 bottom-20 z-40 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-96"
+        aria-live="polite"
+      >
+        {toasts.map((toast) => {
+          const Icone = ICONE_TOAST[toast.tipo];
+          return (
+            <div
+              key={toast.id}
+              className={`flex animate-entrar items-center gap-3 rounded-lg border border-l-4 border-linha bg-papel py-1 pl-3 text-sm shadow-media ${BORDA_TOAST[toast.tipo]}`}
             >
-              ×
-            </button>
-          </div>
-        ))}
+              <Icone size={18} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                {textoDoEvento(toast)}{' '}
+                {toast.device_id && <LinkVinheria deviceId={toast.device_id}>Ver detalhe</LinkVinheria>}
+              </span>
+              <BotaoIcone icone={X} rotulo="Fechar aviso" onClick={() => fecharToast(toast.id)} />
+            </div>
+          );
+        })}
       </div>
     </>
   );
