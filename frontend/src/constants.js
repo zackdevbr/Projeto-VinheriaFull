@@ -22,4 +22,4 @@ export const STATUS_ROTULO = {
 // Imagens enviadas pelo usuário depois (Task 5B, spec R8): caminho do
 // arquivo em frontend/public (ex.: '/logo.svg') ou null enquanto não chegam
 export const LOGO_SRC = null;
-export const IMAGEM_HEROI = null;
+export const IMAGEM_HEROI = '/heroi-adega.jpg';
