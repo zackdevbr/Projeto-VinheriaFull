@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client.js';
 import DeviceForm from '../components/DeviceForm.jsx';
 import DeviceList from '../components/DeviceList.jsx';
-import { MensagemErro, Nota, Titulo } from '../components/ui/index.js';
+import { Cartao, Esqueleto, GradeBento, MensagemErro, Nota, Subtitulo, Titulo } from '../components/ui/index.js';
 import { useFleet } from '../context/FleetContext.jsx';
 import { useAcao } from '../hooks/useAcao.js';
 
@@ -42,14 +42,30 @@ export default function Devices() {
 
   return (
     <section>
-      <Titulo>Dispositivos</Titulo>
-      <DeviceForm onCreated={aposMudanca} />
-      <MensagemErro erro={listar.erro} />
-      {devices === null ? (
-        <Nota>{listar.erro ? 'Não foi possível carregar a lista.' : 'Carregando…'}</Nota>
-      ) : (
-        <DeviceList devices={devices} statusPorId={statusPorId} onDeleted={aposMudanca} />
-      )}
+      <Titulo overline="Cadastro">Dispositivos</Titulo>
+      <GradeBento>
+        <Cartao className="md:col-span-2 lg:col-span-1">
+          <Subtitulo>Nova vinheria</Subtitulo>
+          <DeviceForm onCreated={aposMudanca} />
+        </Cartao>
+        <Cartao larg={3}>
+          <Subtitulo>Vinherias</Subtitulo>
+          <MensagemErro erro={listar.erro} />
+          {devices === null ? (
+            listar.erro ? (
+              <Nota>Não foi possível carregar a lista.</Nota>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <Esqueleto className="h-16" />
+                <Esqueleto className="h-16" />
+                <Esqueleto className="h-16" />
+              </div>
+            )
+          ) : (
+            <DeviceList devices={devices} statusPorId={statusPorId} onDeleted={aposMudanca} />
+          )}
+        </Cartao>
+      </GradeBento>
     </section>
   );
 }

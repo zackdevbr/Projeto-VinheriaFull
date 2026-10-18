@@ -2,17 +2,21 @@
  * Lista das vinherias cadastradas (RF02) com o status vindo da frota e o
  * botão de remover. A remoção apaga o cadastro local, o device no IoT Agent
  * e a entidade no Orion; o histórico do STH-Comet é mantido.
+ *
+ * Uma única marcação para todos os tamanhos: no celular cada vinheria é um
+ * cartão empilhado; a partir de 768 px as mesmas linhas alinham em colunas
+ * (CSS grid) sob um cabeçalho.
  */
 import { useState } from 'react';
 import { api } from '../api/client.js';
-import { STATUS_ROTULO } from '../constants.js';
-import { COR_STATUS } from '../estilo.js';
 import { useAcao } from '../hooks/useAcao.js';
-import { Botao, MensagemErro, Nota } from './ui/index.js';
+import { statusConhecido } from '../lib/status.js';
+import { Botao, EstadoVazio, MensagemErro, SeloStatus } from './ui/index.js';
 
-// Classes das células da tabela (provisório 5A; vira componente de tabela
-// em ui.jsx quando a Task 6 precisar de uma segunda tabela)
-const CELULA = 'border-b border-gray-200 px-3 py-1.5 text-left';
+// Colunas a partir de md, iguais no cabeçalho e nas linhas: Id · Nome · Cidade · Status · ação
+const COLUNAS = 'md:grid md:grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,1fr)_10rem_auto] md:items-center md:gap-4';
+
+const CABECALHO = ['Id', 'Nome', 'Cidade', 'Status', ''];
 
 export default function DeviceList({ devices, statusPorId, onDeleted }) {
   // device_id em remoção, para o texto "Removendo…" sair só na linha certa
@@ -37,47 +41,48 @@ export default function DeviceList({ devices, statusPorId, onDeleted }) {
   }
 
   if (devices.length === 0) {
-    return <Nota>Nenhuma vinheria cadastrada.</Nota>;
+    return <EstadoVazio titulo="Nenhuma vinheria cadastrada" texto="Cadastre a primeira no formulário." />;
   }
 
   return (
     <>
       <MensagemErro erro={excluir.erro} />
-      <table className="border-collapse text-sm">
-        <thead>
-          <tr className="font-semibold">
-            <th className={CELULA}>Id</th>
-            <th className={CELULA}>Nome</th>
-            <th className={CELULA}>Cidade</th>
-            <th className={CELULA}>Status</th>
-            <th className={CELULA} aria-label="Ações" />
-          </tr>
-        </thead>
-        <tbody>
-          {devices.map((device) => {
-            // Recém-cadastrada só entra na frota no próximo ciclo do poller
-            const status = statusPorId[device.device_id] ?? 'aguardando';
-            return (
-              <tr key={device.device_id}>
-                <td className={CELULA}>{device.device_id}</td>
-                <td className={CELULA}>{device.name}</td>
-                <td className={CELULA}>{device.city}</td>
-                <td className={`${CELULA} ${COR_STATUS[status]}`}>{STATUS_ROTULO[status]}</td>
-                <td className={CELULA}>
-                  <Botao
-                    onClick={() => remover(device)}
-                    disabled={removendo !== null}
-                    carregando={removendo === device.device_id}
-                    textoCarregando="Removendo…"
-                  >
-                    Excluir
-                  </Botao>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className={`hidden border-b border-linha pb-2 ${COLUNAS}`} aria-hidden="true">
+        {CABECALHO.map((rotulo) => (
+          <span key={rotulo || 'acao'} className="text-overline uppercase text-taupe">
+            {rotulo}
+          </span>
+        ))}
+      </div>
+      <ul className="flex flex-col gap-3 md:gap-0">
+        {devices.map((device) => {
+          // Recém-cadastrada só entra na frota no próximo ciclo do poller
+          const status = statusConhecido(statusPorId[device.device_id] ?? 'aguardando');
+          return (
+            <li
+              key={device.device_id}
+              className={`flex min-w-0 flex-col gap-2 rounded-xl border border-linha p-4 md:rounded-none md:border-0 md:border-b md:px-0 md:py-3 ${COLUNAS}`}
+            >
+              <span className="order-1 font-mono text-xs text-taupe md:order-none">{device.device_id}</span>
+              <span className="font-display text-lg break-words text-vinho">{device.name}</span>
+              <span className="text-sm break-words text-taupe">{device.city}</span>
+              <span className="order-2 md:order-none">
+                <SeloStatus status={status} />
+              </span>
+              <Botao
+                variante="perigo"
+                className="order-3 self-start md:order-none md:self-auto"
+                onClick={() => remover(device)}
+                disabled={removendo !== null}
+                carregando={removendo === device.device_id}
+                textoCarregando="Removendo…"
+              >
+                Excluir
+              </Botao>
+            </li>
+          );
+        })}
+      </ul>
     </>
   );
 }

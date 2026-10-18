@@ -42,7 +42,7 @@ export default function DeviceForm({ onCreated }) {
   }
 
   return (
-    <form className="mb-6 flex flex-wrap items-end gap-3" onSubmit={aoEnviar}>
+    <form className="flex flex-col gap-4" onSubmit={aoEnviar}>
       {CAMPOS.map(([nome, rotulo, exemplo, maximo]) => (
         <Campo
           key={nome}
@@ -54,10 +54,10 @@ export default function DeviceForm({ onCreated }) {
           maxLength={maximo}
         />
       ))}
-      <Botao type="submit" carregando={cadastrar.executando} textoCarregando="Provisionando no FIWARE…">
-        Cadastrar
-      </Botao>
       <MensagemErro erro={cadastrar.erro} />
+      <Botao type="submit" className="w-full" carregando={cadastrar.executando} textoCarregando="Provisionando no FIWARE…">
+        Cadastrar vinheria
+      </Botao>
     </form>
   );
 }
