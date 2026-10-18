@@ -1,12 +1,108 @@
 /*
- * Estilo do painel: Tailwind CSS v4, usado por classes utilitárias no JSX.
- * Na Task 5A o visual é provisório (cinzas e cores de status). A Task 5B
- * acrescenta aqui o @theme com as cores e fontes da marca Smart Solutions.
+ * Design system Smart Solutions (Task 5B) sobre o Tailwind CSS v4.
+ * Os tokens do @theme viram classes: bg-creme, text-bordo, font-display,
+ * text-overline, shadow-media, max-w-pagina, animate-entrar etc. Cor ou
+ * medida nova entra aqui, nunca como valor solto dentro de um componente.
+ * Valores e porquês: docs/specs/task-5b-design-system/spec.md (R1).
  */
 @import "tailwindcss";
 
+@theme {
+  /* Cores da marca (referência A) e de status; contraste conferido na spec R1.1 */
+  --color-creme: #f4e8e0;
+  --color-papel: #fbf5f0;
+  --color-linha: #ebdad0;
+  --color-rose: #b5838d;
+  --color-bordo: #7a1f2b;
+  --color-vinho: #3a1a1c;
+  --color-taupe: #5e4843;
+  --color-ok: #4f6b3a;
+  --color-config: #8a5a12;
+  --color-alerta: #a4161a;
+
+  /* Famílias: serifa didone para títulos e números, sans para o resto, mono para ids e IP */
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Escala tipográfica fluida, do celular ao desktop */
+  --text-display: clamp(2.75rem, 10vw, 6rem);
+  --text-display--line-height: 0.95;
+  --text-titulo: clamp(2rem, 6vw, 3rem);
+  --text-titulo--line-height: 1.05;
+  --text-subtitulo: clamp(1.5rem, 4vw, 2rem);
+  --text-subtitulo--line-height: 1.15;
+  --text-overline: 0.6875rem;
+  --text-overline--line-height: 1.3;
+  --text-overline--letter-spacing: 0.14em;
+  --text-overline--font-weight: 600;
+
+  /* Largura máxima do conteúdo */
+  --container-pagina: 1200px;
+
+  /* Sombras quentes, puxadas para o vinho em vez do cinza */
+  --shadow-baixa: 0 1px 2px rgb(58 26 28 / 0.06);
+  --shadow-media: 0 4px 16px rgb(58 26 28 / 0.08);
+  --shadow-alta: 0 16px 40px rgb(58 26 28 / 0.14);
+
+  /* Movimento: entrada dos cartões, pulso do alerta, brilho do esqueleto */
+  --ease-suave: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-entrar: entrar 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pulsar: pulsar 1.6s ease-in-out infinite;
+  --animate-brilho: brilho 1.4s linear infinite;
+
+  @keyframes entrar {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulsar {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.55;
+      transform: scale(0.85);
+    }
+  }
+
+  @keyframes brilho {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+}
+
 @layer base {
   body {
-    @apply bg-white text-gray-900 antialiased;
+    @apply bg-creme font-sans text-vinho antialiased;
+  }
+
+  /* Foco visível por teclado em todo elemento interativo */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-bordo;
+  }
+}
+
+/* Quem pede menos movimento no sistema não vê nenhuma animação (spec R1.5) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
