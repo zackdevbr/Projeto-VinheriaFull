@@ -4,3 +4,6 @@
  */
 export * from './base.jsx';
 export * from './formulario.jsx';
+export * from './cartoes.jsx';
+export * from './imagem.jsx';
+export * from './estados.jsx';
