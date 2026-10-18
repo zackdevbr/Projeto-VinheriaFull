@@ -6,7 +6,7 @@
 /** Bloco central para lista vazia, tela em construção ou 404. `acao` é um botão ou link opcional. */
 export function EstadoVazio({ titulo, texto, acao }) {
   return (
-    <div className="flex animate-entrar flex-col items-center gap-3 rounded-2xl border border-dashed border-linha px-6 py-12 text-center">
+    <div className="flex animate-entrar flex-col items-center gap-3 rounded-2xl border border-dashed border-rose/60 px-6 py-12 text-center">
       <p className="font-display text-subtitulo text-bordo">{titulo}</p>
       {texto && <p className="max-w-sm text-taupe">{texto}</p>}
       {acao}

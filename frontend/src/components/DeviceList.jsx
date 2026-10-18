@@ -14,7 +14,7 @@ import { statusConhecido } from '../lib/status.js';
 import { Botao, EstadoVazio, MensagemErro, SeloStatus } from './ui/index.js';
 
 // Colunas a partir de md, iguais no cabeçalho e nas linhas: Id · Nome · Cidade · Status · ação
-const COLUNAS = 'md:grid md:grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,1fr)_10rem_auto] md:items-center md:gap-4';
+const COLUNAS = 'md:grid md:grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,1fr)_10rem_7.5rem] md:items-center md:gap-4';
 
 const CABECALHO = ['Id', 'Nome', 'Cidade', 'Status', ''];
 
@@ -71,7 +71,7 @@ export default function DeviceList({ devices, statusPorId, onDeleted }) {
               </span>
               <Botao
                 variante="perigo"
-                className="order-3 self-start md:order-none md:self-auto"
+                className="order-3 self-start md:order-none md:w-full md:self-auto"
                 onClick={() => remover(device)}
                 disabled={removendo !== null}
                 carregando={removendo === device.device_id}
