@@ -3,7 +3,7 @@
  * (Visão geral, Detalhe e Alertas na Task 6; Chat na Task 7A).
  * Sem `task`, serve de página "não encontrada".
  */
-import { Nota, Titulo } from '../components/ui.jsx';
+import { Nota, Titulo } from '../components/ui/index.js';
 
 export default function Placeholder({ titulo, task }) {
   return (

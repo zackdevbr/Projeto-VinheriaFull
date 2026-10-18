@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { api } from '../api/client.js';
 import { useAcao } from '../hooks/useAcao.js';
 import { validarCadastro } from '../lib/validation.js';
-import { Botao, Campo, MensagemErro } from './ui.jsx';
+import { Botao, Campo, MensagemErro } from './ui/index.js';
 
 const VAZIO = { device_id: '', name: '', city: '' };
 

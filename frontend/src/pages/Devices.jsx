@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client.js';
 import DeviceForm from '../components/DeviceForm.jsx';
 import DeviceList from '../components/DeviceList.jsx';
-import { MensagemErro, Nota, Titulo } from '../components/ui.jsx';
+import { MensagemErro, Nota, Titulo } from '../components/ui/index.js';
 import { useFleet } from '../context/FleetContext.jsx';
 import { useAcao } from '../hooks/useAcao.js';
 

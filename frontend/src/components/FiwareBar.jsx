@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useConfig } from '../context/ConfigContext.jsx';
 import { COR_SAUDE } from '../estilo.js';
 import { useAcao } from '../hooks/useAcao.js';
-import { Botao, Campo, MensagemErro } from './ui.jsx';
+import { Botao, Campo, MensagemErro } from './ui/index.js';
 
 const ROTULO = {
   verificando: 'Verificando FIWARE…',

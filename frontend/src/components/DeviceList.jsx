@@ -8,7 +8,7 @@ import { api } from '../api/client.js';
 import { STATUS_ROTULO } from '../constants.js';
 import { COR_STATUS } from '../estilo.js';
 import { useAcao } from '../hooks/useAcao.js';
-import { Botao, MensagemErro, Nota } from './ui.jsx';
+import { Botao, MensagemErro, Nota } from './ui/index.js';
 
 // Classes das células da tabela (provisório 5A; vira componente de tabela
 // em ui.jsx quando a Task 6 precisar de uma segunda tabela)

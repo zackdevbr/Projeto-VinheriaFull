@@ -7,7 +7,7 @@ import { Fragment } from 'react';
 import { useFleet } from '../context/FleetContext.jsx';
 import { BORDA_TOAST } from '../estilo.js';
 import { bannerSummary, textoDoEvento } from '../lib/fleetEvents.js';
-import { LinkVinheria } from './ui.jsx';
+import { LinkVinheria } from './ui/index.js';
 
 /** Nomes das vinherias separados por vírgula, cada um com link para o detalhe. */
 function listaDeLinks(vinherias) {
