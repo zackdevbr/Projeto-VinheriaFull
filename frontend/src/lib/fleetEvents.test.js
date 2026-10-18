@@ -1,6 +1,6 @@
 /** Testes dos eventos da frota que alimentam a faixa e os toasts (spec R4). */
 import { describe, expect, it } from 'vitest';
-import { bannerSummary, diffFleet, empilharToasts, textoDoEvento } from './fleetEvents.js';
+import { bannerSummary, contarAtencao, diffFleet, empilharToasts, textoDoEvento } from './fleetEvents.js';
 
 function vinheria(deviceId, status, extra = {}) {
   return {
@@ -151,5 +151,34 @@ describe('bannerSummary', () => {
 
   it('frota toda ok não mostra a faixa', () => {
     expect(bannerSummary(frota([vinheria('vinheria001', 'ok'), vinheria('vinheria002', 'configurando')])).visivel).toBe(false);
+  });
+});
+
+describe('contarAtencao', () => {
+  it('sem frota carregada devolve 0', () => {
+    expect(contarAtencao(null)).toBe(0);
+  });
+
+  it('conta vinherias em alerta e offline por falta de leitura', () => {
+    const frota = {
+      fiware_online: true,
+      vinherias: [
+        vinheria('vinheria001', 'alerta'),
+        vinheria('vinheria002', 'offline', { offline_reason: 'sem_leitura' }),
+        vinheria('vinheria003', 'ok'),
+      ],
+    };
+    expect(contarAtencao(frota)).toBe(2);
+  });
+
+  it('com a EC2 fora não conta as vinherias offline por causa dela', () => {
+    const frota = {
+      fiware_online: false,
+      vinherias: [
+        vinheria('vinheria001', 'offline', { offline_reason: 'fiware' }),
+        vinheria('vinheria002', 'offline', { offline_reason: 'fiware' }),
+      ],
+    };
+    expect(contarAtencao(frota)).toBe(0);
   });
 });

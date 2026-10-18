@@ -8,6 +8,7 @@ import { useConfig } from '../context/ConfigContext.jsx';
 import { COR_SAUDE } from '../estilo.js';
 import { useAcao } from '../hooks/useAcao.js';
 import { Botao, Campo, MensagemErro } from './ui/index.js';
+import MenuTopo from './MenuTopo.jsx';
 
 const ROTULO = {
   verificando: 'Verificando FIWARE…',
@@ -54,6 +55,7 @@ export default function FiwareBar() {
         {ROTULO[healthState]}
         {config ? ` · ${config.ec2_ip}` : ''}
       </span>
+      <MenuTopo />
       <details className="ml-auto text-sm">
         <summary className="cursor-pointer select-none">Avançado</summary>
         <form onSubmit={aoSalvar} className="mt-2 flex items-end gap-2">

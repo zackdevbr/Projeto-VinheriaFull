@@ -112,3 +112,13 @@ export function bannerSummary(frota) {
     visivel: fiwareOffline || emAlerta.length > 0 || offline.length > 0,
   };
 }
+
+/**
+ * Quantas vinherias pedem atenção (em alerta ou offline por falta de
+ * leitura), para o selo do item Alertas no menu. Usa as mesmas regras da
+ * faixa (bannerSummary): a queda da EC2 aparece na faixa, não no selo.
+ */
+export function contarAtencao(frota) {
+  const resumo = bannerSummary(frota);
+  return resumo ? resumo.emAlerta.length + resumo.offline.length : 0;
+}

@@ -5,26 +5,17 @@
  * · /chat. As telas das Tasks 6 e 7A ainda são Placeholder.
  * A troca de página é sempre pelo react-router-dom (NavLink/Link/useNavigate),
  * sem recarregar: os toasts e o polling da frota continuam vivos.
+ * Navegação: menu na barra do topo a partir de 768 px (FiwareBar) e barra
+ * inferior abaixo disso (NavInferior); os dois leem o mesmo MENU.
  */
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import AlertBanner from './components/AlertBanner.jsx';
 import FiwareBar from './components/FiwareBar.jsx';
+import NavInferior from './components/NavInferior.jsx';
 import { ConfigProvider } from './context/ConfigContext.jsx';
 import { FleetProvider } from './context/FleetContext.jsx';
 import Devices from './pages/Devices.jsx';
 import Placeholder from './pages/Placeholder.jsx';
-
-const MENU = [
-  { to: '/', rotulo: 'Visão geral' },
-  { to: '/dispositivos', rotulo: 'Dispositivos' },
-  { to: '/alertas', rotulo: 'Alertas' },
-  { to: '/chat', rotulo: 'Chat' },
-];
-
-/** Classes do item do menu; o NavLink informa se a rota está ativa. */
-function classeDoMenu({ isActive }) {
-  return isActive ? 'font-semibold underline' : 'text-gray-700 hover:underline';
-}
 
 export default function App() {
   return (
@@ -32,16 +23,9 @@ export default function App() {
       <FleetProvider>
         <FiwareBar />
         <AlertBanner />
-        <nav className="flex gap-4 border-b border-gray-200 px-4 py-2 text-sm">
-          {MENU.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={classeDoMenu}>
-              {item.rotulo}
-            </NavLink>
-          ))}
-        </nav>
-        <main className="p-4">
+        <main className="mx-auto w-full max-w-pagina px-4 pt-6 pb-28 md:px-6 md:pt-10 md:pb-16">
           <Routes>
-            <Route path="/" element={<Placeholder titulo="Visão geral" task="Task 6" />} />
+            <Route path="/" element={<Placeholder titulo="Visão geral" task="Task 6" heroi />} />
             <Route path="/vinherias/:id" element={<Placeholder titulo="Detalhe da vinheria" task="Task 6" />} />
             <Route path="/alertas" element={<Placeholder titulo="Alertas" task="Task 6" />} />
             <Route path="/dispositivos" element={<Devices />} />
@@ -49,6 +33,7 @@ export default function App() {
             <Route path="*" element={<Placeholder titulo="Página não encontrada" />} />
           </Routes>
         </main>
+        <NavInferior />
       </FleetProvider>
     </ConfigProvider>
   );
