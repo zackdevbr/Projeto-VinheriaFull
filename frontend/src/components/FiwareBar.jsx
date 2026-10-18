@@ -1,14 +1,17 @@
 /**
- * Barra fixa do topo: marca Smart Solutions, indicador de saúde do FIWARE
- * com o IP em uso e o painel "Avançado" (recolhido) para trocar o IP da EC2
- * em runtime. O IP padrão vem do .env do backend (IP elástico).
+ * Barra fixa do topo: logo Smart Solutions, indicador de saúde do FIWARE
+ * (com o IP em uso a partir de 768 px), menu do desktop e a engrenagem que
+ * abre o painel Avançado. O painel fecha pela engrenagem ou pela tecla Esc,
+ * e o foco volta para a engrenagem.
  */
-import { useState } from 'react';
+import { Settings } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { LOGO_SRC } from '../constants.js';
 import { useConfig } from '../context/ConfigContext.jsx';
 import { COR_SAUDE } from '../estilo.js';
-import { useAcao } from '../hooks/useAcao.js';
-import { Botao, Campo, MensagemErro } from './ui/index.js';
 import MenuTopo from './MenuTopo.jsx';
+import PainelAvancado from './PainelAvancado.jsx';
+import { BotaoIcone, Logo } from './ui/index.js';
 
 const ROTULO = {
   verificando: 'Verificando FIWARE…',
@@ -17,71 +20,64 @@ const ROTULO = {
   sem_backend: 'Backend indisponível',
 };
 
-const SERVICOS = [
-  ['orion', 'Orion'],
-  ['iota', 'IoT Agent'],
-  ['sth', 'STH-Comet'],
-];
-
-/** Texto do resultado de um serviço no health. */
-function descreverServico(servico) {
-  if (servico.ok) {
-    return `ok (${servico.latency_ms} ms)`;
-  }
-  return servico.error ? `falhou — ${servico.error}` : 'falhou';
+/** Ponto colorido + texto; no celular só "FIWARE", para caber na barra. */
+function SeloSaude({ estado, ip }) {
+  return (
+    <span className="flex items-center gap-2 text-sm" title={ROTULO[estado]}>
+      <span className={`size-2.5 shrink-0 rounded-full ${COR_SAUDE[estado]}`} aria-hidden="true" />
+      <span className="md:hidden">
+        FIWARE<span className="sr-only">: {ROTULO[estado]}</span>
+      </span>
+      <span className="hidden md:inline">
+        {ROTULO[estado]}
+        {ip && <span className="ml-2 font-mono text-xs text-taupe">{ip}</span>}
+      </span>
+    </span>
+  );
 }
 
 export default function FiwareBar() {
-  const { config, health, healthState, salvarIp } = useConfig();
-  const [ip, setIp] = useState('');
-  const [salvo, setSalvo] = useState(null);
-  const salvar = useAcao(salvarIp);
+  const { config, healthState } = useConfig();
+  const [aberto, setAberto] = useState(false);
+  const engrenagem = useRef(null);
 
-  async function aoSalvar(evento) {
-    evento.preventDefault();
-    setSalvo(null);
-    const resultado = await salvar.executar(ip);
-    if (resultado.ok) {
-      setSalvo(`IP salvo: ${resultado.valor.ec2_ip}`);
-      setIp('');
+  const fechar = useCallback(() => {
+    setAberto(false);
+    engrenagem.current?.focus();
+  }, []);
+
+  // Esc fecha o painel enquanto ele estiver aberto
+  useEffect(() => {
+    if (!aberto) {
+      return undefined;
     }
-  }
+    function aoTeclar(evento) {
+      if (evento.key === 'Escape') {
+        fechar();
+      }
+    }
+    document.addEventListener('keydown', aoTeclar);
+    return () => document.removeEventListener('keydown', aoTeclar);
+  }, [aberto, fechar]);
 
   return (
-    <header className="sticky top-0 z-10 flex flex-wrap items-center gap-4 border-b border-gray-300 bg-white px-4 py-2">
-      <strong className="text-lg font-semibold">Smart Solutions</strong>
-      <span className="flex items-center gap-2 text-sm">
-        <span className={`h-2.5 w-2.5 rounded-full ${COR_SAUDE[healthState]}`} aria-hidden="true" />
-        {ROTULO[healthState]}
-        {config ? ` · ${config.ec2_ip}` : ''}
-      </span>
-      <MenuTopo />
-      <details className="ml-auto text-sm">
-        <summary className="cursor-pointer select-none">Avançado</summary>
-        <form onSubmit={aoSalvar} className="mt-2 flex items-end gap-2">
-          <Campo
-            rotulo="IP do FIWARE (EC2)"
-            value={ip}
-            onChange={(e) => setIp(e.target.value)}
-            placeholder={config?.ec2_ip ?? ''}
-            required
+    <header className="sticky top-0 z-30 border-b border-linha bg-papel">
+      <div className="mx-auto flex min-h-14 max-w-pagina items-center gap-3 px-4 md:gap-6 md:px-6">
+        <Logo src={LOGO_SRC} />
+        <SeloSaude estado={healthState} ip={config?.ec2_ip} />
+        <div className="ml-auto flex items-center gap-4">
+          <MenuTopo />
+          <BotaoIcone
+            ref={engrenagem}
+            icone={Settings}
+            rotulo="Configurações avançadas"
+            aria-expanded={aberto}
+            aria-controls="painel-avancado"
+            onClick={() => (aberto ? fechar() : setAberto(true))}
           />
-          <Botao type="submit" carregando={salvar.executando} textoCarregando="Salvando…">
-            Salvar
-          </Botao>
-        </form>
-        <MensagemErro erro={salvar.erro} />
-        {salvo && <p role="status" className="mt-1">{salvo}</p>}
-        {health && (
-          <ul className="mt-2 space-y-0.5 text-gray-700">
-            {SERVICOS.map(([chave, nome]) => (
-              <li key={chave}>
-                {nome}: {descreverServico(health[chave])}
-              </li>
-            ))}
-          </ul>
-        )}
-      </details>
+        </div>
+      </div>
+      {aberto && <PainelAvancado />}
     </header>
   );
 }
