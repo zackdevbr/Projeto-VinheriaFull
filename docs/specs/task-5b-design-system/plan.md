@@ -1812,3 +1812,16 @@ git commit -m "docs: fecha a task 5b com o design system aplicado ao painel"
 ```
 
 Pare aqui e espere a revisão do usuário.
+
+---
+
+## Achados da auditoria 5B (subtarefa 5B.12, 18/10/2026)
+
+Auditoria feita sobre capturas do Edge headless de `/` (500 e 1280 px) e `/dispositivos` (375 e 1280 px), com a EC2 fora do ar (o que exercitou a faixa e o selo de "EC2 fora"). O Edge headless não desce de ~500 px de largura de janela, então a ausência de rolagem horizontal em 375 px **não** foi provada por captura e fica para o ensaio manual da 5B.13.
+
+| # | tela | achado | ação |
+|---|---|---|---|
+| 1 | `/dispositivos` (≥ 768 px) | Colunas Cidade e Status do cabeçalho deslocadas em relação às linhas: a última coluna `auto` ficava vazia no cabeçalho e larga nas linhas, e as colunas `1fr` se dividiam diferente. | corrigido: última coluna fixa em `7.5rem`, botão com `md:w-full` (commit `fix: alinha as colunas…`) |
+| 2 | `EstadoVazio` | Borda tracejada `linha` quase invisível sobre o creme. | corrigido: `border-rose/60` |
+| 3 | `/` | Título do herói e logo da barra repetem "Smart Solutions". | mantido: está na spec (R7.4); some quando o herói ganhar a foto e o logo virar imagem |
+| 4 | todas | Painel Avançado, toasts e a barra inferior com selo de atenção não aparecem em captura estática. | ensaio manual 5B.13 |
