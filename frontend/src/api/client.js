@@ -65,7 +65,12 @@ export async function request(path, { method = 'GET', body } = {}) {
   return dados;
 }
 
-/** Endpoints usados pelo painel (contratos em PLANO-CP5-VINHERIA.md). */
+/** Caminho de um recurso de uma vinheria (/api/devices/<id><resto>). */
+function rotaDevice(deviceId, resto = '') {
+  return `/api/devices/${encodeURIComponent(deviceId)}${resto}`;
+}
+
+/** Endpoints usados pelo painel (contratos em PLANO-CP5-VINHERIA.md e nas specs das tasks). */
 export const api = {
   getConfig: () => request('/api/config'),
   saveConfig: (changes) => request('/api/config', { method: 'PUT', body: changes }),
@@ -73,6 +78,33 @@ export const api = {
   getFleet: () => request('/api/fleet'),
   listDevices: () => request('/api/devices'),
   createDevice: (device) => request('/api/devices', { method: 'POST', body: device }),
-  deleteDevice: (deviceId) =>
-    request(`/api/devices/${encodeURIComponent(deviceId)}`, { method: 'DELETE' }),
+  deleteDevice: (deviceId) => request(rotaDevice(deviceId), { method: 'DELETE' }),
+  getDevice: (deviceId) => request(rotaDevice(deviceId)),
+
+  /** Histórico do STH-Comet: últimos N pontos (lastN) ou intervalo (dateFrom/dateTo, ISO). */
+  getHistory: (deviceId, { attr, lastN, dateFrom, dateTo }) => {
+    const query = new URLSearchParams({ attr });
+    if (lastN) {
+      query.set('last_n', String(lastN));
+    } else {
+      query.set('date_from', dateFrom);
+      query.set('date_to', dateTo);
+    }
+    return request(rotaDevice(deviceId, `/history?${query}`));
+  },
+
+  getScore: (deviceId) => request(rotaDevice(deviceId, '/score')),
+  getTriggers: (deviceId) => request(rotaDevice(deviceId, '/triggers')),
+  saveTriggers: (deviceId, limits) => request(rotaDevice(deviceId, '/triggers'), { method: 'PUT', body: limits }),
+  sendCommand: (deviceId, command) =>
+    request(rotaDevice(deviceId, '/commands'), { method: 'POST', body: { command } }),
+
+  /** Alertas do mais novo ao mais velho; sem deviceId, de todas as vinherias e da EC2. */
+  getAlerts: ({ deviceId, limit = 100 } = {}) => {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (deviceId) {
+      query.set('device_id', deviceId);
+    }
+    return request(`/api/alerts?${query}`);
+  },
 };
