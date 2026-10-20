@@ -15,6 +15,7 @@ import NavInferior from './components/NavInferior.jsx';
 import { ConfigProvider } from './context/ConfigContext.jsx';
 import { FleetProvider } from './context/FleetContext.jsx';
 import Devices from './pages/Devices.jsx';
+import Overview from './pages/Overview.jsx';
 import Placeholder from './pages/Placeholder.jsx';
 
 export default function App() {
@@ -25,7 +26,7 @@ export default function App() {
         <AlertBanner />
         <main className="mx-auto w-full max-w-pagina px-4 pt-6 pb-28 md:px-6 md:pt-10 md:pb-16">
           <Routes>
-            <Route path="/" element={<Placeholder titulo="Visão geral" task="Task 6" heroi />} />
+            <Route path="/" element={<Overview />} />
             <Route path="/vinherias/:id" element={<Placeholder titulo="Detalhe da vinheria" task="Task 6" />} />
             <Route path="/alertas" element={<Placeholder titulo="Alertas" task="Task 6" />} />
             <Route path="/dispositivos" element={<Devices />} />
