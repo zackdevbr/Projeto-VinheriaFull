@@ -23,3 +23,12 @@ export const STATUS_ROTULO = {
 // arquivo em frontend/public (ex.: '/logo.svg') ou null enquanto não chegam
 export const LOGO_SRC = null;
 export const IMAGEM_HEROI = '/heroi-adega.jpg';
+
+// Leituras do detalhe e da página de alertas (histórico, score, alertas)
+export const LEITURA_POLL_MS = 10000;
+
+// device_id dos alertas que registram a EC2/FIWARE fora do ar
+export const ID_FIWARE = 'fiware';
+
+// Janela inicial dos gráficos do detalhe: os últimos 50 pontos
+export const JANELA_PADRAO = { tipo: 'ultimos', n: 50 };
