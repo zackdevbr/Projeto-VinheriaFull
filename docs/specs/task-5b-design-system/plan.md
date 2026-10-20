@@ -1,6 +1,6 @@
 # Task 5B — Design system Smart Solutions e visual das telas da 5A — Plano de execução
 
-> **Estado em 18/10/2026:** feitas as subtarefas 5B.1 a 5B.12 e a parte automática da 5B.13; falta o ensaio manual com EC2, Wokwi e navegador real (ver nota da Task 5 no PLANO).
+> **Estado em 18/10/2026:** feitas as subtarefas 5B.1 a 5B.12 e a parte automática da 5B.13; ensaio manual com EC2, Wokwi e navegador real feito em 19/10/2026, tudo funcionando.
 
 > **Para quem executa (Sonnet):** use `superpowers:executing-plans`. Os passos usam checkbox (`- [ ]`). Execute **uma subtarefa por vez**, informe o resultado de cada passo e **pare para revisão do usuário ao fim de cada subtarefa** (`CLAUDE.md` §2 e §4). Se algo não bater com a [`spec.md`](spec.md), pare e devolva para planejamento; não improvise. Toda decisão visual já está na spec e neste plano: **não invente cor, fonte, espaçamento ou componente novo**. Se faltar algo, pare e reporte.
 
