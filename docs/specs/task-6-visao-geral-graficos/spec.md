@@ -60,6 +60,7 @@ Formato: **QUANDO** <situação>, o sistema **DEVE** <comportamento>. Testes aut
   | < 3600 | "há N min" |
   | demais | "há N h" |
 
+- **R2.3a** `textoVisto(vinheria)` → "EC2 fora" quando `offline_reason === 'fiware'`, senão `vistoHa(seconds_since)`. Usado no cartão e no cabeçalho do detalhe.
 - **R2.4** `validarFaixa(faixa)` → `{ dados, erros }`.
   - Cada `min`/`max` vem como texto do input, aceitando vírgula ou ponto, e vira número. Vazio ou não numérico dá erro "Informe um número".
   - Nos 3 atributos, `min ≥ max` dá erro "O mínimo precisa ser menor que o máximo" no campo `max`.
@@ -118,7 +119,7 @@ Formato: **QUANDO** <situação>, o sistema **DEVE** <comportamento>. Testes aut
   - nome, cidade, status e valores atuais saem do `FleetContext` (sem chamada nova);
   - a faixa sai de `getTriggers` e o score de `useScore` (10 s).
 - **R5.2** O cabeçalho tem o link "Visão geral" (`LinkInterno` + `ArrowLeft`), `Titulo` com `overline` = cidade e texto = nome, `SeloStatus` e `vistoHa`.
-- **R5.3** O id `:id` que não está na frota e cujo `getDevice` devolve 404 → `EstadoVazio` "Vinheria não encontrada" com link para `/`.
+- **R5.3** O id `:id` que não está na frota: se `getDevice` responde, a vinheria acabou de ser cadastrada → `EstadoVazio` com o nome e "Aguardando o primeiro ciclo do monitoramento"; se falha (404) → `EstadoVazio` "Vinheria não encontrada" com link para `/`.
 - **R5.4** Topo em `GradeBento`:
   - `GaugeScore` (cartão `destaque`): rosca `Doughnut` com `cutout` 78 %, arco `papel` sobre trilho `papel` a 20 %, número central com `useContagem` e as notas por atributo abaixo ("T 100 · U 85 · L 92"). Score `null` → `—` + `message`.
   - 3 `CartaoKpi` (Temperatura `Thermometer` °C, Umidade `Droplets` %, Luminosidade `Sun` %), com rodapé "Faixa 12–18 °C". Quando `foraDaFaixa`, o rodapé vira "Fora da faixa 12–18 °C" em `alerta`, com ícone.
@@ -161,7 +162,7 @@ Formato: **QUANDO** <situação>, o sistema **DEVE** <comportamento>. Testes aut
 ### R10 — Kit (`components/ui/`)
 - **R10.1** `Seletor({ rotulo, opcoes: [{valor, rotulo}], ...props })`: `<select>` com o mesmo visual do `Campo` (overline, 44 px, borda `linha`, foco bordô).
 - **R10.2** `BotoesSegmentados({ opcoes, valor, aoMudar, rotulo })`: grupo `role="group"` com `aria-label`; cada botão tem ≥ 44 px e `aria-pressed`.
-- **R10.3** `Cartao` ganha a prop opcional `interativo`, que aplica hover (sobe 2 px, `shadow-media`, transição de 150 ms). Usada pelo `VinheriaCard`.
+- **R10.3** `Cartao` ganha a prop opcional `para` (rota): com ela, o cartão inteiro vira um `Link` do router, com hover (sobe 2 px, `shadow-media`, transição de 150 ms) e foco visível. Usada pelo `VinheriaCard`. O caminho do detalhe sai de `caminhoVinheria(id)` (`lib/rotas.js`), também usado pelo `LinkVinheria`.
 
 ### R11 — Qualidade
 - **R11.1** Restrições da 5B continuam:
