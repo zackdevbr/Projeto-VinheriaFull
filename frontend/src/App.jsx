@@ -2,7 +2,7 @@
  * Layout e rotas do painel Smart Solutions.
  *
  * Rotas: / Visão geral · /vinherias/:id Detalhe · /alertas · /dispositivos
- * · /chat. As telas das Tasks 6 e 7A ainda são Placeholder.
+ * · /chat. Só o /chat (Task 7A) ainda é Placeholder.
  * A troca de página é sempre pelo react-router-dom (NavLink/Link/useNavigate),
  * sem recarregar: os toasts e o polling da frota continuam vivos.
  * Navegação: menu na barra do topo a partir de 768 px (FiwareBar) e barra
@@ -18,6 +18,7 @@ import Devices from './pages/Devices.jsx';
 import Alerts from './pages/Alerts.jsx';
 import Overview from './pages/Overview.jsx';
 import Placeholder from './pages/Placeholder.jsx';
+import VinheriaDetail from './pages/VinheriaDetail.jsx';
 
 export default function App() {
   return (
@@ -28,7 +29,7 @@ export default function App() {
         <main className="mx-auto w-full max-w-pagina px-4 pt-6 pb-28 md:px-6 md:pt-10 md:pb-16">
           <Routes>
             <Route path="/" element={<Overview />} />
-            <Route path="/vinherias/:id" element={<Placeholder titulo="Detalhe da vinheria" task="Task 6" />} />
+            <Route path="/vinherias/:id" element={<VinheriaDetail />} />
             <Route path="/alertas" element={<Alerts />} />
             <Route path="/dispositivos" element={<Devices />} />
             <Route path="/chat" element={<Placeholder titulo="Chat" task="Task 7A" />} />
