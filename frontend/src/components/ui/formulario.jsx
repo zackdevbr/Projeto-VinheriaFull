@@ -12,15 +12,17 @@ const VARIANTES = {
   perigo: 'border-alerta bg-transparent text-alerta hover:bg-alerta/8',
 };
 
-/** Campo de texto com o rótulo em caixa alta em cima; as demais props vão para o <input>. */
-export function Campo({ rotulo, ...props }) {
+/** Campo de texto com o rótulo em caixa alta em cima; `erro` aparece embaixo; as demais props vão para o <input>. */
+export function Campo({ rotulo, erro, ...props }) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-overline uppercase text-taupe">{rotulo}</span>
       <input
-        className="min-h-11 rounded border border-linha bg-papel px-3 text-vinho placeholder:text-taupe/70 focus:border-bordo"
+        aria-invalid={erro ? true : undefined}
+        className={`min-h-11 rounded border bg-papel px-3 text-vinho placeholder:text-taupe/70 focus:border-bordo ${erro ? 'border-alerta' : 'border-linha'}`}
         {...props}
       />
+      {erro && <span className="text-xs text-alerta">{erro}</span>}
     </label>
   );
 }
@@ -60,5 +62,43 @@ export function BotaoIcone({ icone: Icone, rotulo, className = '', ...props }) {
     >
       <Icone size={20} strokeWidth={1.5} aria-hidden="true" />
     </button>
+  );
+}
+
+/** Lista de escolha com o mesmo visual do Campo; `opcoes` = [{ valor, rotulo }]. */
+export function Seletor({ rotulo, opcoes, ...props }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-overline uppercase text-taupe">{rotulo}</span>
+      <select className="min-h-11 rounded border border-linha bg-papel px-3 text-vinho focus:border-bordo" {...props}>
+        {opcoes.map((opcao) => (
+          <option key={opcao.valor} value={opcao.valor}>
+            {opcao.rotulo}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** Botões lado a lado em que só um fica ativo (aria-pressed), como 20 | 50 | 100. */
+export function BotoesSegmentados({ rotulo, opcoes, valor, aoMudar }) {
+  return (
+    <div role="group" aria-label={rotulo} className="inline-flex self-start rounded border border-linha bg-papel p-0.5">
+      {opcoes.map((opcao) => {
+        const ativo = opcao.valor === valor;
+        return (
+          <button
+            key={opcao.valor}
+            type="button"
+            aria-pressed={ativo}
+            onClick={() => aoMudar(opcao.valor)}
+            className={`min-h-11 min-w-11 rounded-sm px-3 text-sm font-medium transition-colors duration-150 ${ativo ? 'bg-bordo text-papel' : 'text-taupe hover:text-bordo'}`}
+          >
+            {opcao.rotulo}
+          </button>
+        );
+      })}
+    </div>
   );
 }

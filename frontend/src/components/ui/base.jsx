@@ -5,6 +5,7 @@
  */
 import { CircleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { caminhoVinheria } from '../../lib/rotas.js';
 
 /** Rótulo curto em caixa alta espaçada. `icone` é um componente Lucide; `invertido` para fundo bordô. */
 export function Overline({ icone: Icone, invertido = false, children }) {
@@ -61,5 +62,5 @@ export function LinkInterno({ to, children }) {
 
 /** Link para o detalhe de uma vinheria. */
 export function LinkVinheria({ deviceId, children }) {
-  return <LinkInterno to={`/vinherias/${deviceId}`}>{children}</LinkInterno>;
+  return <LinkInterno to={caminhoVinheria(deviceId)}>{children}</LinkInterno>;
 }

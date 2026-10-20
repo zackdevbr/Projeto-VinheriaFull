@@ -6,10 +6,13 @@
  */
 import {
   CircleCheck,
+  Droplets,
   Hourglass,
   Server,
   ServerCrash,
   SlidersHorizontal,
+  Sun,
+  Thermometer,
   TriangleAlert,
   WifiOff,
 } from 'lucide-react';
@@ -56,4 +59,13 @@ export const ICONE_TOAST = {
   normal: CircleCheck,
   fiware_offline: ServerCrash,
   fiware_online: Server,
+};
+
+// Ícone de cada atributo e dos tipos de alerta (offline da vinheria e queda da EC2)
+export const ICONE_ATRIBUTO = {
+  temperature: Thermometer,
+  humidity: Droplets,
+  luminosity: Sun,
+  offline: WifiOff,
+  fiware: ServerCrash,
 };
