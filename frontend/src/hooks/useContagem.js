@@ -7,10 +7,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { interpolar } from '../lib/contagem.js';
-
-function prefereMenosMovimento() {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-}
+import { prefereMenosMovimento } from '../lib/movimento.js';
 
 export function useContagem(valor, duracaoMs = 450) {
   const numerico = typeof valor === 'number' && Number.isFinite(valor);

@@ -7,7 +7,7 @@
  */
 @import "tailwindcss";
 
-@theme {
+@theme static {
   /* Cores da marca (referência A) e de status; contraste conferido na spec R1.1 */
   --color-creme: #f4e8e0;
   --color-papel: #fbf5f0;
