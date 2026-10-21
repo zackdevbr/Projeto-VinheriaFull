@@ -2,9 +2,11 @@
  * Gráfico do histórico de um atributo (RF05), lido do STH-Comet pelo
  * backend: área em gradiente bordô (referência B), linhas tracejadas no
  * mínimo e no máximo da faixa e um círculo vermelho em cada ponto fora
- * dela (forma, não só cor). Com a janela "últimos N", relê a cada 10 s.
+ * dela (forma, não só cor). A legenda, embaixo, explica cada elemento
+ * com o valor dos limites. Com a janela "últimos N", relê a cada 10 s.
  * Um resumo em texto (só para leitor de tela) acompanha o canvas.
  */
+import { Chart } from 'chart.js';
 import { useCallback, useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import { api } from '../api/client.js';
@@ -19,6 +21,9 @@ import { paraSerie, parametrosJanela, semLeituras } from '../lib/serie.js';
 import { corDoTema } from '../lib/tema.js';
 import { Cartao, Esqueleto, EstadoVazio, MensagemErro, Subtitulo } from './ui/index.js';
 
+// Texto da legenda dos pontos fora da faixa (também identifica o item ao escolher o desenho dele)
+const ROTULO_FORA = 'Fora da faixa';
+
 /** Série tracejada horizontal no valor de um limite da faixa. */
 function linhaDeLimite(rotulo, valor, quantidade) {
   return {
@@ -32,13 +37,30 @@ function linhaDeLimite(rotulo, valor, quantidade) {
   };
 }
 
-/** Dados do Chart.js: a leitura (com área e marcadores) e, havendo faixa, as linhas de mín e máx. */
-function montarDados(pontos, faixa) {
+/** Série vazia que só existe para a legenda explicar o círculo vermelho dos pontos fora da faixa. */
+function legendaForaDaFaixa() {
+  const alerta = corDoTema('alerta');
+  return {
+    label: ROTULO_FORA,
+    data: [],
+    showLine: false,
+    pointRadius: 4,
+    pointBackgroundColor: alerta,
+    pointBorderColor: alerta,
+    borderColor: alerta,
+  };
+}
+
+/**
+ * Dados do Chart.js: a leitura (com área e marcadores) e, havendo faixa, as
+ * linhas dos limites com o valor na legenda e a explicação dos pontos fora.
+ */
+function montarDados(pontos, faixa, unidade) {
   const { rotulos, valores } = paraSerie(pontos);
   const alerta = corDoTema('alerta');
   const datasets = [
     {
-      label: 'leitura',
+      label: 'Leitura',
       data: valores,
       borderColor: corDoTema('bordo'),
       borderWidth: 2,
@@ -51,7 +73,11 @@ function montarDados(pontos, faixa) {
     },
   ];
   if (faixa) {
-    datasets.push(linhaDeLimite('mín', faixa.min, valores.length), linhaDeLimite('máx', faixa.max, valores.length));
+    datasets.push(
+      linhaDeLimite(`Limite mínimo da faixa (${formatarNumero(faixa.min)} ${unidade})`, faixa.min, valores.length),
+      linhaDeLimite(`Limite máximo da faixa (${formatarNumero(faixa.max)} ${unidade})`, faixa.max, valores.length),
+      legendaForaDaFaixa(),
+    );
   }
   return { labels: rotulos, datasets };
 }
@@ -65,7 +91,21 @@ function montarOpcoes(unidade) {
     animation: prefereMenosMovimento() ? false : { duration: 250 },
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { labels: { color: taupe, usePointStyle: true, pointStyle: 'line', boxWidth: 24, filter: (item) => item.datasetIndex > 0 } },
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: taupe,
+          usePointStyle: true,
+          boxWidth: 24,
+          padding: 16,
+          // Traço para as linhas (leitura e limites); círculo para "Fora da faixa"
+          generateLabels: (grafico) =>
+            Chart.defaults.plugins.legend.labels.generateLabels(grafico).map((item) => ({
+              ...item,
+              pointStyle: item.text === ROTULO_FORA ? 'circle' : 'line',
+            })),
+        },
+      },
       tooltip: {
         filter: (item) => item.datasetIndex === 0,
         callbacks: { label: (item) => `${formatarNumero(item.parsed.y)} ${unidade}` },
@@ -93,7 +133,7 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
   );
   const { dados, erro, falha, carregando } = useLeitura(carregar, janela.tipo === 'ultimos' ? LEITURA_POLL_MS : null);
   const vazio = semLeituras(falha) || (dados !== null && dados.length === 0);
-  const grafico = useMemo(() => (dados ? montarDados(dados, faixa) : null), [dados, faixa]);
+  const grafico = useMemo(() => (dados ? montarDados(dados, faixa, atributo.unidade) : null), [dados, faixa, atributo.unidade]);
   const opcoes = useMemo(() => montarOpcoes(atributo.unidade), [atributo.unidade]);
 
   let corpo;
