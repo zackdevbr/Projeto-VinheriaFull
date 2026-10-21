@@ -1,6 +1,7 @@
 /**
  * Hook de leitura de dados do backend com estado pronto para a tela:
- * { dados, erro, carregando, recarregar }.
+ * { dados, erro, falha, carregando, recarregar }. `erro` é a mensagem pronta
+ * para a tela e `falha` o ApiError original (status e service).
  *
  * Com `intervaloMs`, relê em cadeia de setTimeout depois que cada leitura
  * termina (como o usePolling, sem acumular requisições). Com null, lê uma
@@ -10,7 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const INICIAL = { dados: null, erro: null, carregando: true };
+const INICIAL = { dados: null, erro: null, falha: null, carregando: true };
 
 export function useLeitura(carregar, intervaloMs = null) {
   const [estado, setEstado] = useState(INICIAL);
@@ -24,7 +25,7 @@ export function useLeitura(carregar, intervaloMs = null) {
       setEstado(INICIAL);
     }
     if (!carregar) {
-      setEstado({ dados: null, erro: null, carregando: false });
+      setEstado({ dados: null, erro: null, falha: null, carregando: false });
       return undefined;
     }
     let ativo = true;
@@ -33,11 +34,11 @@ export function useLeitura(carregar, intervaloMs = null) {
       try {
         const dados = await carregar();
         if (ativo) {
-          setEstado({ dados, erro: null, carregando: false });
+          setEstado({ dados, erro: null, falha: null, carregando: false });
         }
       } catch (falha) {
         if (ativo) {
-          setEstado((atual) => ({ dados: atual.dados, erro: falha.message, carregando: false }));
+          setEstado((atual) => ({ dados: atual.dados, erro: falha.message, falha, carregando: false }));
         }
       } finally {
         if (ativo && intervaloMs) {

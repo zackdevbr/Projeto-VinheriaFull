@@ -15,7 +15,7 @@ import { foraDaFaixa } from '../lib/faixa.js';
 import { gradienteVertical } from '../lib/graficos.js';
 import { prefereMenosMovimento } from '../lib/movimento.js';
 import { formatarNumero } from '../lib/numero.js';
-import { paraSerie, parametrosJanela } from '../lib/serie.js';
+import { paraSerie, parametrosJanela, semLeituras } from '../lib/serie.js';
 import { corDoTema } from '../lib/tema.js';
 import { Cartao, Esqueleto, EstadoVazio, MensagemErro, Subtitulo } from './ui/index.js';
 
@@ -91,15 +91,21 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
     () => api.getHistory(deviceId, { attr, ...parametrosJanela(janela) }),
     [deviceId, attr, janela],
   );
-  const { dados, erro, carregando } = useLeitura(carregar, janela.tipo === 'ultimos' ? LEITURA_POLL_MS : null);
+  const { dados, erro, falha, carregando } = useLeitura(carregar, janela.tipo === 'ultimos' ? LEITURA_POLL_MS : null);
+  const vazio = semLeituras(falha) || (dados !== null && dados.length === 0);
   const grafico = useMemo(() => (dados ? montarDados(dados, faixa) : null), [dados, faixa]);
   const opcoes = useMemo(() => montarOpcoes(atributo.unidade), [atributo.unidade]);
 
   let corpo;
   if (carregando && !dados) {
     corpo = <Esqueleto className="h-full" />;
-  } else if (dados && dados.length === 0) {
-    corpo = <EstadoVazio titulo="Sem leituras nesta janela" />;
+  } else if (vazio) {
+    corpo = (
+      <EstadoVazio
+        titulo="Sem leituras neste período"
+        texto="O sensor não estava ativo nesse intervalo. Ele pode ter ficado desligado ou offline."
+      />
+    );
   } else if (grafico) {
     corpo = <Line data={grafico} options={opcoes} role="img" aria-label={`Gráfico de ${atributo.rotulo.toLowerCase()}`} />;
   }
@@ -107,7 +113,7 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
   return (
     <Cartao larg={4}>
       <Subtitulo>{atributo.rotulo}</Subtitulo>
-      <MensagemErro erro={erro} />
+      <MensagemErro erro={semLeituras(falha) ? null : erro} />
       <div className="h-56 md:h-72">{corpo}</div>
       {dados && dados.length > 0 && <p className="sr-only">{resumoEmTexto(atributo, dados)}</p>}
     </Cartao>

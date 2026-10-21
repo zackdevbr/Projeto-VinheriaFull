@@ -35,3 +35,12 @@ export function paraSerie(pontos) {
     valores: pontos.map((ponto) => ponto.value),
   };
 }
+
+/**
+ * O STH-Comet responde 404 quando o intervalo pedido não tem nenhuma
+ * leitura (o sensor estava desligado ou offline). Para a tela isso não é
+ * falha: é "sem leituras neste período".
+ */
+export function semLeituras(falha) {
+  return falha?.status === 404 && falha?.service === 'sth';
+}

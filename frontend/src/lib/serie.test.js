@@ -1,6 +1,7 @@
 /** Testes da janela dos gráficos e da conversão do histórico (spec R2.5, R2.6). */
 import { describe, expect, it } from 'vitest';
-import { paraSerie, parametrosJanela } from './serie.js';
+import { ApiError } from '../api/client.js';
+import { paraSerie, parametrosJanela, semLeituras } from './serie.js';
 
 describe('parametrosJanela', () => {
   it('últimos N pontos viram lastN', () => {
@@ -39,5 +40,17 @@ describe('paraSerie', () => {
 
   it('lista vazia dá listas vazias', () => {
     expect(paraSerie([])).toEqual({ rotulos: [], valores: [] });
+  });
+});
+
+describe('semLeituras', () => {
+  it('404 do STH-Comet quer dizer que o intervalo não tem leituras', () => {
+    expect(semLeituras(new ApiError(404, 'No context element found', 'sth'))).toBe(true);
+  });
+
+  it('outros erros não são "sem leituras"', () => {
+    expect(semLeituras(new ApiError(404, 'vinheria099 não encontrada', 'registry'))).toBe(false);
+    expect(semLeituras(new ApiError(503, 'sem conexão', 'sth'))).toBe(false);
+    expect(semLeituras(null)).toBe(false);
   });
 });
