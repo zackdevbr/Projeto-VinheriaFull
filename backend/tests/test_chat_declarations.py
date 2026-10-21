@@ -28,3 +28,10 @@ def test_atributo_e_enum_dos_tres_sensores():
 def test_descricoes_em_portugues():
     for declaracao in declaracoes(com_acoes=False):
         assert declaracao.description and "vinheria" in declaracao.description.lower()
+
+
+def test_declaracoes_de_acao_so_com_acoes():
+    nomes = {d.name for d in declaracoes(com_acoes=True)}
+    assert nomes == LEITURA | {"propor_comando", "propor_faixa"}
+    comando = _por_nome(declaracoes(com_acoes=True))["propor_comando"]
+    assert comando.parameters.properties["comando"].enum == ["blink_temp", "blink_hum", "blink_lux", "alert_off"]

@@ -63,7 +63,30 @@ LEITURA = [
 ]
 
 # Tools de ação (bloco B): só propõem, quem executa é o painel após o Confirmar
-ACOES: list[types.FunctionDeclaration] = []
+ACOES = [
+    types.FunctionDeclaration(
+        name="propor_comando",
+        description="Propõe disparar o padrão de alerta (luz e som) de um sensor, ou desligar o "
+                    "alerta, no ESP32 de uma vinheria. NÃO executa: o usuário confirma num "
+                    "cartão. Use só quando o usuário pedir explicitamente.",
+        parameters=_objeto({
+            "vinheria": _VINHERIA,
+            "comando": types.Schema(
+                type="STRING", enum=["blink_temp", "blink_hum", "blink_lux", "alert_off"],
+                description="blink_temp (alerta de temperatura), blink_hum (umidade), "
+                            "blink_lux (luminosidade) ou alert_off (desligar o alerta)."),
+        }, ["vinheria", "comando"])),
+    types.FunctionDeclaration(
+        name="propor_faixa",
+        description="Propõe mudar o mínimo e/ou o máximo da faixa ideal de um sensor de uma "
+                    "vinheria. NÃO grava: o usuário confirma num cartão. Informe só o que mudar.",
+        parameters=_objeto({
+            "vinheria": _VINHERIA,
+            "atributo": _ATRIBUTO,
+            "minimo": types.Schema(type="NUMBER", description="Novo mínimo, se mudar."),
+            "maximo": types.Schema(type="NUMBER", description="Novo máximo, se mudar."),
+        }, ["vinheria", "atributo"])),
+]
 
 
 def declaracoes(com_acoes: bool) -> list[types.FunctionDeclaration]:

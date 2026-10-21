@@ -154,6 +154,27 @@ async def test_resumo_antes_do_primeiro_ciclo_do_poller(tools_falso):
 
 
 @pytest.mark.anyio
+async def test_com_acoes_declara_e_instrui(tools_falso):
+    c = cliente(texto("ok"))
+    bot = Chatbot(tools_falso, RegistryFalso(), FleetState(), Settings(gemini_api_key="k"),
+                  client=c, com_acoes=True)
+    await bot.ask("oi", [])
+    config = c.aio.models.chamadas[0]["config"]
+    nomes = {d.name for d in config.tools[0].function_declarations}
+    assert {"propor_comando", "propor_faixa"} <= nomes
+    assert "confirm" in config.system_instruction.lower()
+
+
+@pytest.mark.anyio
+async def test_sem_acoes_nao_declara_propostas(tools_falso):
+    c = cliente(texto("ok"))
+    await chatbot(tools_falso, c).ask("oi", [])
+    config = c.aio.models.chamadas[0]["config"]
+    nomes = {d.name for d in config.tools[0].function_declarations}
+    assert not {"propor_comando", "propor_faixa"} & nomes
+
+
+@pytest.mark.anyio
 async def test_executa_tool_e_devolve_resultado(tools_falso):
     c = cliente(pede(("estado_atual", {"vinheria": "SP"})), texto("Está a 14 °C."))
     r = await chatbot(tools_falso, c).ask("Como está SP?", [])
@@ -206,6 +227,40 @@ async def test_outro_erro_do_gemini_vira_upstream(tools_falso):
     erro = errors.APIError(500, {"error": {"code": 500, "message": "interno", "status": "INTERNAL"}})
     with pytest.raises(ChatbotUpstreamError):
         await chatbot(tools_falso, cliente(erro)).ask("oi", [])
+
+
+def erro_503():
+    return errors.APIError(503, {"error": {"code": 503, "message": "alta demanda", "status": "UNAVAILABLE"}})
+
+
+def chatbot_sem_espera(tools, client, esperas=(0, 0)):
+    return Chatbot(tools, RegistryFalso(), FleetState(), Settings(gemini_api_key="chave-de-teste"),
+                   client=client, esperas=esperas)
+
+
+@pytest.mark.anyio
+async def test_503_tenta_de_novo_e_responde(tools_falso):
+    c = cliente(erro_503(), texto("Passou."))
+    r = await chatbot_sem_espera(tools_falso, c).ask("oi", [])
+    assert r.reply == "Passou."
+    assert len(c.aio.models.chamadas) == 2
+
+
+@pytest.mark.anyio
+async def test_503_persistente_vira_upstream_depois_das_tentativas(tools_falso):
+    c = cliente(erro_503(), erro_503(), erro_503())
+    with pytest.raises(ChatbotUpstreamError):
+        await chatbot_sem_espera(tools_falso, c).ask("oi", [])
+    assert len(c.aio.models.chamadas) == 3
+
+
+@pytest.mark.anyio
+async def test_429_e_500_nao_tentam_de_novo(tools_falso):
+    erro = errors.APIError(500, {"error": {"code": 500, "message": "interno", "status": "INTERNAL"}})
+    c = cliente(erro, texto("nunca chega"))
+    with pytest.raises(ChatbotUpstreamError):
+        await chatbot_sem_espera(tools_falso, c).ask("oi", [])
+    assert len(c.aio.models.chamadas) == 1
 
 
 @pytest.mark.anyio

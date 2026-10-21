@@ -7,6 +7,7 @@ Gemini a conversa e as declarações das tools e executa as tools que ele
 pedir, até a resposta final ou o limite de chamadas. Nada é executado no
 FIWARE por aqui: as ações viram propostas que o painel confirma.
 """
+import asyncio
 import logging
 from datetime import tzinfo
 
@@ -23,6 +24,9 @@ log = logging.getLogger(__name__)
 
 # Chamadas ao modelo por pergunta (cada pedido de tool gasta uma)
 MAX_CHAMADAS = 5
+# O Gemini devolve 503 ("alta demanda") em picos passageiros: espera, em segundos,
+# antes de cada nova tentativa (uma tupla vazia desliga a nova tentativa)
+ESPERAS_503 = (1.0, 2.0)
 SEM_CONCLUSAO = "Não consegui concluir a consulta. Tente reformular a pergunta."
 SEM_RESPOSTA = "Não encontrei uma resposta. Tente reformular a pergunta."
 # Resumo quando há vinherias cadastradas mas o poller ainda não fez o primeiro ciclo
@@ -40,7 +44,10 @@ Regras:
 - Escreva em texto simples, sem markdown: nada de asteriscos, títulos ou tabelas; para listas, use linhas começando com hífen."""
 
 # Regras extras do bloco B (ações com confirmação)
-INSTRUCAO_ACOES = ""
+INSTRUCAO_ACOES = """
+- Você pode propor ações com propor_comando e propor_faixa, mas só quando o usuário pedir uma ação. Nunca proponha por iniciativa própria; no máximo, sugira em texto.
+- As ações NÃO são executadas por você: elas aparecem num cartão e só acontecem quando o usuário clicar em Confirmar. Diga isso na resposta, sem afirmar que a ação já foi feita.
+- Se a proposta voltar com "erro", explique o motivo ao usuário."""
 
 
 def resumo_frota(report: FleetReport, fuso: tzinfo | None = None) -> str:
@@ -78,7 +85,8 @@ class Chatbot:
     """Responde perguntas sobre as vinherias usando o Gemini e as tools."""
 
     def __init__(self, tools, registry, fleet, settings, client=None,
-                 com_acoes: bool = False, fuso: tzinfo | None = None):
+                 com_acoes: bool = False, fuso: tzinfo | None = None,
+                 esperas: tuple[float, ...] = ESPERAS_503):
         # client: genai.Client real (criado na primeira pergunta) ou falso nos testes
         self._tools = tools
         self._registry = registry
@@ -87,6 +95,7 @@ class Chatbot:
         self._client = client
         self._com_acoes = com_acoes
         self._fuso = fuso
+        self._esperas = esperas
 
     def _cliente(self):
         """Cliente do Gemini; sem chave no .env, o chat fica indisponível."""
@@ -116,21 +125,30 @@ class Chatbot:
     async def _gerar(self, cliente, contents: list, config):
         """Uma chamada ao modelo, com as falhas traduzidas para ChatbotError.
 
-        A mensagem de erro nunca inclui a chave nem o corpo da requisição.
+        Um 503 (pico de demanda do Gemini) é tentado de novo depois das
+        esperas configuradas. A mensagem de erro nunca inclui a chave nem o
+        corpo da requisição.
         """
-        try:
-            return await cliente.aio.models.generate_content(
-                model=self._settings.gemini_model, contents=contents, config=config)
-        except errors.APIError as exc:
-            if exc.code == 429:
-                raise ChatbotRateLimited(
-                    "limite de uso do Gemini atingido, aguarde alguns segundos") from exc
-            log.warning("Gemini respondeu HTTP %s", exc.code)
-            raise ChatbotUpstreamError(f"falha ao consultar o Gemini (HTTP {exc.code})") from exc
-        except Exception as exc:  # rede caída, DNS, timeout: o SDK não padroniza essas falhas
-            log.warning("sem conexão com o Gemini: %s", type(exc).__name__)
-            raise ChatbotUpstreamError(
-                "falha ao consultar o Gemini: sem conexão com a internet?") from exc
+        esperas = list(self._esperas)
+        while True:
+            try:
+                return await cliente.aio.models.generate_content(
+                    model=self._settings.gemini_model, contents=contents, config=config)
+            except errors.APIError as exc:
+                if exc.code == 503 and esperas:
+                    espera = esperas.pop(0)
+                    log.warning("Gemini respondeu 503; nova tentativa em %.1f s", espera)
+                    await asyncio.sleep(espera)
+                    continue
+                if exc.code == 429:
+                    raise ChatbotRateLimited(
+                        "limite de uso do Gemini atingido, aguarde alguns segundos") from exc
+                log.warning("Gemini respondeu HTTP %s", exc.code)
+                raise ChatbotUpstreamError(f"falha ao consultar o Gemini (HTTP {exc.code})") from exc
+            except Exception as exc:  # rede caída, DNS, timeout: o SDK não padroniza essas falhas
+                log.warning("sem conexão com o Gemini: %s", type(exc).__name__)
+                raise ChatbotUpstreamError(
+                    "falha ao consultar o Gemini: sem conexão com a internet?") from exc
 
     async def ask(self, message: str, history: list[ChatTurn]) -> ChatReply:
         """Responde a pergunta, executando as tools que o Gemini pedir (no máximo 5 chamadas)."""

@@ -32,6 +32,7 @@ from app.core.backup import BackupService, restore_if_missing
 from app.core.config import ConfigStore, Settings, load_settings
 from app.core.db import connect
 from app.services.alert_log import AlertLog
+from app.services.chat_acoes import ChatAcoes
 from app.services.chat_tools import ChatTools
 from app.services.chatbot import Chatbot
 from app.services.device_control import DeviceControl
@@ -104,7 +105,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.control = DeviceControl(registry, limits, fiware, fleet, engine)
     chat_tools = ChatTools(registry, app.state.readings, fleet, alerts, limits)
-    app.state.chatbot = Chatbot(chat_tools, registry, fleet, settings)
+    ChatAcoes(registry, fleet, limits).registrar_em(chat_tools)
+    app.state.chatbot = Chatbot(chat_tools, registry, fleet, settings, com_acoes=True)
     app.state.backup = BackupService(conn, settings.backup_dir, settings.backup_keep,
                                      settings.backup_minutes)
 
