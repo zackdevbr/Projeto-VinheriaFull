@@ -12,6 +12,7 @@ import { Route, Routes } from 'react-router-dom';
 import AlertBanner from './components/AlertBanner.jsx';
 import FiwareBar from './components/FiwareBar.jsx';
 import NavInferior from './components/NavInferior.jsx';
+import { ChatProvider } from './context/ChatContext.jsx';
 import { ConfigProvider } from './context/ConfigContext.jsx';
 import { FleetProvider } from './context/FleetContext.jsx';
 import Devices from './pages/Devices.jsx';
@@ -24,19 +25,21 @@ export default function App() {
   return (
     <ConfigProvider>
       <FleetProvider>
-        <FiwareBar />
-        <AlertBanner />
-        <main className="mx-auto w-full max-w-pagina px-4 pt-6 pb-28 md:px-6 md:pt-10 md:pb-16">
-          <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/vinherias/:id" element={<VinheriaDetail />} />
-            <Route path="/alertas" element={<Alerts />} />
-            <Route path="/dispositivos" element={<Devices />} />
-            <Route path="/chat" element={<Placeholder titulo="Chat" task="Task 7A" />} />
-            <Route path="*" element={<Placeholder titulo="Página não encontrada" />} />
-          </Routes>
-        </main>
-        <NavInferior />
+        <ChatProvider>
+          <FiwareBar />
+          <AlertBanner />
+          <main className="mx-auto w-full max-w-pagina px-4 pt-6 pb-28 md:px-6 md:pt-10 md:pb-16">
+            <Routes>
+              <Route path="/" element={<Overview />} />
+              <Route path="/vinherias/:id" element={<VinheriaDetail />} />
+              <Route path="/alertas" element={<Alerts />} />
+              <Route path="/dispositivos" element={<Devices />} />
+              <Route path="/chat" element={<Placeholder titulo="Chat" task="Task 7A" />} />
+              <Route path="*" element={<Placeholder titulo="Página não encontrada" />} />
+            </Routes>
+          </main>
+          <NavInferior />
+        </ChatProvider>
       </FleetProvider>
     </ConfigProvider>
   );
