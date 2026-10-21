@@ -1,8 +1,9 @@
 /**
  * Caixa de conversa usada pela página /chat e pelo painel flutuante:
- * mensagens com rolagem automática, sugestões de pergunta e o campo de
- * texto (Enter envia, Shift+Enter quebra a linha). Se o envio falha, o
- * texto volta para o campo.
+ * mensagens com rolagem automática, sugestões de pergunta (numa linha com
+ * rolagem horizontal, para sobrar altura à conversa) e o campo de texto
+ * (Enter envia, Shift+Enter quebra a linha). Se o envio falha, o texto
+ * volta para o campo.
  */
 import { SendHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -56,9 +57,15 @@ export default function ChatBox({ className = '' }) {
         )}
         <div ref={fim} />
       </div>
-      <div className="flex flex-wrap gap-2 pb-3">
+      <div className="flex gap-2 overflow-x-auto pb-3">
         {SUGESTOES.map((sugestao) => (
-          <Botao key={sugestao} variante="secundario" disabled={enviando} onClick={() => mandar(sugestao)}>
+          <Botao
+            key={sugestao}
+            variante="secundario"
+            className="shrink-0 whitespace-nowrap"
+            disabled={enviando}
+            onClick={() => mandar(sugestao)}
+          >
             {sugestao}
           </Botao>
         ))}

@@ -15,6 +15,7 @@ export const SUGESTOES = [
   'Como está a vinheria de São Paulo?',
   'Alguma vinheria em alerta?',
   'Qual vinheria está mais úmida agora?',
+  'Desligue o alerta da vinheria 001',
 ];
 
 let contador = 0;
