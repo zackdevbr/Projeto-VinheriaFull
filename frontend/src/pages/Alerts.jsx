@@ -26,6 +26,10 @@ export default function Alerts() {
     ...vinherias.map((v) => ({ valor: v.device_id, rotulo: `${v.name} · ${v.city}` })),
     { valor: ID_FIWARE, rotulo: 'EC2 / FIWARE' },
   ];
+  // Filtro da URL que não existe na lista (link de uma vinheria removida): aparece no seletor, em vez de o seletor dizer "Todas"
+  if (fleet && filtro && !opcoes.some((opcao) => opcao.valor === filtro)) {
+    opcoes.push({ valor: filtro, rotulo: `${filtro} (não cadastrada)` });
+  }
   const lista = leitura.dados ?? [];
   const abertos = lista.filter((alerta) => alerta.closed_at === null || alerta.closed_at === undefined).length;
 

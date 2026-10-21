@@ -79,8 +79,8 @@ function KpiAtributo({ atributo, valor, faixa }) {
   );
 }
 
-export default function VinheriaDetail() {
-  const { id } = useParams();
+/** Detalhe de uma vinheria; todo o estado (faixa digitada, janela, avisos) vive aqui e zera quando o `id` muda. */
+function Detalhe({ id }) {
   const { fleet } = useFleet();
   const vinheria = fleet?.vinherias.find((v) => v.device_id === id) ?? null;
   const carregarScore = useCallback(() => api.getScore(id), [id]);
@@ -147,4 +147,15 @@ export default function VinheriaDetail() {
       </GradeBento>
     </section>
   );
+}
+
+/**
+ * A rota /vinherias/:id só troca o parâmetro ao ir de uma vinheria para outra,
+ * e o React reaproveitaria o componente com o estado da anterior (por exemplo
+ * a faixa digitada, que poderia ser salva na vinheria errada). A `key` com o
+ * id remonta o detalhe a cada troca.
+ */
+export default function VinheriaDetail() {
+  const { id } = useParams();
+  return <Detalhe key={id} id={id} />;
 }

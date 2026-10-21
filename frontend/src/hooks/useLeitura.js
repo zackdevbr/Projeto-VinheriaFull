@@ -8,24 +8,22 @@
  * vez sempre que `carregar` muda. `carregar` null não lê nada. Quem chama
  * passa `carregar` de um useCallback: cada função nova recomeça a leitura
  * do zero (ex.: troca da janela do gráfico).
+ *
+ * O estado guarda de qual `carregar` ele veio (`origem`). Quando `carregar`
+ * muda, o estado antigo é ignorado já no mesmo render, em vez de aparecer
+ * por um quadro (dados da janela ou da vinheria anterior).
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const INICIAL = { dados: null, erro: null, falha: null, carregando: true };
 
 export function useLeitura(carregar, intervaloMs = null) {
-  const [estado, setEstado] = useState(INICIAL);
+  const [estado, setEstado] = useState({ ...INICIAL, origem: carregar });
   const [versao, setVersao] = useState(0);
-  // Para saber se a mudança foi de `carregar` (limpa a tela) ou só um recarregar
-  const ultimaCarga = useRef(carregar);
 
   useEffect(() => {
-    if (ultimaCarga.current !== carregar) {
-      ultimaCarga.current = carregar;
-      setEstado(INICIAL);
-    }
     if (!carregar) {
-      setEstado({ dados: null, erro: null, falha: null, carregando: false });
+      setEstado({ origem: carregar, dados: null, erro: null, falha: null, carregando: false });
       return undefined;
     }
     let ativo = true;
@@ -34,11 +32,18 @@ export function useLeitura(carregar, intervaloMs = null) {
       try {
         const dados = await carregar();
         if (ativo) {
-          setEstado({ dados, erro: null, falha: null, carregando: false });
+          setEstado({ origem: carregar, dados, erro: null, falha: null, carregando: false });
         }
       } catch (falha) {
         if (ativo) {
-          setEstado((atual) => ({ dados: atual.dados, erro: falha.message, falha, carregando: false }));
+          // Mantém os dados da leitura anterior só se forem desta mesma leitura
+          setEstado((atual) => ({
+            origem: carregar,
+            dados: atual.origem === carregar ? atual.dados : null,
+            erro: falha.message,
+            falha,
+            carregando: false,
+          }));
         }
       } finally {
         if (ativo && intervaloMs) {
@@ -54,5 +59,12 @@ export function useLeitura(carregar, intervaloMs = null) {
   }, [carregar, intervaloMs, versao]);
 
   const recarregar = useCallback(() => setVersao((atual) => atual + 1), []);
-  return { ...estado, recarregar };
+  const vigente = estado.origem === carregar ? estado : INICIAL;
+  return {
+    dados: vigente.dados,
+    erro: vigente.erro,
+    falha: vigente.falha,
+    carregando: vigente.carregando,
+    recarregar,
+  };
 }

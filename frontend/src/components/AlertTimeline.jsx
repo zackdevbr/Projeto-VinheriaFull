@@ -3,6 +3,7 @@
  * fim (ou "em aberto" pulsando) e duração. Mostra a vinheria de cada alerta
  * quando a lista mistura várias. Recebe a leitura pronta (useAlertas).
  */
+import { TriangleAlert } from 'lucide-react';
 import { ID_FIWARE } from '../constants.js';
 import { ICONE_ATRIBUTO } from '../estilo.js';
 import { duracao, formatarDataHora, rotuloAlerta } from '../lib/alertas.js';
@@ -37,7 +38,8 @@ export default function AlertTimeline({ leitura, mostrarVinheria = false, nomes 
       {dados && dados.length === 0 && <Nota>Nenhum alerta registrado.</Nota>}
       <ol className="flex flex-col">
         {(dados ?? []).map((alerta) => {
-          const Icone = ICONE_ATRIBUTO[alerta.device_id === ID_FIWARE ? ID_FIWARE : alerta.attr];
+          // Atributo que o painel não conhece (alerta novo no backend) ganha um ícone genérico em vez de quebrar a tela
+          const Icone = ICONE_ATRIBUTO[alerta.device_id === ID_FIWARE ? ID_FIWARE : alerta.attr] ?? TriangleAlert;
           const aberto = alerta.closed_at === null || alerta.closed_at === undefined;
           return (
             <li

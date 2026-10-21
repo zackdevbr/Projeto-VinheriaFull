@@ -142,19 +142,19 @@ describe('descricaoJanela', () => {
 });
 
 describe('rotuloDoEixo', () => {
-  it('mostra só o dia, e só quando ele muda em relação às marcas anteriores', () => {
-    expect(rotuloDoEixo('20/10 21:14:25', [])).toBe('20/10');
-    expect(rotuloDoEixo('20/10 21:14:27', ['20/10 21:14:25'])).toBe('');
-    expect(rotuloDoEixo('21/10 00:00:03', ['20/10 23:59:59'])).toBe('21/10');
+  // O Chart.js só desenha algumas marcas (por amostragem); por isso cada marca mostra o
+  // próprio dia, sem depender de outra marca ter sido desenhada antes
+  it('cada marca mostra só o dia (dd/mm) do ponto dela, sem a hora', () => {
+    expect(rotuloDoEixo('20/10 21:14:25')).toBe('20/10');
+    expect(rotuloDoEixo('21/10 00:00:03')).toBe('21/10');
+  });
+
+  it('o dia aparece mesmo que a marca anterior seja do mesmo dia', () => {
+    expect(rotuloDoEixo('20/10 21:14:27', ['20/10 21:14:25'])).toBe('20/10');
   });
 
   it('ponto vazio de um vão não ganha marca', () => {
-    expect(rotuloDoEixo('', ['20/10 21:14:25'])).toBe('');
-  });
-
-  it('um vão no meio não repete o dia: compara com a última marca que tinha dia', () => {
-    expect(rotuloDoEixo('20/10 21:30:00', ['20/10 21:14:25', ''])).toBe('');
-    expect(rotuloDoEixo('21/10 00:10:00', ['20/10 21:14:25', ''])).toBe('21/10');
+    expect(rotuloDoEixo('')).toBe('');
   });
 });
 

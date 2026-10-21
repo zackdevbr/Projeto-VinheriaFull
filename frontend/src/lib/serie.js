@@ -93,19 +93,14 @@ export function semLeituras(falha) {
 }
 
 /**
- * Marca do eixo horizontal: só o dia (dd/mm), e só quando ele muda em relação
- * à última marca anterior que tinha dia (`anteriores` = rótulos das marcas
- * já desenhadas); a hora fica para o balão que aparece ao passar o mouse
- * sobre o ponto. O ponto vazio de um vão não ganha marca nem conta como
- * "marca anterior".
+ * Marca do eixo horizontal: só o dia (dd/mm) do ponto; a hora fica para o
+ * balão que aparece ao passar o mouse sobre ele. Cada marca mostra o próprio
+ * dia, sem olhar as outras: o Chart.js só desenha algumas marcas (por
+ * amostragem), então depender de uma marca anterior faria o dia sumir. O
+ * ponto vazio de um vão não ganha marca.
  */
-export function rotuloDoEixo(rotulo, anteriores = []) {
-  if (!rotulo) {
-    return '';
-  }
-  const dia = rotulo.slice(0, 5);
-  const anterior = [...anteriores].reverse().find((texto) => texto);
-  return anterior && anterior.slice(0, 5) === dia ? '' : dia;
+export function rotuloDoEixo(rotulo) {
+  return rotulo ? rotulo.slice(0, 5) : '';
 }
 
 /** Título do balão de um ponto: "20/10 às 21:14:25". */

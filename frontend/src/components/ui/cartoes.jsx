@@ -32,8 +32,9 @@ export function GradeBento({ children }) {
  */
 export function Cartao({ variante = 'padrao', larg = 1, para, className = '', children }) {
   const cores = variante === 'destaque' ? 'border-bordo bg-bordo text-papel' : 'border-linha bg-papel';
-  const interativo = para ? 'block transition duration-150 hover:-translate-y-0.5 hover:shadow-media' : '';
-  const classes = `min-w-0 animate-entrar overflow-hidden rounded-2xl border p-4 shadow-baixa md:p-6 ${cores} ${interativo} ${LARGURA[larg]} ${className}`;
+  // O recorte (overflow-hidden) é só do cartão-link, para a faixa bordô de dentro seguir o canto arredondado
+  const interativo = para ? 'block overflow-hidden transition duration-150 hover:-translate-y-0.5 hover:shadow-media' : '';
+  const classes = `min-w-0 animate-entrar rounded-2xl border p-4 shadow-baixa md:p-6 ${cores} ${interativo} ${LARGURA[larg]} ${className}`;
   if (para) {
     return (
       <Link to={para} className={classes}>

@@ -129,14 +129,13 @@ function montarOpcoes(unidade, lacunas) {
     },
     scales: {
       x: {
-        // Só o dia (dd/mm) no eixo; a hora aparece no balão ao passar o mouse sobre o ponto
+        // Só o dia (dd/mm) em cada marca do eixo; a hora aparece no balão ao passar o mouse sobre o ponto
         ticks: {
           color: taupe,
           maxTicksLimit: 6,
           maxRotation: 0,
-          callback(valor, indice, marcas) {
-            const anteriores = marcas.slice(0, indice).map((marca) => this.getLabelForValue(marca.value));
-            return rotuloDoEixo(this.getLabelForValue(valor), anteriores);
+          callback(valor) {
+            return rotuloDoEixo(this.getLabelForValue(valor));
           },
         },
         grid: { display: false },
@@ -155,10 +154,13 @@ function resumoEmTexto(atributo, pontos, lacunas) {
 
 export default function SensorChart({ deviceId, attr, janela, faixa }) {
   const atributo = ATRIBUTO[attr];
-  const carregar = useCallback(
-    () => api.getHistory(deviceId, { attr, ...parametrosJanela(janela) }),
-    [deviceId, attr, janela],
-  );
+  const carregar = useCallback(() => {
+    const parametros = parametrosJanela(janela);
+    if (parametros.erro) {
+      throw new Error(parametros.erro);
+    }
+    return api.getHistory(deviceId, { attr, ...parametros });
+  }, [deviceId, attr, janela]);
   const { dados, erro, falha, carregando } = useLeitura(carregar, janela.tipo === 'ultimos' ? LEITURA_POLL_MS : null);
   const vazio = semLeituras(falha) || (dados !== null && dados.length === 0);
   const serie = useMemo(() => (dados ? paraSerie(dados, LACUNA_SEGUNDOS) : null), [dados]);
