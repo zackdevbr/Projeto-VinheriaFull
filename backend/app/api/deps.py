@@ -9,6 +9,7 @@ from fastapi import Request
 
 from app.core.config import ConfigStore
 from app.services.alert_log import AlertLog
+from app.services.chatbot import Chatbot
 from app.services.device_control import DeviceControl
 from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
@@ -49,3 +50,8 @@ def get_fleet(request: Request) -> FleetState:
 def get_control(request: Request) -> DeviceControl:
     """Controle de faixa e comandos da aplicação."""
     return request.app.state.control
+
+
+def get_chatbot(request: Request) -> Chatbot:
+    """Chatbot da aplicação."""
+    return request.app.state.chatbot

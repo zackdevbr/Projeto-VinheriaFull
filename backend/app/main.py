@@ -3,7 +3,7 @@ Ponto de entrada do backend FastAPI (Smart Solutions).
 
 create_app() monta a aplicação: lê a configuração, restaura o banco de um
 backup se o arquivo sumiu, abre o SQLite, cria o cliente FIWARE e os
-services (cadastro, leituras, alertas, frota, motor, controle e backup) e
+services (cadastro, leituras, alertas, frota, motor, controle, chatbot e backup) e
 registra CORS, tradução de erros e rotas. O lifespan sobe o poller e o
 backup em fundo quando Settings.run_background está ligado. Os testes
 chamam create_app() com Settings próprios; o uvicorn usa o objeto `app` do
@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
     routes_alerts,
+    routes_chat,
     routes_config,
     routes_data,
     routes_devices,
@@ -31,6 +32,8 @@ from app.core.backup import BackupService, restore_if_missing
 from app.core.config import ConfigStore, Settings, load_settings
 from app.core.db import connect
 from app.services.alert_log import AlertLog
+from app.services.chat_tools import ChatTools
+from app.services.chatbot import Chatbot
 from app.services.device_control import DeviceControl
 from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
@@ -100,6 +103,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.fleet = fleet
     app.state.engine = engine
     app.state.control = DeviceControl(registry, limits, fiware, fleet, engine)
+    chat_tools = ChatTools(registry, app.state.readings, fleet, alerts, limits)
+    app.state.chatbot = Chatbot(chat_tools, registry, fleet, settings)
     app.state.backup = BackupService(conn, settings.backup_dir, settings.backup_keep,
                                      settings.backup_minutes)
 
@@ -116,6 +121,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_triggers.router)
     app.include_router(routes_alerts.router)
     app.include_router(routes_fleet.router)
+    app.include_router(routes_chat.router)
     return app
 
 
