@@ -495,6 +495,14 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 7A: Chatbot Gemini multi-vinheria
 
+> **Planejada em 20/10/2026 (spec-driven).** Executar por [`docs/specs/task-7a-chatbot/plan.md`](docs/specs/task-7a-chatbot/plan.md), que segue a [`spec.md`](docs/specs/task-7a-chatbot/spec.md) da mesma pasta (19 subtarefas em dois blocos). Os passos abaixo são o resumo original; em caso de divergência, a spec manda. Decisões tomadas com o usuário:
+> - **Bloco A:** núcleo com 6 tools de leitura.
+> - **Bloco B:** ações com confirmação. As tools `propor_comando` e `propor_faixa` só propõem; o painel mostra um cartão Confirmar/Cancelar e executa pelas rotas que já existem. É o corte se o prazo apertar.
+> - **Chat no painel:** página `/chat` e painel flutuante (canto inferior esquerdo, porque o direito é dos toasts), com a conversa num `ChatContext`.
+> - **Gemini:** loop manual de function calling (máx. 5 chamadas); estatísticas com `statistics`, sem pandas.
+> - **Histórico do STH:** `last_n=500` + filtro de janela, porque a consulta por datas do STH devolve os pontos mais antigos.
+> - **Chave:** só no `backend/.env`. O `.gitignore` já é da Task 2.
+
 > **Sai do adiamento (revisão de 05/10/2026).** Vem logo depois da Task 6, pois precisa de `/api/fleet`, do resolver e dos dados do STH prontos. Entram aqui também `.gitignore` (ignorando `.env`, `__pycache__/`, `node_modules/`, `*.db`) e `backend/.env.example` com `GEMINI_API_KEY=` vazio. A chave real só no `.env` local, nunca commitada.
 
 **Files:** criar `app/services/chatbot.py`, `app/api/routes_chat.py`, `src/components/ChatBox.jsx`, `src/pages/Chat.jsx`, `tests/test_chatbot_tools.py`

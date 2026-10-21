@@ -150,8 +150,8 @@ Classe `Chatbot(tools, registry, fleet, settings, client=None)`. `client` é inj
   - cartões de ação abaixo (bloco B).
 - **R9.3** `pages/Chat.jsx`: `Titulo` + `ChatBox` ocupando a altura útil. `App.jsx` troca o `Placeholder` de `/chat` por ela e envolve tudo em `ChatProvider`.
 - **R9.4** `ChatFlutuante`:
-  - `BotaoIcone` fixo no canto inferior direito (abaixo de 768 px, acima da `NavInferior`);
-  - abre um painel lateral de ~400 px (desktop) ou tela cheia (celular) com o mesmo `ChatBox`;
+  - botão redondo bordô fixo no canto inferior **esquerdo** (o direito já é dos toasts do `AlertBanner`); abaixo de 768 px fica acima da `NavInferior` e abaixo dos toasts na ordem de empilhamento;
+  - abre um painel de ~400 px no mesmo canto (desktop) ou tela cheia (celular) com o mesmo `ChatBox`;
   - fecha com Esc e com ×;
   - não aparece na rota `/chat`;
   - a conversa é a mesma da página (o contexto vive acima das rotas).
@@ -167,14 +167,14 @@ Classe `Chatbot(tools, registry, fleet, settings, client=None)`. `client` é inj
 
 ### Bloco B — ações com confirmação
 
-#### R11 — Tools de proposta (em `chat_tools.py`)
-Nenhuma das duas chama o FIWARE nem escreve no SQLite.
+#### R11 — Tools de proposta (`services/chat_acoes.py`)
+Classe `ChatAcoes(registry, fleet, limits)`, registrada no `ChatTools` com `registrar_em(tools)`. Fica num arquivo próprio para o `chat_tools.py` não passar de ~250 linhas (R14.2). Nenhuma das duas tools chama o FIWARE nem escreve no SQLite.
 - **R11.1** `propor_comando(vinheria, comando)`:
   - comando fora do enum devolve `erro`;
   - status `offline` ou `configurando` devolve `erro` com o motivo;
   - senão, registra uma `ChatAction(kind="command", ..., summary="Piscar a luz (blink_lux) na Vinheria Mineira")` e devolve `{ "proposta": summary, "aguardando_confirmacao": true }`.
-- **R11.2** `propor_faixa(vinheria, atributo, min=None, max=None)`:
-  - pelo menos um de `min`/`max` é obrigatório;
+- **R11.2** `propor_faixa(vinheria, atributo, minimo=None, maximo=None)` (os nomes evitam sombrear `min`/`max` do Python):
+  - pelo menos um de `minimo`/`maximo` é obrigatório;
   - junta com `limits.get` e valida com `AttrLimits` (min ≥ max devolve `erro`);
   - registra `ChatAction(kind="limits", limits=<Limits completo>, summary="Temperatura máx. 18 → 20 °C na Vinheria Paulista")`.
   Faixa de vinheria offline é aceita: o backend deixa pendente, como no painel.
