@@ -21,7 +21,14 @@ import { gradienteVertical } from '../lib/graficos.js';
 import { pluginLacunas } from '../lib/lacunas.js';
 import { prefereMenosMovimento } from '../lib/movimento.js';
 import { formatarNumero } from '../lib/numero.js';
-import { paraSerie, parametrosJanela, resumoLacunas, semLeituras } from '../lib/serie.js';
+import {
+  paraSerie,
+  parametrosJanela,
+  resumoLacunas,
+  rotuloDoEixo,
+  semLeituras,
+  tituloDoPonto,
+} from '../lib/serie.js';
 import { corDoTema } from '../lib/tema.js';
 import { Cartao, Esqueleto, EstadoVazio, MensagemErro, Subtitulo } from './ui/index.js';
 
@@ -114,11 +121,26 @@ function montarOpcoes(unidade, lacunas) {
       },
       tooltip: {
         filter: (item) => item.datasetIndex === 0 && item.parsed.y !== null,
-        callbacks: { label: (item) => `${formatarNumero(item.parsed.y)} ${unidade}` },
+        callbacks: {
+          title: (itens) => tituloDoPonto(itens[0].label),
+          label: (item) => `${formatarNumero(item.parsed.y)} ${unidade}`,
+        },
       },
     },
     scales: {
-      x: { ticks: { color: taupe, maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } },
+      x: {
+        // Só o dia (dd/mm) no eixo; a hora aparece no balão ao passar o mouse sobre o ponto
+        ticks: {
+          color: taupe,
+          maxTicksLimit: 6,
+          maxRotation: 0,
+          callback(valor, indice, marcas) {
+            const anterior = indice > 0 ? this.getLabelForValue(marcas[indice - 1].value) : null;
+            return rotuloDoEixo(this.getLabelForValue(valor), anterior);
+          },
+        },
+        grid: { display: false },
+      },
       y: { ticks: { color: taupe }, grid: { color: corDoTema('linha') } },
     },
   };

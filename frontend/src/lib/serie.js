@@ -28,13 +28,16 @@ export function parametrosJanela(janela) {
   return { dateFrom: de.toISOString(), dateTo: ate.toISOString() };
 }
 
-/** Hora local HH:mm:ss de um instante ISO. */
-function horaLocal(iso) {
-  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+/** Data e hora locais (dd/mm HH:mm:ss) de um instante ISO. */
+function dataHoraLocal(iso) {
+  const data = new Date(iso);
+  const dia = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const hora = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return `${dia} ${hora}`;
 }
 
 /**
- * Rótulos HH:mm:ss (hora local), valores e vãos, na ordem recebida. O eixo
+ * Rótulos dd/mm HH:mm:ss (hora local), valores e vãos, na ordem recebida. O eixo
  * do gráfico é por leitura, não por tempo; por isso, quando duas leituras
  * seguidas distam mais de `limiteLacunaSeg` segundos (sensor desligado ou
  * offline), entra um ponto vazio (null) entre elas, que quebra a linha, e o
@@ -54,7 +57,7 @@ export function paraSerie(pontos, limiteLacunaSeg = Number.POSITIVE_INFINITY) {
         valores.push(null);
       }
     }
-    rotulos.push(horaLocal(ponto.ts));
+    rotulos.push(dataHoraLocal(ponto.ts));
     valores.push(ponto.value);
   });
   return { rotulos, valores, lacunas };
@@ -87,4 +90,22 @@ export function descricaoJanela(janela) {
  */
 export function semLeituras(falha) {
   return falha?.status === 404 && falha?.service === 'sth';
+}
+
+/**
+ * Marca do eixo horizontal: só o dia (dd/mm), e só quando ele muda em relação
+ * à marca anterior; a hora fica para o balão que aparece ao passar o mouse
+ * sobre o ponto. O ponto vazio de um vão não ganha marca.
+ */
+export function rotuloDoEixo(rotulo, rotuloAnterior) {
+  if (!rotulo) {
+    return '';
+  }
+  const dia = rotulo.slice(0, 5);
+  return rotuloAnterior && rotuloAnterior.slice(0, 5) === dia ? '' : dia;
+}
+
+/** Título do balão de um ponto: "20/10 às 21:14:25". */
+export function tituloDoPonto(rotulo) {
+  return rotulo ? `${rotulo.slice(0, 5)} às ${rotulo.slice(6)}` : '';
 }

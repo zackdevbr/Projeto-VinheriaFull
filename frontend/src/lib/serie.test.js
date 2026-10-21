@@ -1,7 +1,15 @@
 /** Testes da janela dos gráficos e da conversão do histórico (spec R2.5, R2.6). */
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/client.js';
-import { descricaoJanela, paraSerie, parametrosJanela, resumoLacunas, semLeituras } from './serie.js';
+import {
+  descricaoJanela,
+  paraSerie,
+  parametrosJanela,
+  resumoLacunas,
+  rotuloDoEixo,
+  semLeituras,
+  tituloDoPonto,
+} from './serie.js';
 
 describe('parametrosJanela', () => {
   it('últimos N pontos viram lastN', () => {
@@ -26,7 +34,7 @@ describe('parametrosJanela', () => {
 });
 
 describe('paraSerie', () => {
-  it('separa rótulos de hora e valores', () => {
+  it('separa rótulos de data e hora e valores', () => {
     const serie = paraSerie([
       { ts: '2026-10-19T14:32:05.000Z', value: 21.4 },
       { ts: '2026-10-19T14:32:07.000Z', value: 21.5 },
@@ -34,7 +42,7 @@ describe('paraSerie', () => {
     expect(serie.valores).toEqual([21.4, 21.5]);
     expect(serie.rotulos).toHaveLength(2);
     for (const rotulo of serie.rotulos) {
-      expect(rotulo).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+      expect(rotulo).toMatch(/^\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/);
     }
   });
 
@@ -129,5 +137,28 @@ describe('descricaoJanela', () => {
     expect(descricaoJanela({ tipo: 'datas', de: '', ate: '' })).toBe(
       'Escolha o início e o fim para ver as leituras desse intervalo.',
     );
+  });
+});
+
+describe('rotuloDoEixo', () => {
+  it('mostra só o dia, e só quando ele muda em relação à marca anterior', () => {
+    expect(rotuloDoEixo('20/10 21:14:25', null)).toBe('20/10');
+    expect(rotuloDoEixo('20/10 21:14:27', '20/10 21:14:25')).toBe('');
+    expect(rotuloDoEixo('21/10 00:00:03', '20/10 23:59:59')).toBe('21/10');
+  });
+
+  it('ponto vazio de um vão não ganha marca, e o dia reaparece depois dele', () => {
+    expect(rotuloDoEixo('', '20/10 21:14:25')).toBe('');
+    expect(rotuloDoEixo('20/10 21:30:00', '')).toBe('20/10');
+  });
+});
+
+describe('tituloDoPonto', () => {
+  it('no balão, a hora aparece junto do dia', () => {
+    expect(tituloDoPonto('20/10 21:14:25')).toBe('20/10 às 21:14:25');
+  });
+
+  it('ponto vazio de um vão não tem título', () => {
+    expect(tituloDoPonto('')).toBe('');
   });
 });
