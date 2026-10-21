@@ -51,16 +51,20 @@ export function MensagemErro({ erro }) {
   );
 }
 
-/** Link interno (React Router, sem recarregar a página) no estilo da marca. */
-export function LinkInterno({ to, children }) {
+/** Link interno (React Router, sem recarregar a página) no estilo da marca; `className` acrescenta classes. */
+export function LinkInterno({ to, className = '', children }) {
   return (
-    <Link to={to} className="text-bordo underline-offset-4 hover:underline focus-visible:underline">
+    <Link to={to} className={`text-bordo underline-offset-4 hover:underline focus-visible:underline ${className}`}>
       {children}
     </Link>
   );
 }
 
 /** Link para o detalhe de uma vinheria. */
-export function LinkVinheria({ deviceId, children }) {
-  return <LinkInterno to={caminhoVinheria(deviceId)}>{children}</LinkInterno>;
+export function LinkVinheria({ deviceId, className, children }) {
+  return (
+    <LinkInterno to={caminhoVinheria(deviceId)} className={className}>
+      {children}
+    </LinkInterno>
+  );
 }
