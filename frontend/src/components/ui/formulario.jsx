@@ -1,6 +1,6 @@
 /**
- * Peças de formulário do design system: campo com rótulo, botão com
- * variantes e botão só de ícone. Todos têm pelo menos 44 px de altura,
+ * Peças de formulário do design system: campo com rótulo, área de texto,
+ * botão com variantes e botão só de ícone. Todos têm pelo menos 44 px de altura,
  * para o toque no celular. Em React 19, `ref` chega como prop comum e
  * vai junto do `...props` para o elemento nativo.
  */
@@ -12,6 +12,9 @@ const VARIANTES = {
   perigo: 'border-alerta bg-transparent text-alerta hover:bg-alerta/8',
 };
 
+// Visual de entrada de texto compartilhado por Campo e AreaTexto
+const ENTRADA = 'min-h-11 rounded border bg-papel px-3 text-vinho placeholder:text-taupe/70 focus:border-bordo';
+
 /** Campo de texto com o rótulo em caixa alta em cima; `erro` aparece embaixo; as demais props vão para o <input>. */
 export function Campo({ rotulo, erro, ...props }) {
   return (
@@ -19,10 +22,20 @@ export function Campo({ rotulo, erro, ...props }) {
       <span className="text-overline uppercase text-taupe">{rotulo}</span>
       <input
         aria-invalid={erro ? true : undefined}
-        className={`min-h-11 rounded border bg-papel px-3 text-vinho placeholder:text-taupe/70 focus:border-bordo ${erro ? 'border-alerta' : 'border-linha'}`}
+        className={`${ENTRADA} ${erro ? 'border-alerta' : 'border-linha'}`}
         {...props}
       />
       {erro && <span className="text-xs text-alerta">{erro}</span>}
+    </label>
+  );
+}
+
+/** Texto de várias linhas com o mesmo visual do Campo; `rotuloOculto` deixa o rótulo só para leitor de tela. */
+export function AreaTexto({ rotulo, rotuloOculto = false, ...props }) {
+  return (
+    <label className="flex flex-1 flex-col gap-1.5">
+      <span className={rotuloOculto ? 'sr-only' : 'text-overline uppercase text-taupe'}>{rotulo}</span>
+      <textarea className={`${ENTRADA} w-full resize-none border-linha py-2`} {...props} />
     </label>
   );
 }
