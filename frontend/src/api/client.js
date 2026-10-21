@@ -107,4 +107,7 @@ export const api = {
     }
     return request(`/api/alerts?${query}`);
   },
+
+  /** Pergunta ao chatbot; history = turnos anteriores [{ role: 'user'|'model', text }]. */
+  sendChat: (message, history) => request('/api/chat', { method: 'POST', body: { message, history } }),
 };
