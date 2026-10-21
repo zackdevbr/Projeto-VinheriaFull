@@ -4,9 +4,10 @@
  * mínimo e no máximo da faixa e um círculo vermelho em cada ponto fora
  * dela (forma, não só cor). A legenda, embaixo, explica cada elemento
  * com o valor dos limites. Com a janela "últimos N", relê a cada 10 s.
- * Quando o sensor ficou sem enviar leituras, a linha quebra e uma faixa
- * cinza marca o vão, com o tempo da pausa. Um resumo em texto (só para
- * leitor de tela) acompanha o canvas.
+ * Com o FIWARE fora do ar, o cartão avisa "FIWARE desligado" em vez do erro
+ * técnico. Quando o sensor ficou sem enviar leituras (registro pausado), a
+ * linha quebra e uma faixa hachurada marca o vão, com o tempo parado. Um
+ * resumo em texto (só para leitor de tela) acompanha o canvas.
  */
 import { Chart } from 'chart.js';
 import { Pause } from 'lucide-react';
@@ -22,6 +23,7 @@ import { pluginLacunas } from '../lib/lacunas.js';
 import { prefereMenosMovimento } from '../lib/movimento.js';
 import { formatarNumero } from '../lib/numero.js';
 import {
+  fiwareForaDoAr,
   paraSerie,
   parametrosJanela,
   resumoLacunas,
@@ -193,6 +195,7 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
     return api.getHistory(deviceId, { attr, ...parametros });
   }, [deviceId, attr, janela]);
   const { dados, erro, falha, carregando } = useLeitura(carregar, janela.tipo === 'ultimos' ? LEITURA_POLL_MS : null);
+  const desligado = fiwareForaDoAr(falha);
   const vazio = semLeituras(falha) || (dados !== null && dados.length === 0);
   const serie = useMemo(() => (dados ? paraSerie(dados, LACUNA_SEGUNDOS, JUNTAR_PAUSAS_SEGUNDOS) : null), [dados]);
   const grafico = useMemo(() => (serie ? montarDados(serie, faixa, atributo.unidade) : null), [serie, faixa, atributo.unidade]);
@@ -202,6 +205,8 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
   let corpo;
   if (carregando && !dados) {
     corpo = <Esqueleto className="h-full" />;
+  } else if (desligado) {
+    corpo = <EstadoVazio titulo="FIWARE desligado" texto="Os gráficos voltam assim que ele estiver no ar." />;
   } else if (vazio) {
     corpo = (
       <EstadoVazio
@@ -216,7 +221,7 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
   return (
     <Cartao larg={4}>
       <Subtitulo>{atributo.rotulo}</Subtitulo>
-      <MensagemErro erro={semLeituras(falha) ? null : erro} />
+      <MensagemErro erro={semLeituras(falha) || desligado ? null : erro} />
       <div className="h-64 md:h-72">{corpo}</div>
       {textoLacunas && (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-rose/40 bg-rose/10 px-4 py-3">

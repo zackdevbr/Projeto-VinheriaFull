@@ -155,3 +155,12 @@ export function tituloDoPonto(rotulo) {
 export function tituloDoBalao(itens) {
   return itens.length > 0 ? tituloDoPonto(itens[0].label) : '';
 }
+
+/**
+ * O backend responde 503 quando não consegue falar com o FIWARE (EC2
+ * desligada, IP errado ou tempo esgotado). Para a tela, o histórico fica
+ * indisponível até ele voltar, e o texto técnico do erro não ajuda ninguém.
+ */
+export function fiwareForaDoAr(falha) {
+  return falha?.status === 503;
+}

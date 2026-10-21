@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/client.js';
 import {
   descricaoJanela,
+  fiwareForaDoAr,
   paraSerie,
   parametrosJanela,
   resumoLacunas,
@@ -241,5 +242,19 @@ describe('paraSerie junta pausas contínuas', () => {
       { ts: '2026-10-19T10:06:00.000Z', value: 4 },
     ];
     expect(paraSerie(tres, 30, 60).lacunas).toEqual([{ indice: 1, ultimoIndice: 5, segundos: 360, pausas: 3 }]);
+  });
+});
+
+describe('fiwareForaDoAr', () => {
+  it('503 do backend quer dizer que o FIWARE não respondeu (EC2 desligada, IP errado ou timeout)', () => {
+    expect(fiwareForaDoAr(new ApiError(503, 'tempo esgotado em http://1.2.3.4:8666/STH', 'sth'))).toBe(true);
+    expect(fiwareForaDoAr(new ApiError(503, 'sem conexão', 'orion'))).toBe(true);
+  });
+
+  it('outros erros não são "FIWARE desligado"', () => {
+    expect(fiwareForaDoAr(new ApiError(0, 'Backend indisponível'))).toBe(false);
+    expect(fiwareForaDoAr(new ApiError(404, 'sem dados', 'sth'))).toBe(false);
+    expect(fiwareForaDoAr(new ApiError(502, 'resposta inválida', 'sth'))).toBe(false);
+    expect(fiwareForaDoAr(null)).toBe(false);
   });
 });
