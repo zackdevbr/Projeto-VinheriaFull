@@ -8,6 +8,7 @@ import {
   resumoLacunas,
   rotuloDoEixo,
   semLeituras,
+  tituloDoBalao,
   tituloDoPonto,
 } from './serie.js';
 
@@ -160,5 +161,18 @@ describe('tituloDoPonto', () => {
 
   it('ponto vazio de um vão não tem título', () => {
     expect(tituloDoPonto('')).toBe('');
+  });
+});
+
+describe('tituloDoBalao', () => {
+  // O Chart.js chama o título do balão com os itens que sobraram depois do filtro;
+  // sobre um vão do gráfico (ponto vazio) não sobra nenhum, e isso não pode quebrar o gráfico
+  it('com a lista vazia (mouse sobre um vão) devolve texto vazio, sem lançar erro', () => {
+    expect(() => tituloDoBalao([])).not.toThrow();
+    expect(tituloDoBalao([])).toBe('');
+  });
+
+  it('com itens, usa o rótulo do primeiro: dia e hora', () => {
+    expect(tituloDoBalao([{ label: '20/10 21:14:25' }])).toBe('20/10 às 21:14:25');
   });
 });

@@ -109,3 +109,12 @@ export function rotuloDoEixo(rotulo, rotuloAnterior) {
 export function tituloDoPonto(rotulo) {
   return rotulo ? `${rotulo.slice(0, 5)} às ${rotulo.slice(6)}` : '';
 }
+
+/**
+ * Título do balão a partir dos itens que o Chart.js entrega. A lista pode
+ * vir vazia: o filtro do balão descarta tudo sobre um vão do gráfico (ponto
+ * vazio), e ler o primeiro item ali quebraria o gráfico durante o mouse.
+ */
+export function tituloDoBalao(itens) {
+  return itens.length > 0 ? tituloDoPonto(itens[0].label) : '';
+}

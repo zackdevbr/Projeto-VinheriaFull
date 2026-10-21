@@ -27,7 +27,7 @@ import {
   resumoLacunas,
   rotuloDoEixo,
   semLeituras,
-  tituloDoPonto,
+  tituloDoBalao,
 } from '../lib/serie.js';
 import { corDoTema } from '../lib/tema.js';
 import { Cartao, Esqueleto, EstadoVazio, MensagemErro, Subtitulo } from './ui/index.js';
@@ -122,7 +122,7 @@ function montarOpcoes(unidade, lacunas) {
       tooltip: {
         filter: (item) => item.datasetIndex === 0 && item.parsed.y !== null,
         callbacks: {
-          title: (itens) => tituloDoPonto(itens[0].label),
+          title: tituloDoBalao,
           label: (item) => `${formatarNumero(item.parsed.y)} ${unidade}`,
         },
       },
