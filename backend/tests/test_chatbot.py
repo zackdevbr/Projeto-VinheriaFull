@@ -122,6 +122,22 @@ def _textos(conteudo):
     return [p.text for p in conteudo.parts if p.text]
 
 
+def test_cliente_real_tem_timeout_e_sem_retry_do_sdk(monkeypatch, tools_falso):
+    # O SDK repete 503 por conta própria e o chat ficaria minutos em "Pensando…"
+    capturado = {}
+
+    class ClienteFalso:
+        def __init__(self, **kwargs):
+            capturado.update(kwargs)
+
+    monkeypatch.setattr("app.services.chatbot.genai.Client", ClienteFalso)
+    bot = Chatbot(tools_falso, RegistryFalso(), FleetState(), Settings(gemini_api_key="k"))
+    bot._cliente()
+    assert capturado["api_key"] == "k"
+    assert capturado["http_options"].timeout == 30000
+    assert capturado["http_options"].retry_options.attempts == 1
+
+
 @pytest.mark.anyio
 async def test_sem_chave_fica_indisponivel(tools_falso):
     with pytest.raises(ChatbotUnavailable):

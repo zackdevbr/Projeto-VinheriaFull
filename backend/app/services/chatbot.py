@@ -27,6 +27,8 @@ MAX_CHAMADAS = 5
 # O Gemini devolve 503 ("alta demanda") em picos passageiros: espera, em segundos,
 # antes de cada nova tentativa (uma tupla vazia desliga a nova tentativa)
 ESPERAS_503 = (1.0, 2.0)
+# Tempo máximo de cada chamada ao Gemini, em milissegundos (o padrão do SDK é muito longo)
+TIMEOUT_GEMINI_MS = 30000
 SEM_CONCLUSAO = "Não consegui concluir a consulta. Tente reformular a pergunta."
 SEM_RESPOSTA = "Não encontrei uma resposta. Tente reformular a pergunta."
 # Resumo quando há vinherias cadastradas mas o poller ainda não fez o primeiro ciclo
@@ -132,7 +134,11 @@ class Chatbot:
             raise ChatbotUnavailable(
                 "chatbot não configurado: defina GEMINI_API_KEY no backend/.env")
         if self._client is None:
-            self._client = genai.Client(api_key=self._settings.gemini_api_key)
+            # Sem retry interno do SDK (attempts=1): quem repete o 503 é o _gerar, com
+            # espera curta; senão uma pergunta poderia levar minutos
+            opcoes = types.HttpOptions(timeout=TIMEOUT_GEMINI_MS,
+                                       retry_options=types.HttpRetryOptions(attempts=1))
+            self._client = genai.Client(api_key=self._settings.gemini_api_key, http_options=opcoes)
         return self._client
 
     def _config(self) -> types.GenerateContentConfig:
