@@ -47,6 +47,9 @@ class Settings:
     backup_dir: str = ""
     backup_minutes: int = 10
     backup_keep: int = 20
+    # Chatbot (Task 7A): chave só no .env; vazia deixa o chat indisponível (503)
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
     # Poller e backup em fundo: só load_settings (produção) liga
     run_background: bool = False
 
@@ -92,6 +95,8 @@ def load_settings(env_file: str | None = str(BACKEND_DIR / ".env")) -> Settings:
         backup_dir=_env("BACKUP_DIR", str(DEFAULT_BACKUP_DIR)),
         backup_minutes=int(_env("BACKUP_MINUTES", p.backup_minutes)),
         backup_keep=int(_env("BACKUP_KEEP", p.backup_keep)),
+        gemini_api_key=_env("GEMINI_API_KEY", p.gemini_api_key),
+        gemini_model=_env("GEMINI_MODEL", p.gemini_model),
         run_background=True,
     )
 

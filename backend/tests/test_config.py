@@ -14,6 +14,7 @@ VARIAVEIS = (
     "POLL_SECONDS", "OFFLINE_SECONDS", "HTTP_TIMEOUT_SECONDS",
     "DATABASE_PATH", "CORS_ORIGINS",
     "BACKUP_DIR", "BACKUP_MINUTES", "BACKUP_KEEP",
+    "GEMINI_API_KEY", "GEMINI_MODEL",
 )
 
 
@@ -38,6 +39,16 @@ def test_load_settings_usa_defaults(ambiente_limpo):
     assert s.cors_origins == ("http://localhost:5173",)
     assert Path(s.backup_dir) == Path.home() / "SmartSolutions" / "backups"
     assert (s.backup_minutes, s.backup_keep) == (10, 20)
+    assert s.gemini_api_key == ""
+    assert s.gemini_model == "gemini-2.5-flash"
+
+
+def test_load_settings_le_gemini(ambiente_limpo):
+    ambiente_limpo.setenv("GEMINI_API_KEY", "chave-de-teste")
+    ambiente_limpo.setenv("GEMINI_MODEL", "gemini-outro")
+    s = load_settings(env_file=None)
+    assert s.gemini_api_key == "chave-de-teste"
+    assert s.gemini_model == "gemini-outro"
 
 
 def test_load_settings_le_variaveis_de_ambiente(ambiente_limpo):
