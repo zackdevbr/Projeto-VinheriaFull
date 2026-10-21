@@ -19,7 +19,7 @@
 - Comentários em português em todo módulo e em toda função não óbvia; código no estilo dos arquivos vizinhos.
 - Rota não chama SDK nem `httpx`. Só `services/chatbot.py` importa `google.genai`; `services/chat_declarations.py` importa apenas `google.genai.types`.
 - A chave do Gemini só no `backend/.env`. Nunca em arquivo versionado, log ou resposta HTTP.
-- `GEMINI_MODEL` default `gemini-2.5-flash`.
+- `GEMINI_MODEL` default `gemini-3.5-flash`.
 - Nenhum arquivo novo passa de ~250 linhas.
 - Testes sem rede e sem chave real (Gemini falso).
 - Front: só o kit `components/ui/` e os tokens existentes. Sem hex, sem `style=` e sem `fetch` fora do `src/api/client.js`.
@@ -71,7 +71,7 @@ Condições que a spec implica mas nenhum requisito testa diretamente. Cada uma 
 - Modify: `backend/requirements.txt`, `backend/.env.example`, `backend/app/core/config.py`, `backend/tests/test_config.py`
 
 **Interfaces:**
-- Produces: `Settings.gemini_api_key: str = ""`, `Settings.gemini_model: str = "gemini-2.5-flash"`, ambos preenchidos por `load_settings`.
+- Produces: `Settings.gemini_api_key: str = ""`, `Settings.gemini_model: str = "gemini-3.5-flash"`, ambos preenchidos por `load_settings`.
 
 - [ ] **Passo 1: instalar o SDK.** Em `backend/`:
 
@@ -123,7 +123,7 @@ config = types.GenerateContentConfig(
 async def main():
     contents = [types.Content(role="user",
                               parts=[types.Part.from_text(text="Como está a vinheria de São Paulo?")])]
-    r1 = await cliente.aio.models.generate_content(model="gemini-2.5-flash",
+    r1 = await cliente.aio.models.generate_content(model="gemini-3.5-flash",
                                                     contents=contents, config=config)
     print("(b) function_calls:", r1.function_calls)
     chamada = r1.function_calls[0]
@@ -131,7 +131,7 @@ async def main():
     contents.append(r1.candidates[0].content)
     contents.append(types.Content(role="user", parts=[types.Part.from_function_response(
         name=chamada.name, response={"temperatura": 14.2, "unidade": "°C"})]))
-    r2 = await cliente.aio.models.generate_content(model="gemini-2.5-flash",
+    r2 = await cliente.aio.models.generate_content(model="gemini-3.5-flash",
                                                     contents=contents, config=config)
     print("(c) texto final:", r2.text)
     try:
@@ -160,7 +160,7 @@ Esperado, nesta ordem:
   - no fim de `test_load_settings_usa_defaults`, acrescente:
 ```python
     assert s.gemini_api_key == ""
-    assert s.gemini_model == "gemini-2.5-flash"
+    assert s.gemini_model == "gemini-3.5-flash"
 ```
   - acrescente o teste:
 ```python
@@ -179,7 +179,7 @@ def test_load_settings_le_gemini(ambiente_limpo):
 ```python
     # Chatbot (Task 7A): chave só no .env; vazia deixa o chat indisponível (503)
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash"
 ```
   - em `load_settings`, antes de `run_background=True,`, acrescente:
 ```python
@@ -196,7 +196,7 @@ def test_load_settings_le_gemini(ambiente_limpo):
 # Chatbot Gemini (Task 7A). A chave real fica só no .env, nunca no Git.
 # Sem chave, o painel funciona e o chat responde "não configurado".
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.5-flash
 ```
 
 - [ ] **Passo 10: suíte inteira.** `pytest tests -q`. Esperado: tudo verde (285 + 1 testes).
@@ -1407,7 +1407,7 @@ async def test_resposta_direta_leva_resumo_e_historico(tools_falso):
     r = await chatbot(tools_falso, c).ask("Como está a 001?", historico)
     assert (r.reply, r.actions) == ("Tudo certo.", [])
     chamada = c.aio.models.chamadas[0]
-    assert chamada["model"] == "gemini-2.5-flash"
+    assert chamada["model"] == "gemini-3.5-flash"
     assert [x.role for x in chamada["contents"]] == ["user", "model", "user"]
     ultima = _textos(chamada["contents"][-1])[0]
     assert ultima.startswith("[Situação agora: FIWARE ok;")

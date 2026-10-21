@@ -281,7 +281,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 - Node 20+; front em **JavaScript puro** (`.jsx`), sem TypeScript. Deps: `react`, `react-dom`, `react-router-dom`, `chart.js`, `react-chartjs-2`.
 - **Todo o código comentado** (exigência da entrega) — comentários em português explicando propósito de cada módulo/função.
 - Nenhum IP, chave ou porta hardcoded em módulo de lógica: sempre via `ConfigStore`/`.env`. `ANTHROPIC`/`GEMINI_API_KEY` só em `.env` (nunca commitado; `.env.example` sim).
-- Modelo Gemini default: `gemini-2.5-flash`, sobrescrevível por `GEMINI_MODEL`.
+- Modelo Gemini default: `gemini-3.5-flash`, sobrescrevível por `GEMINI_MODEL`.
 - Firmware: `#define DHTTYPE DHT22` (Wokwi) com comentário de como trocar para `DHT11` (hardware real). Nenhum `delay()` nos padrões de alerta.
 - Commits frequentes, mensagens `feat:`/`docs:`/`test:`.
 

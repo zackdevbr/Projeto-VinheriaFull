@@ -40,7 +40,7 @@ def test_load_settings_usa_defaults(ambiente_limpo):
     assert Path(s.backup_dir) == Path.home() / "SmartSolutions" / "backups"
     assert (s.backup_minutes, s.backup_keep) == (10, 20)
     assert s.gemini_api_key == ""
-    assert s.gemini_model == "gemini-2.5-flash"
+    assert s.gemini_model == "gemini-3.5-flash"
 
 
 def test_load_settings_le_gemini(ambiente_limpo):

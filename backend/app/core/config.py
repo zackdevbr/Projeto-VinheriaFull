@@ -49,7 +49,7 @@ class Settings:
     backup_keep: int = 20
     # Chatbot (Task 7A): chave só no .env; vazia deixa o chat indisponível (503)
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash"
     # Poller e backup em fundo: só load_settings (produção) liga
     run_background: bool = False
 

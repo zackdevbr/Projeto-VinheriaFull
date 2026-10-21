@@ -55,7 +55,7 @@ Não trocar sem decisão explícita do usuário.
 - **Middleware:** FIWARE (stack `fabiocabrini/fiware` em Docker na AWS EC2) — Orion 1026, IoT Agent MQTT 4041, STH-Comet 8666, Mosquitto 1883, MongoDB 27017.
 - **Back-end:** Python 3.11+, FastAPI, Uvicorn, httpx, Pydantic, SQLite, pandas, matplotlib, reportlab. Testes com pytest e respx.
 - **Front-end:** React com JavaScript puro (`.jsx`), Vite, Tailwind CSS v4 (plugin `@tailwindcss/vite`), Chart.js via react-chartjs-2, react-router-dom (toda troca de página passa por ele). Vitest só para lógica pura. **Sem TypeScript.** A empresa fictícia é **Smart Solutions** (o nome "Vinheria Agnello" não é mais usado). **Gate de design:** nenhuma decisão visual do front é tomada antes de o usuário enviar anexos e exemplos de referência; o design é planejado em Opus e só depois implementado.
-- **Chatbot (fase posterior):** Google Gemini via `google-genai`, modelo `gemini-2.5-flash`, com function calling.
+- **Chatbot (fase posterior):** Google Gemini via `google-genai`, modelo `gemini-3.5-flash`, com function calling.
 
 ## 6. Regras de código
 
