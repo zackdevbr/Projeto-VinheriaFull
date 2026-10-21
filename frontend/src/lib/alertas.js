@@ -6,7 +6,7 @@ import { ID_FIWARE } from '../constants.js';
 import { ATRIBUTO } from './atributos.js';
 import { formatarNumero } from './numero.js';
 
-/** Duração em texto curto; null quer dizer que o alerta ainda está aberto. */
+/** Duração em texto curto (s, min, h e, de 24 h em diante, dias); null quer dizer que o alerta ainda está aberto. */
 export function duracao(segundos) {
   if (segundos === null || segundos === undefined) {
     return 'em aberto';
@@ -17,7 +17,12 @@ export function duracao(segundos) {
   if (segundos < 3600) {
     return `${Math.floor(segundos / 60)} min ${segundos % 60} s`;
   }
-  return `${Math.floor(segundos / 3600)} h ${Math.floor((segundos % 3600) / 60)} min`;
+  if (segundos < 86400) {
+    return `${Math.floor(segundos / 3600)} h ${Math.floor((segundos % 3600) / 60)} min`;
+  }
+  // A partir de 24 horas conta em dias, com as horas que sobram
+  const dias = Math.floor(segundos / 86400);
+  return `${dias} ${dias === 1 ? 'dia' : 'dias'} ${Math.floor((segundos % 86400) / 3600)} h`;
 }
 
 /** O que aconteceu: "Temperatura 21,4 °C", "Offline" ou "EC2 / FIWARE fora do ar". */

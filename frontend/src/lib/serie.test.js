@@ -78,7 +78,7 @@ describe('paraSerie com vãos', () => {
     const serie = paraSerie(pontos, 30);
     expect(serie.valores).toEqual([1, 2, 3, null, 4, 5]);
     expect(serie.rotulos).toHaveLength(6);
-    expect(serie.lacunas).toEqual([{ indice: 3, segundos: 596 }]);
+    expect(serie.lacunas).toEqual([{ indice: 3, ultimoIndice: 3, segundos: 596, pausas: 1 }]);
   });
 
   it('pausa igual ao limite não conta como vão; só acima dele', () => {
@@ -89,7 +89,7 @@ describe('paraSerie com vãos', () => {
     ];
     const serie = paraSerie(quase, 30);
     expect(serie.valores).toEqual([1, 2, null, 3]);
-    expect(serie.lacunas).toEqual([{ indice: 2, segundos: 31 }]);
+    expect(serie.lacunas).toEqual([{ indice: 2, ultimoIndice: 2, segundos: 31, pausas: 1 }]);
   });
 
   it('sem limite informado nunca cria vão', () => {
@@ -109,18 +109,28 @@ describe('paraSerie com vãos', () => {
 });
 
 describe('resumoLacunas', () => {
+  const pausa = (segundos, pausas = 1) => ({ indice: 1, ultimoIndice: 1, segundos, pausas });
+
   it('sem vãos não há o que dizer', () => {
     expect(resumoLacunas([])).toBeNull();
   });
 
   it('um vão diz quanto tempo o sensor ficou sem enviar', () => {
-    expect(resumoLacunas([{ indice: 3, segundos: 843 }])).toBe('O sensor ficou 14 min 3 s sem enviar leituras.');
+    expect(resumoLacunas([pausa(843)])).toBe('O sensor ficou 14 min 3 s sem enviar leituras.');
   });
 
-  it('vários vãos dizem quantas vezes e a maior pausa', () => {
-    expect(resumoLacunas([{ indice: 1, segundos: 40 }, { indice: 3, segundos: 7380 }])).toBe(
-      'O sensor ficou sem enviar leituras 2 vezes; a maior pausa foi de 2 h 3 min.',
+  it('vários vãos dizem quantas vezes, o total parado e a maior pausa', () => {
+    expect(resumoLacunas([pausa(600), pausa(7200)])).toBe(
+      'O sensor ficou sem enviar leituras 2 vezes, somando 2 h 10 min; a maior pausa foi de 2 h 0 min.',
     );
+  });
+
+  it('uma pausa que juntou várias avisa que foram pausas seguidas', () => {
+    expect(resumoLacunas([pausa(480, 3)])).toBe('O sensor ficou 8 min 0 s sem enviar leituras, em 3 pausas seguidas.');
+  });
+
+  it('tempos acima de 24 horas aparecem em dias', () => {
+    expect(resumoLacunas([pausa(120900)])).toBe('O sensor ficou 1 dia 9 h sem enviar leituras.');
   });
 });
 
@@ -178,5 +188,58 @@ describe('tituloDoBalao', () => {
 
   it('com itens, usa o rótulo do primeiro: dia e hora', () => {
     expect(tituloDoBalao([{ label: '20/10 21:14:25' }])).toBe('20/10 às 21:14:25');
+  });
+});
+
+describe('paraSerie junta pausas contínuas', () => {
+  // A, B, [pausa de 5 min], C, D, [pausa de 3 min], E, F: só 2 s de leituras entre as pausas
+  const comPausasColadas = [
+    { ts: '2026-10-19T10:00:00.000Z', value: 1 },
+    { ts: '2026-10-19T10:00:02.000Z', value: 2 },
+    { ts: '2026-10-19T10:05:02.000Z', value: 3 },
+    { ts: '2026-10-19T10:05:04.000Z', value: 4 },
+    { ts: '2026-10-19T10:08:04.000Z', value: 5 },
+    { ts: '2026-10-19T10:08:06.000Z', value: 6 },
+  ];
+
+  it('pausas separadas por poucas leituras viram uma só, com o total parado', () => {
+    const serie = paraSerie(comPausasColadas, 30, 60);
+    expect(serie.valores).toEqual([1, 2, null, 3, 4, null, 5, 6]);
+    expect(serie.lacunas).toEqual([{ indice: 2, ultimoIndice: 5, segundos: 480, pausas: 2 }]);
+  });
+
+  it('se as leituras entre as pausas duram mais que o limite, continuam duas pausas', () => {
+    // 2 min de leituras a cada 20 s entre duas pausas de 5 min
+    const separadas = [
+      { ts: '2026-10-19T10:00:00.000Z', value: 1 },
+      { ts: '2026-10-19T10:00:02.000Z', value: 2 },
+      ...[2, 22, 42].flatMap((s) => [5, 6].map((m, i) => ({ ts: `2026-10-19T10:0${m}:${String(s).padStart(2, '0')}.000Z`, value: 10 + i }))),
+      { ts: '2026-10-19T10:07:02.000Z', value: 3 },
+      { ts: '2026-10-19T10:12:02.000Z', value: 4 },
+    ].sort((x, y) => x.ts.localeCompare(y.ts));
+    expect(paraSerie(separadas, 30, 60).lacunas.map((l) => l.pausas)).toEqual([1, 1]);
+  });
+
+  it('uma única leitura entre duas pausas também as une', () => {
+    const umaLeitura = [
+      { ts: '2026-10-19T10:00:00.000Z', value: 1 },
+      { ts: '2026-10-19T10:05:00.000Z', value: 2 },
+      { ts: '2026-10-19T10:10:00.000Z', value: 3 },
+    ];
+    expect(paraSerie(umaLeitura, 30, 60).lacunas).toEqual([{ indice: 1, ultimoIndice: 3, segundos: 600, pausas: 2 }]);
+  });
+
+  it('sem limite para juntar, cada pausa fica separada', () => {
+    expect(paraSerie(comPausasColadas, 30).lacunas).toHaveLength(2);
+  });
+
+  it('três pausas coladas viram uma e somam tudo', () => {
+    const tres = [
+      { ts: '2026-10-19T10:00:00.000Z', value: 1 },
+      { ts: '2026-10-19T10:02:00.000Z', value: 2 },
+      { ts: '2026-10-19T10:04:00.000Z', value: 3 },
+      { ts: '2026-10-19T10:06:00.000Z', value: 4 },
+    ];
+    expect(paraSerie(tres, 30, 60).lacunas).toEqual([{ indice: 1, ultimoIndice: 5, segundos: 360, pausas: 3 }]);
   });
 });

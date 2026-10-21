@@ -37,22 +37,58 @@ function dataHoraLocal(iso) {
 }
 
 /**
- * Rótulos dd/mm HH:mm:ss (hora local), valores e vãos, na ordem recebida. O eixo
- * do gráfico é por leitura, não por tempo; por isso, quando duas leituras
- * seguidas distam mais de `limiteLacunaSeg` segundos (sensor desligado ou
- * offline), entra um ponto vazio (null) entre elas, que quebra a linha, e o
- * vão é devolvido em `lacunas` com o índice do ponto vazio e o tamanho da
- * pausa. Sem `limiteLacunaSeg`, nunca cria vãos.
+ * Junta pausas seguidas em uma só. Duas pausas são "contínuas" quando as
+ * leituras entre elas duram no máximo `juntarSeg` segundos (o sensor falhou,
+ * voltou por instantes e falhou de novo). O grupo vai do primeiro ao último
+ * ponto vazio, e `segundos` soma o tempo parado de todas.
  */
-export function paraSerie(pontos, limiteLacunaSeg = Number.POSITIVE_INFINITY) {
+function juntarPausas(brutas, juntarSeg) {
+  const grupos = [];
+  for (const pausa of brutas) {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && juntarSeg > 0 && (pausa.parada - ultimo.retomada) / 1000 <= juntarSeg) {
+      ultimo.ultimoIndice = pausa.indice;
+      ultimo.segundos += pausa.segundos;
+      ultimo.pausas += 1;
+      ultimo.retomada = pausa.retomada;
+    } else {
+      grupos.push({
+        indice: pausa.indice,
+        ultimoIndice: pausa.indice,
+        segundos: pausa.segundos,
+        pausas: 1,
+        retomada: pausa.retomada,
+      });
+    }
+  }
+  return grupos.map(({ retomada, ...grupo }) => grupo);
+}
+
+/**
+ * Rótulos dd/mm HH:mm:ss (hora local), valores e vãos, na ordem recebida. O
+ * eixo do gráfico é por leitura, não por tempo; por isso, quando duas leituras
+ * seguidas distam mais de `limiteLacunaSeg` segundos (sensor desligado ou
+ * offline), entra um ponto vazio (null) entre elas, que quebra a linha. Os
+ * vãos voltam em `lacunas` ({ indice, ultimoIndice, segundos, pausas }, índices
+ * dos pontos vazios), já com as pausas contínuas juntas (`juntarSeg`) e o
+ * total parado em `segundos`. Sem `limiteLacunaSeg`, nunca cria vãos; sem
+ * `juntarSeg`, não junta nenhum.
+ */
+export function paraSerie(pontos, limiteLacunaSeg = Number.POSITIVE_INFINITY, juntarSeg = 0) {
   const rotulos = [];
   const valores = [];
-  const lacunas = [];
+  const brutas = [];
   pontos.forEach((ponto, i) => {
     if (i > 0) {
-      const segundos = Math.round((new Date(ponto.ts) - new Date(pontos[i - 1].ts)) / 1000);
+      const anterior = pontos[i - 1];
+      const segundos = Math.round((new Date(ponto.ts) - new Date(anterior.ts)) / 1000);
       if (segundos > limiteLacunaSeg) {
-        lacunas.push({ indice: valores.length, segundos });
+        brutas.push({
+          indice: valores.length,
+          segundos,
+          parada: new Date(anterior.ts).getTime(),
+          retomada: new Date(ponto.ts).getTime(),
+        });
         rotulos.push('');
         valores.push(null);
       }
@@ -60,7 +96,7 @@ export function paraSerie(pontos, limiteLacunaSeg = Number.POSITIVE_INFINITY) {
     rotulos.push(dataHoraLocal(ponto.ts));
     valores.push(ponto.value);
   });
-  return { rotulos, valores, lacunas };
+  return { rotulos, valores, lacunas: juntarPausas(brutas, juntarSeg) };
 }
 
 /** Frase que explica os vãos do gráfico; null quando não houve nenhum. */
@@ -68,11 +104,14 @@ export function resumoLacunas(lacunas) {
   if (lacunas.length === 0) {
     return null;
   }
+  const total = lacunas.reduce((soma, lacuna) => soma + lacuna.segundos, 0);
   if (lacunas.length === 1) {
-    return `O sensor ficou ${duracao(lacunas[0].segundos)} sem enviar leituras.`;
+    const { pausas } = lacunas[0];
+    const seguidas = pausas > 1 ? `, em ${pausas} pausas seguidas` : '';
+    return `O sensor ficou ${duracao(total)} sem enviar leituras${seguidas}.`;
   }
   const maior = Math.max(...lacunas.map((lacuna) => lacuna.segundos));
-  return `O sensor ficou sem enviar leituras ${lacunas.length} vezes; a maior pausa foi de ${duracao(maior)}.`;
+  return `O sensor ficou sem enviar leituras ${lacunas.length} vezes, somando ${duracao(total)}; a maior pausa foi de ${duracao(maior)}.`;
 }
 
 /** Frase embaixo do seletor: o que é "últimas N leituras" e quanto tempo isso cobre. */

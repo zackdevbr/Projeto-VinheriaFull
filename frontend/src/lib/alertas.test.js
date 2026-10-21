@@ -12,6 +12,13 @@ describe('duracao', () => {
     expect(duracao(3600)).toBe('1 h 0 min');
     expect(duracao(7380)).toBe('2 h 3 min');
   });
+
+  it('a partir de 24 horas conta em dias (com as horas que sobram)', () => {
+    expect(duracao(86399)).toBe('23 h 59 min');
+    expect(duracao(86400)).toBe('1 dia 0 h');
+    expect(duracao(120900)).toBe('1 dia 9 h');
+    expect(duracao(3 * 86400 + 5 * 3600 + 20 * 60)).toBe('3 dias 5 h');
+  });
 });
 
 describe('rotuloAlerta', () => {

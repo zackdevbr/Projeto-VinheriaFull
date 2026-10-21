@@ -48,3 +48,7 @@ export const INTERVALO_LEITURA_S = 2;
 // Pausa entre duas leituras acima da qual o gráfico mostra um vão (sensor
 // desligado ou offline): é o mesmo padrão de 30 s do backend para offline
 export const LACUNA_SEGUNDOS = 30;
+
+// Pausas separadas por menos que isto de leituras seguidas (sensor que falha e
+// volta por instantes) contam como uma pausa só no gráfico
+export const JUNTAR_PAUSAS_SEGUNDOS = 60;

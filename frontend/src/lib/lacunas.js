@@ -55,11 +55,11 @@ function desenharPausa(ctx, x, y, tamanho) {
   ctx.fillRect(x + tamanho - barra, y, barra, tamanho);
 }
 
-/** Limites horizontais de cada vão: entre a última leitura antes e a primeira depois. */
+/** Limites horizontais de cada vão: da última leitura antes da primeira pausa à primeira leitura depois da última (pausas contínuas já vêm juntas). */
 function limitesDosVaos(grafico, lacunas) {
   const pontos = grafico.getDatasetMeta(0).data;
   return lacunas
-    .map(({ indice, segundos }) => ({ antes: pontos[indice - 1], depois: pontos[indice + 1], segundos }))
+    .map(({ indice, ultimoIndice, segundos }) => ({ antes: pontos[indice - 1], depois: pontos[ultimoIndice + 1], segundos }))
     .filter(({ antes, depois }) => antes && depois)
     .map(({ antes, depois, segundos }) => ({ inicio: antes.x, fim: depois.x, segundos }));
 }

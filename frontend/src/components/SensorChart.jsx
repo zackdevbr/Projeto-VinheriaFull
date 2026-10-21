@@ -13,7 +13,7 @@ import { Pause } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import { api } from '../api/client.js';
-import { LACUNA_SEGUNDOS, LEITURA_POLL_MS } from '../constants.js';
+import { JUNTAR_PAUSAS_SEGUNDOS, LACUNA_SEGUNDOS, LEITURA_POLL_MS } from '../constants.js';
 import { useLeitura } from '../hooks/useLeitura.js';
 import { ATRIBUTO } from '../lib/atributos.js';
 import { foraDaFaixa } from '../lib/faixa.js';
@@ -194,7 +194,7 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
   }, [deviceId, attr, janela]);
   const { dados, erro, falha, carregando } = useLeitura(carregar, janela.tipo === 'ultimos' ? LEITURA_POLL_MS : null);
   const vazio = semLeituras(falha) || (dados !== null && dados.length === 0);
-  const serie = useMemo(() => (dados ? paraSerie(dados, LACUNA_SEGUNDOS) : null), [dados]);
+  const serie = useMemo(() => (dados ? paraSerie(dados, LACUNA_SEGUNDOS, JUNTAR_PAUSAS_SEGUNDOS) : null), [dados]);
   const grafico = useMemo(() => (serie ? montarDados(serie, faixa, atributo.unidade) : null), [serie, faixa, atributo.unidade]);
   const opcoes = useMemo(() => montarOpcoes(atributo.unidade, serie?.lacunas ?? []), [atributo.unidade, serie]);
   const textoLacunas = serie ? resumoLacunas(serie.lacunas) : null;
