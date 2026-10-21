@@ -135,8 +135,8 @@ function montarOpcoes(unidade, lacunas) {
           maxTicksLimit: 6,
           maxRotation: 0,
           callback(valor, indice, marcas) {
-            const anterior = indice > 0 ? this.getLabelForValue(marcas[indice - 1].value) : null;
-            return rotuloDoEixo(this.getLabelForValue(valor), anterior);
+            const anteriores = marcas.slice(0, indice).map((marca) => this.getLabelForValue(marca.value));
+            return rotuloDoEixo(this.getLabelForValue(valor), anteriores);
           },
         },
         grid: { display: false },

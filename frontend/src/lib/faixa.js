@@ -8,10 +8,14 @@ import { ATRIBUTOS } from './atributos.js';
 const SEM_NUMERO = 'Informe um número';
 const MIN_MAIOR = 'O mínimo precisa ser menor que o máximo';
 
-/** Texto do campo (aceita vírgula) para número; vazio ou inválido vira NaN. */
+// Só decimal simples: sinal opcional, dígitos e, se houver, vírgula ou ponto com dígitos.
+// Recusa hexadecimal, notação científica e Infinity, que Number() aceitaria.
+const NUMERO_DECIMAL = /^-?\d+(?:[.,]\d+)?$/;
+
+/** Texto do campo (aceita vírgula) para número; vazio ou fora do formato vira NaN. */
 function paraNumero(valor) {
-  const texto = String(valor ?? '').trim().replace(',', '.');
-  return texto === '' ? Number.NaN : Number(texto);
+  const texto = String(valor ?? '').trim();
+  return NUMERO_DECIMAL.test(texto) ? Number(texto.replace(',', '.')) : Number.NaN;
 }
 
 /**

@@ -94,15 +94,18 @@ export function semLeituras(falha) {
 
 /**
  * Marca do eixo horizontal: só o dia (dd/mm), e só quando ele muda em relação
- * à marca anterior; a hora fica para o balão que aparece ao passar o mouse
- * sobre o ponto. O ponto vazio de um vão não ganha marca.
+ * à última marca anterior que tinha dia (`anteriores` = rótulos das marcas
+ * já desenhadas); a hora fica para o balão que aparece ao passar o mouse
+ * sobre o ponto. O ponto vazio de um vão não ganha marca nem conta como
+ * "marca anterior".
  */
-export function rotuloDoEixo(rotulo, rotuloAnterior) {
+export function rotuloDoEixo(rotulo, anteriores = []) {
   if (!rotulo) {
     return '';
   }
   const dia = rotulo.slice(0, 5);
-  return rotuloAnterior && rotuloAnterior.slice(0, 5) === dia ? '' : dia;
+  const anterior = [...anteriores].reverse().find((texto) => texto);
+  return anterior && anterior.slice(0, 5) === dia ? '' : dia;
 }
 
 /** Título do balão de um ponto: "20/10 às 21:14:25". */

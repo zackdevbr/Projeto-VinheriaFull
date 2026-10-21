@@ -142,15 +142,19 @@ describe('descricaoJanela', () => {
 });
 
 describe('rotuloDoEixo', () => {
-  it('mostra só o dia, e só quando ele muda em relação à marca anterior', () => {
-    expect(rotuloDoEixo('20/10 21:14:25', null)).toBe('20/10');
-    expect(rotuloDoEixo('20/10 21:14:27', '20/10 21:14:25')).toBe('');
-    expect(rotuloDoEixo('21/10 00:00:03', '20/10 23:59:59')).toBe('21/10');
+  it('mostra só o dia, e só quando ele muda em relação às marcas anteriores', () => {
+    expect(rotuloDoEixo('20/10 21:14:25', [])).toBe('20/10');
+    expect(rotuloDoEixo('20/10 21:14:27', ['20/10 21:14:25'])).toBe('');
+    expect(rotuloDoEixo('21/10 00:00:03', ['20/10 23:59:59'])).toBe('21/10');
   });
 
-  it('ponto vazio de um vão não ganha marca, e o dia reaparece depois dele', () => {
-    expect(rotuloDoEixo('', '20/10 21:14:25')).toBe('');
-    expect(rotuloDoEixo('20/10 21:30:00', '')).toBe('20/10');
+  it('ponto vazio de um vão não ganha marca', () => {
+    expect(rotuloDoEixo('', ['20/10 21:14:25'])).toBe('');
+  });
+
+  it('um vão no meio não repete o dia: compara com a última marca que tinha dia', () => {
+    expect(rotuloDoEixo('20/10 21:30:00', ['20/10 21:14:25', ''])).toBe('');
+    expect(rotuloDoEixo('21/10 00:10:00', ['20/10 21:14:25', ''])).toBe('21/10');
   });
 });
 

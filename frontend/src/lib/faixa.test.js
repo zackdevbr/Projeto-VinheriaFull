@@ -34,6 +34,19 @@ describe('validarFaixa', () => {
     expect(resultado.erros['luminosity.max']).toMatch(/menor que o máximo/);
   });
 
+  it('recusa hexadecimal, notação científica e lixo que Number() aceitaria', () => {
+    for (const texto of ['0x10', '1e3', 'Infinity', '1,5,5', '--3', '1.']) {
+      const resultado = validarFaixa({ ...valida, temperature: { min: texto, max: '18' } });
+      expect(resultado.dados).toBeNull();
+      expect(resultado.erros['temperature.min']).toBe('Informe um número');
+    }
+  });
+
+  it('aceita negativo, decimal com vírgula ou ponto e espaços nas pontas', () => {
+    const resultado = validarFaixa({ ...valida, temperature: { min: ' -5,5 ', max: '18.25' } });
+    expect(resultado.dados.temperature).toEqual({ min: -5.5, max: 18.25 });
+  });
+
   it('atributo ausente dá erro nos dois campos', () => {
     const { luminosity, ...semLuz } = valida;
     const resultado = validarFaixa(semLuz);
