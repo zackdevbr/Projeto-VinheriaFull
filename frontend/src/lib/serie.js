@@ -2,6 +2,8 @@
  * Janela dos gráficos (últimos N pontos ou intervalo de datas) e conversão
  * do histórico do STH-Comet ([{ ts, value }]) para o formato do Chart.js.
  */
+import { INTERVALO_LEITURA_S } from '../constants.js';
+import { duracao } from './alertas.js';
 
 /**
  * Parâmetros do GET de histórico para a janela escolhida. Datas vêm do
@@ -26,14 +28,56 @@ export function parametrosJanela(janela) {
   return { dateFrom: de.toISOString(), dateTo: ate.toISOString() };
 }
 
-/** Rótulos HH:mm:ss (hora local) e valores, na ordem recebida. */
-export function paraSerie(pontos) {
-  return {
-    rotulos: pontos.map((ponto) =>
-      new Date(ponto.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    ),
-    valores: pontos.map((ponto) => ponto.value),
-  };
+/** Hora local HH:mm:ss de um instante ISO. */
+function horaLocal(iso) {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+/**
+ * Rótulos HH:mm:ss (hora local), valores e vãos, na ordem recebida. O eixo
+ * do gráfico é por leitura, não por tempo; por isso, quando duas leituras
+ * seguidas distam mais de `limiteLacunaSeg` segundos (sensor desligado ou
+ * offline), entra um ponto vazio (null) entre elas, que quebra a linha, e o
+ * vão é devolvido em `lacunas` com o índice do ponto vazio e o tamanho da
+ * pausa. Sem `limiteLacunaSeg`, nunca cria vãos.
+ */
+export function paraSerie(pontos, limiteLacunaSeg = Number.POSITIVE_INFINITY) {
+  const rotulos = [];
+  const valores = [];
+  const lacunas = [];
+  pontos.forEach((ponto, i) => {
+    if (i > 0) {
+      const segundos = Math.round((new Date(ponto.ts) - new Date(pontos[i - 1].ts)) / 1000);
+      if (segundos > limiteLacunaSeg) {
+        lacunas.push({ indice: valores.length, segundos });
+        rotulos.push('');
+        valores.push(null);
+      }
+    }
+    rotulos.push(horaLocal(ponto.ts));
+    valores.push(ponto.value);
+  });
+  return { rotulos, valores, lacunas };
+}
+
+/** Frase que explica os vãos do gráfico; null quando não houve nenhum. */
+export function resumoLacunas(lacunas) {
+  if (lacunas.length === 0) {
+    return null;
+  }
+  if (lacunas.length === 1) {
+    return `O sensor ficou ${duracao(lacunas[0].segundos)} sem enviar leituras.`;
+  }
+  const maior = Math.max(...lacunas.map((lacuna) => lacuna.segundos));
+  return `O sensor ficou sem enviar leituras ${lacunas.length} vezes; a maior pausa foi de ${duracao(maior)}.`;
+}
+
+/** Frase embaixo do seletor: o que é "últimas N leituras" e quanto tempo isso cobre. */
+export function descricaoJanela(janela) {
+  if (janela.tipo === 'ultimos') {
+    return `Mostra as últimas ${janela.n} leituras do sensor (uma a cada ~${INTERVALO_LEITURA_S} s, cerca de ${duracao(janela.n * INTERVALO_LEITURA_S)}).`;
+  }
+  return 'Escolha o início e o fim para ver as leituras desse intervalo.';
 }
 
 /**

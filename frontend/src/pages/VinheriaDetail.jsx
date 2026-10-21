@@ -127,7 +127,7 @@ export default function VinheriaDetail() {
       </GradeBento>
 
       <div className="flex flex-col gap-2">
-        <Overline>Janela dos gráficos</Overline>
+        <Overline>Período mostrado nos gráficos</Overline>
         <SeletorJanela janela={janela} aoMudar={setJanela} />
       </div>
 

@@ -1,17 +1,18 @@
 /**
- * Seletor da janela dos gráficos do detalhe (RF05): últimos 20, 50 ou 100
- * pontos, ou um intervalo de datas. Uma janela só para os três gráficos.
+ * Seletor da janela dos gráficos do detalhe (RF05): as últimas 20, 50 ou
+ * 100 leituras do sensor, ou um intervalo de datas ("Por período"). Uma
+ * frase embaixo explica o que está sendo mostrado. Uma janela só para os três gráficos.
  * A janela só muda com dados válidos (parametrosJanela).
  */
 import { useState } from 'react';
-import { parametrosJanela } from '../lib/serie.js';
+import { descricaoJanela, parametrosJanela } from '../lib/serie.js';
 import { Botao, BotoesSegmentados, Campo, MensagemErro } from './ui/index.js';
 
 const OPCOES = [
-  { valor: '20', rotulo: '20' },
-  { valor: '50', rotulo: '50' },
-  { valor: '100', rotulo: '100' },
-  { valor: 'datas', rotulo: 'Datas' },
+  { valor: '20', rotulo: 'Últimas 20' },
+  { valor: '50', rotulo: 'Últimas 50' },
+  { valor: '100', rotulo: 'Últimas 100' },
+  { valor: 'datas', rotulo: 'Por período' },
 ];
 
 export default function SeletorJanela({ janela, aoMudar }) {
@@ -41,7 +42,10 @@ export default function SeletorJanela({ janela, aoMudar }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <BotoesSegmentados rotulo="Janela dos gráficos" opcoes={OPCOES} valor={modo} aoMudar={escolher} />
+      <BotoesSegmentados rotulo="Leituras mostradas nos gráficos" opcoes={OPCOES} valor={modo} aoMudar={escolher} />
+      <p className="text-sm text-taupe">
+        {descricaoJanela(modo === 'datas' ? { tipo: 'datas' } : { tipo: 'ultimos', n: Number(modo) })}
+      </p>
       {modo === 'datas' && (
         <form onSubmit={aplicar} className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <Campo rotulo="De" type="datetime-local" value={datas.de} onChange={(e) => setDatas({ ...datas, de: e.target.value })} />

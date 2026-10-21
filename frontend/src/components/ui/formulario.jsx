@@ -84,7 +84,7 @@ export function Seletor({ rotulo, opcoes, ...props }) {
 /** Botões lado a lado em que só um fica ativo (aria-pressed), como 20 | 50 | 100. */
 export function BotoesSegmentados({ rotulo, opcoes, valor, aoMudar }) {
   return (
-    <div role="group" aria-label={rotulo} className="inline-flex self-start rounded border border-linha bg-papel p-0.5">
+    <div role="group" aria-label={rotulo} className="inline-flex flex-wrap self-start rounded border border-linha bg-papel p-0.5">
       {opcoes.map((opcao) => {
         const ativo = opcao.valor === valor;
         return (

@@ -40,3 +40,11 @@ export const FAIXA_PADRAO = {
   humidity: { min: 50, max: 70 },
   luminosity: { min: 0, max: 30 },
 };
+
+// Cada leitura do sensor chega a cada ~2 s (PRD, RF03); usado para explicar
+// quanto tempo cobrem as "últimas N leituras" dos gráficos
+export const INTERVALO_LEITURA_S = 2;
+
+// Pausa entre duas leituras acima da qual o gráfico mostra um vão (sensor
+// desligado ou offline): é o mesmo padrão de 30 s do backend para offline
+export const LACUNA_SEGUNDOS = 30;
