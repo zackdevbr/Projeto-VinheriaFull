@@ -119,3 +119,70 @@ async def test_fiware_fora_vira_erro(tools, duas, readings_falso):
     readings_falso.erro = FiwareUnavailable("sth", "sem resposta")
     r = await tools.executar("estatisticas", {"vinheria": "001", "atributo": "temperature"}, [])
     assert r == {"erro": "FIWARE indisponível: sem resposta"}
+
+
+from app.services.fiware_errors import FiwareNotFound  # noqa: E402
+
+
+async def test_estatisticas_da_ultima_hora(tools, duas, readings_falso, relogio):
+    # 90 pontos de 1 em 1 min: os 30 mais velhos ficam fora da janela de 1 h
+    readings_falso.series[("vinheria001", "temperature")] = serie(relogio, [30] * 29 + [14, 15, 16] * 20 + [15])
+    r = await tools.executar("estatisticas", {"vinheria": "São Paulo", "atributo": "temperature"}, [])
+    assert (r["device_id"], r["atributo"], r["horas_pedidas"]) == ("vinheria001", "temperatura", 1.0)
+    assert (r["n"], r["media"], r["minimo"], r["maximo"]) == (61, 15.0, 14, 16)
+    assert readings_falso.pedidos[0][1].last_n == 500
+
+
+async def test_estatisticas_sem_dados_no_sth(tools, duas, readings_falso):
+    readings_falso.erro = FiwareNotFound("sth", "sem dados")
+    r = await tools.executar("estatisticas", {"vinheria": "001", "atributo": "humidity"}, [])
+    assert r["n"] == 0
+
+
+@pytest.mark.parametrize("horas, esperado", [("2", 2.0), (0, 0.25), (100, 24.0), ("abc", 1.0)])
+async def test_estatisticas_recortam_horas(tools, duas, horas, esperado):
+    r = await tools.executar("estatisticas",
+                             {"vinheria": "001", "atributo": "humidity", "horas": horas}, [])
+    assert r["horas_pedidas"] == esperado
+
+
+async def test_estatisticas_atributo_invalido(tools, duas):
+    r = await tools.executar("estatisticas", {"vinheria": "001", "atributo": "pressao"}, [])
+    assert "atributo inválido" in r["erro"]
+
+
+async def test_comparar_ordena_pela_media(tools, duas, cadastrar, readings_falso, relogio):
+    cadastrar("003", "Vinheria Sul", "Porto Alegre")
+    readings_falso.series[("vinheria001", "humidity")] = serie(relogio, [55, 57])
+    readings_falso.series[("vinheria002", "humidity")] = serie(relogio, [70, 72])
+    r = await tools.executar("comparar", {"atributo": "humidity"}, [])
+    assert r["unidade"] == "%"
+    assert [(v["device_id"], v["media"]) for v in r["vinherias"]] == [
+        ("vinheria002", 71.0), ("vinheria001", 56.0), ("vinheria003", None)]
+
+
+async def test_comparar_isola_falha_de_uma_vinheria(tools, duas, readings_falso, relogio):
+    original = readings_falso.history
+
+    async def falha_na_002(device_id, query):
+        if device_id == "vinheria002":
+            raise FiwareUnavailable("sth", "timeout")
+        return await original(device_id, query)
+
+    readings_falso.history = falha_na_002
+    readings_falso.series[("vinheria001", "temperature")] = serie(relogio, [14])
+    r = await tools.executar("comparar", {"atributo": "temperature"}, [])
+    assert r["vinherias"][0]["media"] == 14.0
+    assert r["vinherias"][1]["erro"] == "FIWARE indisponível: timeout"
+
+
+async def test_alertas_filtra_janela_e_vinheria(tools, duas, alert_log, relogio):
+    alert_log.open("vinheria001", "temperature", 21.0, relogio.iso(segundos_atras=3600))
+    antigo = alert_log.open("vinheria002", "humidity", 80.0, relogio.iso(segundos_atras=30 * 3600))
+    alert_log.close(antigo.id, relogio.iso(segundos_atras=29 * 3600))
+    alert_log.open("fiware", "offline", None, relogio.iso(segundos_atras=600))
+    todos = await tools.executar("alertas", {}, [])
+    assert [a["device_id"] for a in todos["alertas"]] == ["fiware", "vinheria001"]
+    assert todos["alertas"][1]["aberto"] is True
+    so_001 = await tools.executar("alertas", {"vinheria": "São Paulo"}, [])
+    assert [a["device_id"] for a in so_001["alertas"]] == ["vinheria001"]

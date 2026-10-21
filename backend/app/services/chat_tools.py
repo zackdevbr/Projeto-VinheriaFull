@@ -8,16 +8,30 @@ errado) voltam como {"erro": ...} para o próprio Gemini, que então pergunta
 ou explica ao usuário em vez de a requisição falhar.
 """
 import inspect
-from datetime import datetime, timezone, tzinfo
+import statistics
+from datetime import datetime, timedelta, timezone, tzinfo
 
-from app.models.schemas import Device
-from app.services.chat_stats import NOME_ATRIBUTO, UNIDADE, hora_local
-from app.services.fiware_errors import FiwareError
+from app.models.schemas import Device, HistoryPoint, HistoryQuery
+from app.services.chat_stats import (
+    NOME_ATRIBUTO,
+    UNIDADE,
+    estatisticas as calcular_estatisticas,
+    filtrar_janela,
+    hora_local,
+    para_datetime,
+)
+from app.services.fiware_errors import FiwareError, FiwareNotFound
 from app.services.registry_errors import AmbiguousVinheria, VinheriaNotFound
 from app.services.vinheria_resolver import resolve_vinheria
 
 # Atributos aceitos pelas tools (nomes longos do Orion/STH)
 ATRIBUTOS = tuple(NOME_ATRIBUTO)
+# Pontos pedidos ao STH: os mais novos (a consulta por datas devolveria os mais velhos)
+PONTOS_HISTORICO = 500
+# Janela aceita pelas tools, em horas
+HORAS_MIN, HORAS_MAX = 0.25, 24.0
+# Quantos alertas ler do SQLite antes de filtrar pela janela
+LIMITE_ALERTAS = 200
 
 
 def agora_utc() -> datetime:
@@ -43,6 +57,15 @@ def checar_atributo(atributo) -> dict | None:
     return {"erro": f"atributo inválido: {atributo}; use temperature, humidity ou luminosity"}
 
 
+def horas_validas(valor, padrao: float = 1.0) -> float:
+    """Converte a janela pedida pelo Gemini (número ou texto) e recorta em 0,25–24 h."""
+    try:
+        horas = float(valor)
+    except (TypeError, ValueError):
+        horas = padrao
+    return min(max(horas, HORAS_MIN), HORAS_MAX)
+
+
 def _faixa(limites, atributo: str) -> dict:
     """Faixa de um atributo com a unidade, no formato que o bot cita."""
     faixa = getattr(limites, atributo)
@@ -66,6 +89,9 @@ class ChatTools:
             "listar_vinherias": (self.listar_vinherias, False),
             "estado_atual": (self.estado_atual, False),
             "limites": (self.limites, False),
+            "estatisticas": (self.estatisticas, False),
+            "comparar": (self.comparar, False),
+            "alertas": (self.alertas, False),
         }
 
     def registrar(self, nome: str, funcao, recebe_propostas: bool = False) -> None:
@@ -136,3 +162,66 @@ class ChatTools:
         limites = self._limits.get(device.device_id)
         return {"device_id": device.device_id, "name": device.name,
                 **{NOME_ATRIBUTO[a]: _faixa(limites, a) for a in ATRIBUTOS}}
+
+    async def _pontos(self, device_id: str, atributo: str, horas: float) -> list[HistoryPoint]:
+        """Os 500 pontos mais novos do STH, só os que caem na janela; [] sem dados."""
+        consulta = HistoryQuery(attr=atributo, last_n=PONTOS_HISTORICO)
+        try:
+            pontos = await self._readings.history(device_id, consulta)
+        except FiwareNotFound:
+            return []
+        return filtrar_janela(pontos, horas, self._agora())
+
+    async def estatisticas(self, vinheria: str, atributo: str, horas=1) -> dict:
+        """Média, mínimo, máximo, desvio e tendência de um atributo na janela."""
+        erro = checar_atributo(atributo)
+        if erro:
+            return erro
+        device, erro = resolver(self._registry, vinheria)
+        if erro:
+            return erro
+        horas = horas_validas(horas)
+        pontos = await self._pontos(device.device_id, atributo, horas)
+        return {"device_id": device.device_id, "name": device.name,
+                "atributo": NOME_ATRIBUTO[atributo], "horas_pedidas": horas,
+                **calcular_estatisticas(pontos, atributo, horas, self._fuso)}
+
+    async def comparar(self, atributo: str, horas=1) -> dict:
+        """Média do atributo em cada vinheria, da maior para a menor (sem dados por último)."""
+        erro = checar_atributo(atributo)
+        if erro:
+            return erro
+        horas = horas_validas(horas)
+        linhas = []
+        for device in self._registry.list():
+            linha = {"device_id": device.device_id, "name": device.name, "city": device.city}
+            try:
+                pontos = await self._pontos(device.device_id, atributo, horas)
+            except FiwareError as exc:
+                linhas.append({**linha, "media": None, "n": 0,
+                               "erro": f"FIWARE indisponível: {exc.message}"})
+                continue
+            media = round(statistics.fmean(p.value for p in pontos), 1) if pontos else None
+            linhas.append({**linha, "media": media, "n": len(pontos)})
+        linhas.sort(key=lambda l: (l["media"] is None, -(l["media"] or 0)))
+        return {"atributo": NOME_ATRIBUTO[atributo], "unidade": UNIDADE[atributo],
+                "horas": horas, "vinherias": linhas}
+
+    async def alertas(self, vinheria: str | None = None, horas=24) -> dict:
+        """Alertas abertos nas últimas `horas`, de uma vinheria ou de todas (e da EC2)."""
+        device_id = None
+        if vinheria:
+            device, erro = resolver(self._registry, vinheria)
+            if erro:
+                return erro
+            device_id = device.device_id
+        horas = horas_validas(horas, padrao=24.0)
+        inicio = self._agora() - timedelta(hours=horas)
+        lista = [a for a in self._alerts.list(device_id, limit=LIMITE_ALERTAS)
+                 if para_datetime(a.opened_at) >= inicio]
+        return {"horas": horas, "alertas": [
+            {"device_id": a.device_id, "attr": a.attr, "value": a.value,
+             "inicio": hora_local(a.opened_at, self._fuso),
+             "fim": hora_local(a.closed_at, self._fuso) if a.closed_at else None,
+             "duracao_segundos": a.duration_seconds, "aberto": a.closed_at is None}
+            for a in lista]}
