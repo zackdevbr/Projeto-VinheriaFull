@@ -101,7 +101,7 @@ Os objetivos seguem os critérios de avaliação do CP5. Cada critério tem um a
 - **Middleware:** stack `fabiocabrini/fiware` em Docker na AWS EC2.
 - **Backend:** Python 3.11+, FastAPI, Uvicorn, httpx, Pydantic, SQLite, pandas, matplotlib, reportlab, `google-genai`.
 - **Front-end:** React com JavaScript puro, Vite, Chart.js (`react-chartjs-2`), `react-router-dom`.
-- **Chatbot:** Google Gemini, modelo `gemini-3.5-flash`, com function calling.
+- **Chatbot:** Google Gemini, modelo `gemini-3.5-flash-lite`, com function calling.
 
 ## 8. Arquitetura em camadas
 

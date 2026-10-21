@@ -7,8 +7,9 @@
  * Ação: o ChatAction do backend + { estado, detalhe }.
  */
 
-// Turnos anteriores mandados com cada pergunta (o backend aceita até 20)
-export const MAX_HISTORICO = 20;
+// Turnos anteriores mandados com cada pergunta (o backend aceita até 20). Poucos, para
+// poupar tokens no plano gratuito do Gemini: três idas e vindas bastam para o contexto
+export const MAX_HISTORICO = 6;
 
 // Perguntas prontas mostradas acima do campo
 export const SUGESTOES = [

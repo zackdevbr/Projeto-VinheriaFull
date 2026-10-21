@@ -45,7 +45,7 @@ flowchart TB
         WEB["7 · Painel React<br/>:5173"]
     end
 
-    GEMINI["Google Gemini<br/>gemini-3.5-flash"]
+    GEMINI["Google Gemini<br/>gemini-3.5-flash-lite"]
 
     V1 & V2 & VN <-->|"Wi-Fi · MQTT"| MQTT
     MQTT <--> IOTA

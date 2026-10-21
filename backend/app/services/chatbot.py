@@ -29,21 +29,20 @@ MAX_CHAMADAS = 5
 ESPERAS_503 = (1.0, 2.0)
 # Tempo máximo de cada chamada ao Gemini, em milissegundos (o padrão do SDK é muito longo)
 TIMEOUT_GEMINI_MS = 30000
+# Teto de tokens da resposta: as respostas são curtas (economiza a cota do plano gratuito)
+MAX_SAIDA_TOKENS = 500
 SEM_CONCLUSAO = "Não consegui concluir a consulta. Tente reformular a pergunta."
 SEM_RESPOSTA = "Não encontrei uma resposta. Tente reformular a pergunta."
 # Resumo quando há vinherias cadastradas mas o poller ainda não fez o primeiro ciclo
 SEM_CICLO = "Situação agora: FIWARE ok; ainda sem leitura do poller (aguardando o primeiro ciclo)."
 
-INSTRUCAO_BASE = """Você é o assistente da Smart Solutions, que monitora vinherias.
-Regras:
-- Responda sempre em português do Brasil, de forma curta e direta.
-- Use só os dados devolvidos pelas ferramentas. Nunca invente número, vinheria ou horário.
-- Cite números com unidade (°C para temperatura, % para umidade e luminosidade) e o período a que se referem.
-- Se uma estatística vier com janela_completa falso, diga que os dados cobrem só o período_coberto_horas.
-- Se uma ferramenta devolver "erro" com "opcoes", pergunte ao usuário qual das vinherias ele quis dizer.
-- Quando houver temperatura, umidade ou luz fora da faixa, recomende uma ação prática de vinheria (ex.: ajustar a climatização, ligar o umidificador, apagar ou cobrir a iluminação).
-- Cada mensagem do usuário começa com a situação da frota entre colchetes. Se ela citar vinheria em alerta ou offline, ou o FIWARE fora do ar, avise isso no início da resposta, mesmo que o usuário não tenha perguntado.
-- Escreva em texto simples, sem markdown: nada de asteriscos, títulos ou tabelas; para listas, use linhas começando com hífen."""
+INSTRUCAO_BASE = """Você é o assistente da Smart Solutions, que monitora vinherias. Responda em português, curto e direto, em texto simples (sem markdown; listas com hífen).
+- Use só os dados do contexto e das ferramentas; nunca invente número, vinheria ou horário. Cite unidade (°C, %) e o período.
+- Cada mensagem do usuário traz entre colchetes a situação da frota e as leituras atuais. Para o estado de agora, responda com elas, sem ferramentas. Se houver vinheria em alerta ou offline, ou FIWARE fora do ar, avise no início, mesmo sem ser perguntado.
+- Use ferramentas só para histórico (estatisticas, comparar), alertas passados, faixa ideal ou ações.
+- Se janela_completa for falso, diga que os dados cobrem só periodo_coberto_horas h.
+- Se a ferramenta devolver "erro" com "opcoes", pergunte qual vinheria o usuário quis dizer.
+- Valor fora da faixa: recomende uma ação prática de vinheria."""
 
 # Regras extras do bloco B (ações com confirmação)
 INSTRUCAO_ACOES = """
@@ -76,6 +75,31 @@ def resumo_frota(report: FleetReport, fuso: tzinfo | None = None) -> str:
     if not problemas:
         return f"Situação agora: FIWARE ok; {total} {plural}, todas normais."
     return f"Situação agora: FIWARE ok; {total} {plural}; " + "; ".join(problemas) + "."
+
+
+def _num(valor) -> str:
+    """Número sem ".0" sobrando; "n/d" quando falta a leitura."""
+    return "n/d" if valor is None else f"{valor:g}"
+
+
+def leituras_frota(report: FleetReport) -> str:
+    """Leituras atuais das vinherias online numa linha.
+
+    Com isto no contexto, o estado de agora se responde sem ferramenta: uma
+    requisição por pergunta em vez de duas ou mais (a cota gratuita do Gemini
+    é por requisição). Vazio com a EC2 fora ou sem vinheria online.
+    """
+    if not report.fiware_online:
+        return ""
+    itens = []
+    for status in report.vinherias:
+        if status.status == "offline":
+            continue
+        atual = status.current
+        score = f", score {_num(status.score)}" if status.score is not None else ""
+        itens.append(f"{status.device_id} ({status.name}, {status.city}): {_num(atual.temperature)} °C, "
+                     f"{_num(atual.humidity)} %, luz {_num(atual.luminosity)} %{score}")
+    return ("Leituras agora: " + "; ".join(itens) + ".") if itens else ""
 
 
 def _espera_sugerida(exc: errors.APIError) -> float | None:
@@ -147,15 +171,19 @@ class Chatbot:
             system_instruction=INSTRUCAO_BASE + (INSTRUCAO_ACOES if self._com_acoes else ""),
             tools=[types.Tool(function_declarations=declaracoes(self._com_acoes))],
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            # Pensamento mínimo e teto de saída: menos tokens e menos latência
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL),
+            max_output_tokens=MAX_SAIDA_TOKENS,
         )
 
-    def _resumo(self) -> str:
-        """Situação atual da frota, só com as vinherias cadastradas."""
+    def _contexto(self) -> str:
+        """Situação da frota e leituras atuais, só das vinherias cadastradas."""
         ids = [device.device_id for device in self._registry.list()]
         report = self._fleet.report(ids)
         if ids and not report.vinherias and report.fiware_online:
             return SEM_CICLO
-        return resumo_frota(report, self._fuso)
+        leituras = leituras_frota(report)
+        return resumo_frota(report, self._fuso) + (f" {leituras}" if leituras else "")
 
     async def _gerar(self, cliente, contents: list, config):
         """Uma chamada ao modelo, com as falhas traduzidas para ChatbotError.
@@ -188,7 +216,7 @@ class Chatbot:
         """Responde a pergunta, executando as tools que o Gemini pedir (no máximo 5 chamadas)."""
         cliente = self._cliente()
         contents = [_conteudo(turno.role, turno.text) for turno in history]
-        contents.append(_conteudo("user", f"[{self._resumo()}]\n\n{message}"))
+        contents.append(_conteudo("user", f"[{self._contexto()}]\n\n{message}"))
         propostas: list[ChatAction] = []
         config = self._config()
         for _ in range(MAX_CHAMADAS):

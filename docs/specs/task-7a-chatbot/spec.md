@@ -49,7 +49,7 @@ O trabalho se divide em dois blocos:
 ### Bloco A — núcleo
 
 #### R1 — Configuração
-- **R1.1** `Settings` DEVE ganhar `gemini_api_key: str = ""` e `gemini_model: str = "gemini-3.5-flash"`, lidos de `GEMINI_API_KEY` e `GEMINI_MODEL` em `load_settings`.
+- **R1.1** `Settings` DEVE ganhar `gemini_api_key: str = ""` e `gemini_model: str = "gemini-3.5-flash-lite"`, lidos de `GEMINI_API_KEY` e `GEMINI_MODEL` em `load_settings`.
 - **R1.2** `backend/.env.example` DEVE ganhar as duas chaves, com `GEMINI_API_KEY=` vazio e um comentário dizendo que a chave real fica só no `.env`.
 - **R1.3** `requirements.txt` DEVE ganhar `google-genai==<versão confirmada na sonda R10>`.
 - **R1.4** A chave NUNCA aparece em arquivo versionado, em log nem em resposta HTTP.

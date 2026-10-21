@@ -8,9 +8,9 @@ from google.genai import errors, types
 from app.core.config import Settings
 from app.models.schemas import Device
 from app.models.schemas_chat import ChatAction, ChatTurn
-from app.models.schemas_fleet import ActiveAlert, FleetReport
+from app.models.schemas_fleet import ActiveAlert, FleetReport, SensorValues
 from app.services.chat_errors import ChatbotRateLimited, ChatbotUnavailable, ChatbotUpstreamError
-from app.services.chatbot import MAX_CHAMADAS, SEM_CONCLUSAO, Chatbot, resumo_frota
+from app.services.chatbot import MAX_CHAMADAS, SEM_CONCLUSAO, Chatbot, leituras_frota, resumo_frota
 from app.services.fleet_state import FleetState
 from tests.fakes import status_vinheria
 
@@ -55,6 +55,30 @@ def test_resumo_fiware_fora():
 def test_resumo_sem_vinherias():
     report = FleetReport(fiware_online=True, vinherias=[])
     assert resumo_frota(report) == "Situação agora: FIWARE ok; nenhuma vinheria cadastrada."
+
+
+def _com_leitura(device_id, status, name, city, t, h, l, score=None):
+    return status_vinheria(device_id, status).model_copy(update={
+        "name": name, "city": city, "score": score,
+        "current": SensorValues(temperature=t, humidity=h, luminosity=l)})
+
+
+def test_leituras_das_vinherias_online():
+    report = FleetReport(fiware_online=True, vinherias=[
+        _com_leitura("vinheria001", "ok", "Vinheria Paulista", "São Paulo", 14.2, 62, 20, score=92),
+        _com_leitura("vinheria002", "alerta", "Vinheria Mineira", "Belo Horizonte", 21.5, None, 10),
+        _com_leitura("vinheria003", "offline", "Vinheria Sul", "Porto Alegre", 10, 50, 5)])
+    assert leituras_frota(report) == (
+        "Leituras agora: vinheria001 (Vinheria Paulista, São Paulo): 14.2 °C, 62 %, luz 20 %, score 92; "
+        "vinheria002 (Vinheria Mineira, Belo Horizonte): 21.5 °C, n/d %, luz 10 %.")
+
+
+def test_leituras_vazias_quando_nao_ha_o_que_citar():
+    assert leituras_frota(FleetReport(fiware_online=True, vinherias=[])) == ""
+    offline = FleetReport(fiware_online=True, vinherias=[_com_leitura("vinheria001", "offline", "V", "C", 1, 1, 1)])
+    assert leituras_frota(offline) == ""
+    fiware_fora = FleetReport(fiware_online=False, vinherias=[_com_leitura("vinheria001", "ok", "V", "C", 1, 1, 1)])
+    assert leituras_frota(fiware_fora) == ""
 
 
 class ModelsFalso:
@@ -151,12 +175,28 @@ async def test_resposta_direta_leva_resumo_e_historico(tools_falso):
     r = await chatbot(tools_falso, c).ask("Como está a 001?", historico)
     assert (r.reply, r.actions) == ("Tudo certo.", [])
     chamada = c.aio.models.chamadas[0]
-    assert chamada["model"] == "gemini-3.5-flash"
+    assert chamada["model"] == "gemini-3.5-flash-lite"
     assert [x.role for x in chamada["contents"]] == ["user", "model", "user"]
     ultima = _textos(chamada["contents"][-1])[0]
     assert ultima.startswith("[Situação agora: FIWARE ok;")
     assert ultima.endswith("Como está a 001?")
     assert chamada["config"].system_instruction
+
+
+@pytest.mark.anyio
+async def test_pergunta_leva_as_leituras_atuais_e_economiza_tokens(tools_falso):
+    # Leituras no contexto = estado atual sem ferramenta (1 chamada em vez de 2+);
+    # pensamento mínimo e teto de saída poupam tokens
+    fleet = FleetState()
+    fleet.replace([_com_leitura("vinheria001", "ok", "Vinheria Paulista", "São Paulo", 14.2, 62, 20)],
+                  at="2026-10-08T12:00:00+00:00")
+    c = cliente(texto("ok"))
+    await Chatbot(tools_falso, RegistryFalso(), fleet, Settings(gemini_api_key="k"), client=c).ask("oi", [])
+    chamada = c.aio.models.chamadas[0]
+    ultima = _textos(chamada["contents"][-1])[0]
+    assert "Leituras agora: vinheria001 (Vinheria Paulista, São Paulo): 14.2 °C, 62 %, luz 20 %" in ultima
+    assert chamada["config"].thinking_config.thinking_level == types.ThinkingLevel.MINIMAL
+    assert chamada["config"].max_output_tokens == 500
 
 
 @pytest.mark.anyio

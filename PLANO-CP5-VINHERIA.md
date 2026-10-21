@@ -281,7 +281,7 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 - Node 20+; front em **JavaScript puro** (`.jsx`), sem TypeScript. Deps: `react`, `react-dom`, `react-router-dom`, `chart.js`, `react-chartjs-2`.
 - **Todo o código comentado** (exigência da entrega) — comentários em português explicando propósito de cada módulo/função.
 - Nenhum IP, chave ou porta hardcoded em módulo de lógica: sempre via `ConfigStore`/`.env`. `ANTHROPIC`/`GEMINI_API_KEY` só em `.env` (nunca commitado; `.env.example` sim).
-- Modelo Gemini default: `gemini-3.5-flash`, sobrescrevível por `GEMINI_MODEL`.
+- Modelo Gemini default: `gemini-3.5-flash-lite` (o mais econômico; a chave do usuário está no plano gratuito da API), sobrescrevível por `GEMINI_MODEL`.
 - Firmware: `#define DHTTYPE DHT22` (Wokwi) com comentário de como trocar para `DHT11` (hardware real). Nenhum `delay()` nos padrões de alerta.
 - Commits frequentes, mensagens `feat:`/`docs:`/`test:`.
 
@@ -511,6 +511,8 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 > - **Resumo da frota** antes do primeiro ciclo do poller diz "ainda sem leitura do poller", em vez de "nenhuma vinheria cadastrada".
 > - **Sugestões do chat** numa linha com rolagem horizontal, para sobrar altura à conversa no painel flutuante.
 > - **Commits:** as subtarefas 7A.13 e 7A.14 saíram juntas (`c0aac96`), e a nova tentativa em 503 junto da 7A.17 (`5f511af`).
+>
+> **Ajuste de economia (21/10/2026, depois do primeiro uso):** a chave do usuário está no **plano gratuito da API (20 requisições por dia por modelo)** e a assinatura do app Gemini não vale para a API. O 429 da primeira pergunta veio dessa cota, em parte gasta nos testes reais. Mudanças: modelo padrão **`gemini-3.5-flash-lite`**; leituras atuais da frota no contexto de cada pergunta (o estado de agora se responde em 1 requisição, sem ferramenta); pensamento mínimo (`thinking_level=MINIMAL`) e teto de 500 tokens de saída; instrução e declarações das tools mais curtas; histórico enviado pelo painel de 20 para 6 turnos; timeout de 30 s e sem retry interno do SDK; mensagem de 429 com a espera real (`e57764f`, `affdee3` e o commit desta rodada). O Google devolveu 503/504 com frequência nos modelos 3.x flash; uma lista de modelos reserva (`GEMINI_FALLBACK_MODELS`) ficou como opção, não implementada.
 >
 > **Menores adiados:** `comparar` consulta o STH vinheria a vinheria (com a EC2 fora, até 5 s por vinheria); o rascunho digitado no painel flutuante some ao fechá-lo; o estado vazio do chat no celular mostra uma barra de rolagem.
 

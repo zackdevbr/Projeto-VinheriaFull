@@ -91,7 +91,7 @@ Diagramas detalhados em [`docs/arquitetura.md`](docs/arquitetura.md).
 | Middleware | FIWARE em Docker na AWS EC2: Orion Context Broker, IoT Agent MQTT (UltraLight 2.0), STH-Comet, Mosquitto, MongoDB |
 | Backend | Python 3.11+ · FastAPI · Uvicorn · httpx · Pydantic · SQLite · pandas · matplotlib · reportlab · testes com pytest e respx |
 | Front-end | React (JavaScript, sem TypeScript) · Vite · Chart.js via react-chartjs-2 · react-router-dom |
-| Chatbot | Google Gemini (`gemini-3.5-flash`) via `google-genai`, com function calling |
+| Chatbot | Google Gemini (`gemini-3.5-flash-lite`) via `google-genai`, com function calling |
 | Ferramentas | Postman · Git/GitHub |
 
 ---
