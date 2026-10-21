@@ -1,6 +1,7 @@
 /** Testes da validação da faixa ideal e do "fora da faixa" (spec R2.4, R2.9). */
 import { describe, expect, it } from 'vitest';
-import { foraDaFaixa, validarFaixa } from './faixa.js';
+import { FAIXA_PADRAO } from '../constants.js';
+import { camposDaFaixa, foraDaFaixa, validarFaixa } from './faixa.js';
 
 const valida = {
   temperature: { min: '12,5', max: '18' },
@@ -54,5 +55,29 @@ describe('foraDaFaixa', () => {
   it('valor ou faixa ausentes não contam como fora', () => {
     expect(foraDaFaixa(null, faixa)).toBe(false);
     expect(foraDaFaixa(15, null)).toBe(false);
+  });
+});
+
+describe('camposDaFaixa', () => {
+  it('converte a faixa em números para os campos de texto do formulário', () => {
+    expect(camposDaFaixa({ temperature: { min: 12.5, max: 18 }, humidity: { min: 50, max: 70 }, luminosity: { min: 0, max: 30 } })).toEqual({
+      temperature: { min: '12.5', max: '18' },
+      humidity: { min: '50', max: '70' },
+      luminosity: { min: '0', max: '30' },
+    });
+  });
+});
+
+describe('FAIXA_PADRAO', () => {
+  it('segue o PRD (RF11): 12–18 °C, 50–70 % de umidade, luz de 0 a 30 %', () => {
+    expect(FAIXA_PADRAO).toEqual({
+      temperature: { min: 12, max: 18 },
+      humidity: { min: 50, max: 70 },
+      luminosity: { min: 0, max: 30 },
+    });
+  });
+
+  it('passa pela validação do formulário sem mudar de valor', () => {
+    expect(validarFaixa(camposDaFaixa(FAIXA_PADRAO)).dados).toEqual(FAIXA_PADRAO);
   });
 });

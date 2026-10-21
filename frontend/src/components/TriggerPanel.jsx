@@ -8,26 +8,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { useAcao } from '../hooks/useAcao.js';
 import { useLeitura } from '../hooks/useLeitura.js';
-import { ATRIBUTOS } from '../lib/atributos.js';
-import { validarFaixa } from '../lib/faixa.js';
-import { Botao, Campo, Cartao, Esqueleto, MensagemErro, Subtitulo } from './ui/index.js';
+import { camposDaFaixa, validarFaixa } from '../lib/faixa.js';
+import CamposFaixa from './CamposFaixa.jsx';
+import { Botao, Cartao, Esqueleto, MensagemErro, Subtitulo } from './ui/index.js';
 
 const SUCESSO = {
   enviado: 'Faixa salva e enviada ao ESP32.',
   pendente: 'Faixa salva. O ESP32 recebe quando voltar a ficar online.',
 };
-
-const LIMITES = [
-  ['min', 'Mín'],
-  ['max', 'Máx'],
-];
-
-/** Faixa do backend (números) para os campos do formulário (texto). */
-function paraCampos(faixa) {
-  return Object.fromEntries(
-    ATRIBUTOS.map(({ chave }) => [chave, { min: String(faixa[chave].min), max: String(faixa[chave].max) }]),
-  );
-}
 
 export default function TriggerPanel({ deviceId, onSalvo }) {
   const carregar = useCallback(() => api.getTriggers(deviceId), [deviceId]);
@@ -39,7 +27,7 @@ export default function TriggerPanel({ deviceId, onSalvo }) {
 
   useEffect(() => {
     if (dados) {
-      setCampos(paraCampos(dados));
+      setCampos(camposDaFaixa(dados));
     }
   }, [dados]);
 
@@ -70,23 +58,7 @@ export default function TriggerPanel({ deviceId, onSalvo }) {
         <Esqueleto className="h-64" />
       ) : (
         <form onSubmit={aoSalvar} className="flex flex-col gap-4" noValidate>
-          {ATRIBUTOS.map(({ chave, rotulo, unidade }) => (
-            <fieldset key={chave}>
-              <legend className="mb-2 text-overline uppercase text-taupe">{`${rotulo} (${unidade})`}</legend>
-              <div className="grid grid-cols-2 gap-3">
-                {LIMITES.map(([limite, nome]) => (
-                  <Campo
-                    key={limite}
-                    rotulo={nome}
-                    inputMode="decimal"
-                    value={campos[chave][limite]}
-                    onChange={(e) => alterar(chave, limite, e.target.value)}
-                    erro={erros[`${chave}.${limite}`]}
-                  />
-                ))}
-              </div>
-            </fieldset>
-          ))}
+          <CamposFaixa campos={campos} aoMudar={alterar} erros={erros} />
           <MensagemErro erro={salvar.erro} />
           {aviso && (
             <p role="status" className="text-sm text-ok">

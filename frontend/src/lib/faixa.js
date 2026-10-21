@@ -46,3 +46,10 @@ export function foraDaFaixa(valor, faixa) {
   }
   return valor < faixa.min || valor > faixa.max;
 }
+
+/** Faixa em números (do backend ou a padrão) para os campos de texto do formulário. */
+export function camposDaFaixa(faixa) {
+  return Object.fromEntries(
+    ATRIBUTOS.map(({ chave }) => [chave, { min: String(faixa[chave].min), max: String(faixa[chave].max) }]),
+  );
+}

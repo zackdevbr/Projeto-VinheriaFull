@@ -32,3 +32,11 @@ export const ID_FIWARE = 'fiware';
 
 // Janela inicial dos gráficos do detalhe: os últimos 50 pontos
 export const JANELA_PADRAO = { tipo: 'ultimos', n: 50 };
+
+// Faixa ideal inicial de uma vinheria nova (PRD, RF11): é a mesma que o
+// backend grava no cadastro e a que o formulário de cadastro já mostra
+export const FAIXA_PADRAO = {
+  temperature: { min: 12, max: 18 },
+  humidity: { min: 50, max: 70 },
+  luminosity: { min: 0, max: 30 },
+};
