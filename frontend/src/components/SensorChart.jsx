@@ -65,7 +65,7 @@ function montarOpcoes(unidade) {
     animation: prefereMenosMovimento() ? false : { duration: 250 },
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { labels: { color: taupe, boxWidth: 16, filter: (item) => item.datasetIndex > 0 } },
+      legend: { labels: { color: taupe, usePointStyle: true, pointStyle: 'line', boxWidth: 24, filter: (item) => item.datasetIndex > 0 } },
       tooltip: {
         filter: (item) => item.datasetIndex === 0,
         callbacks: { label: (item) => `${formatarNumero(item.parsed.y)} ${unidade}` },
