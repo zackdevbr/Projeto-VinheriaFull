@@ -2254,3 +2254,16 @@ find src -name "*.js*" | xargs wc -l | sort -n | tail -5              # nenhum a
 git add PLANO-CP5-VINHERIA.md docs/specs/task-6-visao-geral-graficos/plan.md
 git commit -m "docs: fecha a task 6 com a visao geral, o detalhe e os alertas"
 ```
+
+---
+
+## Achados da auditoria 6 (subtarefa 6.12, 20/10/2026)
+
+Auditoria feita sobre capturas do Edge headless de `/` (500 e 1280 px), `/vinherias/vinheria001` (1280 px) e `/alertas` (1280 px). A EC2 estava desligada, então as telas foram vistas com **dados sintéticos**: um backend de mentira só no scratchpad (porta 8001, fora do repositório) e um segundo Vite apontando para ele; ambos foram encerrados ao fim. O detalhe em 500 px e as telas com dados reais ficam para o ensaio manual da 6.13.
+
+| # | tela | achado | ação |
+|---|---|---|---|
+| 1 | detalhe, gráficos | A legenda "mín/máx" desenhava caixas quebradas no lugar de traços. | corrigido: `usePointStyle` com `pointStyle: 'line'` (commit `fix: troca as caixas da legenda…`) |
+| 2 | detalhe, topo | Os três cartões de valor esticam até a altura da rosca e ficam com espaço vazio embaixo. | aceito: ritmo do bento; vira ajuste se a Task 7 trouxer mais conteúdo nesses cartões |
+| 3 | `/alertas` | O número de "Registrados" aparece no meio da contagem na captura (3 de 4). | sem ação: é o `useContagem` em andamento, a lista tem os 4 itens |
+| 4 | `/` e detalhe | Rosca, cartão bordô de alerta, faixa de resumo no celular, selo do menu inferior e cartões ordenados por urgência conferidos. | sem ação |
