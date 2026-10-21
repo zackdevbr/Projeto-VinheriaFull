@@ -503,24 +503,35 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 > - **Histórico do STH:** `last_n=500` + filtro de janela, porque a consulta por datas do STH devolve os pontos mais antigos.
 > - **Chave:** só no `backend/.env`. O `.gitignore` já é da Task 2.
 
+> **Task 7A IMPLEMENTADA em 21/10/2026 (blocos A e B)** — commits `8b8eaf4`..`dd25bc2`; 363 testes do backend (eram 285) e 120 do front (eram 112) passando, build ok; conferências estáticas limpas (camadas, tamanhos, segredos). Verificado com o Gemini real: listar vinherias, estado, proposta de faixa e proposta de comando. Verificado no navegador (Edge headless por CDP, com um backend falso): cartão Confirmar, Cancelar, erro 409 com "Tentar de novo", histórico enviado ao backend, conversa compartilhada entre o painel flutuante e `/chat`, 390 px sem rolagem horizontal. **Pendente: o ensaio manual com EC2 e 2 Wokwi (Passo 6; spec §7, item 4).**
+>
+> **Desvios e achados:**
+> - **Modelo:** `gemini-2.5-flash` devolve 404 ("no longer available to new users") para a chave do usuário. O padrão virou **`gemini-3.5-flash`**, testado com function calling (`gemini-3.8-flash` e `gemini-flash-latest` deram 503 de alta demanda). Ajustados `config.py`, `.env.example`, CLAUDE.md §5, PRD, README e `arquitetura.md` (commit `971b2c2`).
+> - **503 intermitente:** o Gemini responde 503 de alta demanda de forma esporádica. O `Chatbot` tenta de novo até 2 vezes (1 s e 2 s) antes de devolver 502. Não estava na spec; vale ensaiar o chat pouco antes da demo e ter um modelo reserva em `GEMINI_MODEL`.
+> - **Resumo da frota** antes do primeiro ciclo do poller diz "ainda sem leitura do poller", em vez de "nenhuma vinheria cadastrada".
+> - **Sugestões do chat** numa linha com rolagem horizontal, para sobrar altura à conversa no painel flutuante.
+> - **Commits:** as subtarefas 7A.13 e 7A.14 saíram juntas (`c0aac96`), e a nova tentativa em 503 junto da 7A.17 (`5f511af`).
+>
+> **Menores adiados:** `comparar` consulta o STH vinheria a vinheria (com a EC2 fora, até 5 s por vinheria); o rascunho digitado no painel flutuante some ao fechá-lo; o estado vazio do chat no celular mostra uma barra de rolagem.
+
 > **Sai do adiamento (revisão de 05/10/2026).** Vem logo depois da Task 6, pois precisa de `/api/fleet`, do resolver e dos dados do STH prontos. Entram aqui também `.gitignore` (ignorando `.env`, `__pycache__/`, `node_modules/`, `*.db`) e `backend/.env.example` com `GEMINI_API_KEY=` vazio. A chave real só no `.env` local, nunca commitada.
 
-**Files:** criar `app/services/chatbot.py`, `app/api/routes_chat.py`, `src/components/ChatBox.jsx`, `src/pages/Chat.jsx`, `tests/test_chatbot_tools.py`
+**Files (reais):** backend — `app/models/schemas_chat.py`, `app/services/chat_errors.py`, `chat_stats.py`, `chat_tools.py`, `chat_acoes.py`, `chat_declarations.py`, `chatbot.py`, `app/api/routes_chat.py` e os testes `test_chat_stats.py`, `test_chat_tools.py`, `test_chat_acoes.py`, `test_chat_declarations.py`, `test_chatbot.py`, `test_routes_chat.py`; front — `src/lib/chat.js`, `src/context/ChatContext.jsx`, `src/components/ChatBox.jsx`, `ChatMensagem.jsx`, `CartaoAcao.jsx`, `ChatFlutuante.jsx`, `src/pages/Chat.jsx`
 **Consumes:** `DeviceRegistry.resolve_vinheria`, `FleetState`, `alert_log`, `quality_score`, `FiwareClient.query_history`. **Produces:** `ask(message, history) -> str`, `POST /api/chat`.
 
-- [ ] **Passo 1:** teste falhando nas **tools** (funções puras, sem chamar a API), com dados sintéticos via pandas. O parâmetro `vinheria` é texto livre (id, nome ou cidade), resolvido por `resolve_vinheria`; se ambíguo, a tool devolve erro listando as opções.
+- [x] **Passo 1:** teste falhando nas **tools** (funções puras, sem chamar a API), com dados sintéticos via pandas. O parâmetro `vinheria` é texto livre (id, nome ou cidade), resolvido por `resolve_vinheria`; se ambíguo, a tool devolve erro listando as opções.
   - `listar_vinherias()` → id, nome, cidade, status
   - `estado_atual(vinheria)`
   - `estatisticas(vinheria, atributo, horas=1)` → média, mín, máx, desvio, n e `tendencia` ∈ {estável, subindo, caindo}. É "estável" se a amplitude (máx−mín) for < 1,0 °C (temperatura), 3 % (umidade) ou 5 % (luminosidade); senão o sinal da inclinação decide.
   - `comparar(atributo, horas=1)` → média por vinheria ("qual está mais quente?")
   - `alertas(vinheria=None, horas=24)`
   - `limites(vinheria)`
-- [ ] **Passo 2:** rodar → falha; implementar as tools e fazer passar.
-- [ ] **Passo 3:** `chatbot.py` — `google.genai` com declaração das tools, loop de function calling (máx. 5 iterações). System instruction: responder em português, só com dados das tools, citar números e unidades, recomendar ação de vinheria quando houver anomalia. A cada pergunta, injetar no prompt um resumo do status da frota para o bot avisar sozinho de vinherias em alerta ou offline.
-- [ ] **Passo 4:** `routes_chat.py` — `POST /api/chat { message, history[] }`, sem `device_id`.
-- [ ] **Passo 5:** `ChatBox` — histórico de mensagens, textarea, estado de carregando, chips ("Como está a vinheria de São Paulo?", "Alguma vinheria em alerta?", "Qual vinheria está mais úmida agora?").
+- [x] **Passo 2:** rodar → falha; implementar as tools e fazer passar.
+- [x] **Passo 3:** `chatbot.py` — `google.genai` com declaração das tools, loop de function calling (máx. 5 iterações). System instruction: responder em português, só com dados das tools, citar números e unidades, recomendar ação de vinheria quando houver anomalia. A cada pergunta, injetar no prompt um resumo do status da frota para o bot avisar sozinho de vinherias em alerta ou offline.
+- [x] **Passo 4:** `routes_chat.py` — `POST /api/chat { message, history[] }`, sem `device_id`.
+- [x] **Passo 5:** `ChatBox` — histórico de mensagens, textarea, estado de carregando, chips ("Como está a vinheria de São Paulo?", "Alguma vinheria em alerta?", "Qual vinheria está mais úmida agora?").
 - [ ] **Passo 6 (teste):** com 2 ou mais vinherias com dados reais no STH, perguntar as três chips e conferir que os números batem com o gráfico do detalhe; parar um Wokwi e confirmar que o bot cita a vinheria offline.
-- [ ] **Passo 7:** commit `feat: add multi-vinheria Gemini chatbot with data tools`.
+- [x] **Passo 7:** commits por subtarefa (`8b8eaf4`..`dd25bc2`), em português, no lugar do commit único.
 
 ### Task 7B: Relatórios CSV/PDF
 
