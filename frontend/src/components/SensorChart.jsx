@@ -9,11 +9,11 @@
  * leitor de tela) acompanha o canvas.
  */
 import { Chart } from 'chart.js';
+import { Pause } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import { api } from '../api/client.js';
 import { LACUNA_SEGUNDOS, LEITURA_POLL_MS } from '../constants.js';
-import { ICONE_ATRIBUTO } from '../estilo.js';
 import { useLeitura } from '../hooks/useLeitura.js';
 import { ATRIBUTO } from '../lib/atributos.js';
 import { foraDaFaixa } from '../lib/faixa.js';
@@ -34,6 +34,11 @@ import { Cartao, Esqueleto, EstadoVazio, MensagemErro, Subtitulo } from './ui/in
 
 // Texto da legenda dos pontos fora da faixa (também identifica o item ao escolher o desenho dele)
 const ROTULO_FORA = 'Fora da faixa';
+// Texto da legenda do período em que o sensor ficou sem enviar leituras
+const ROTULO_PAUSA = 'Registro pausado';
+
+// Desenho de cada item da legenda: círculo para os pontos fora da faixa, selo arredondado para o registro pausado; traço para as linhas
+const PONTO_DA_LEGENDA = { [ROTULO_FORA]: 'circle', [ROTULO_PAUSA]: 'rectRounded' };
 
 /** Série tracejada horizontal no valor de um limite da faixa. */
 function linhaDeLimite(rotulo, valor, quantidade) {
@@ -59,6 +64,21 @@ function legendaForaDaFaixa() {
     pointBackgroundColor: alerta,
     pointBorderColor: alerta,
     borderColor: alerta,
+  };
+}
+
+/** Série vazia que só existe para a legenda explicar a faixa hachurada dos vãos (registro pausado). */
+function legendaRegistroPausado() {
+  const rose = corDoTema('rose');
+  return {
+    label: ROTULO_PAUSA,
+    data: [],
+    showLine: false,
+    pointStyle: 'rectRounded',
+    pointRadius: 6,
+    pointBackgroundColor: corDoTema('rose', 0.25),
+    pointBorderColor: rose,
+    borderColor: rose,
   };
 }
 
@@ -91,6 +111,9 @@ function montarDados(serie, faixa, unidade) {
       legendaForaDaFaixa(),
     );
   }
+  if (serie.lacunas.length > 0) {
+    datasets.push(legendaRegistroPausado());
+  }
   return { labels: rotulos, datasets };
 }
 
@@ -103,7 +126,15 @@ function montarOpcoes(unidade, lacunas) {
     animation: prefereMenosMovimento() ? false : { duration: 250 },
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      lacunas: { lacunas, cor: corDoTema('taupe', 0.12), corBorda: corDoTema('taupe', 0.5), corTexto: corDoTema('taupe') },
+      lacunas: {
+        lacunas,
+        corFundo: corDoTema('rose', 0.12),
+        corHachura: corDoTema('rose', 0.35),
+        corBorda: corDoTema('rose', 0.6),
+        corPilula: corDoTema('papel'),
+        corPilulaBorda: corDoTema('rose'),
+        corTexto: corDoTema('bordo'),
+      },
       legend: {
         position: 'bottom',
         labels: {
@@ -115,7 +146,7 @@ function montarOpcoes(unidade, lacunas) {
           generateLabels: (grafico) =>
             Chart.defaults.plugins.legend.labels.generateLabels(grafico).map((item) => ({
               ...item,
-              pointStyle: item.text === ROTULO_FORA ? 'circle' : 'line',
+              pointStyle: PONTO_DA_LEGENDA[item.text] ?? 'line',
             })),
         },
       },
@@ -167,7 +198,6 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
   const grafico = useMemo(() => (serie ? montarDados(serie, faixa, atributo.unidade) : null), [serie, faixa, atributo.unidade]);
   const opcoes = useMemo(() => montarOpcoes(atributo.unidade, serie?.lacunas ?? []), [atributo.unidade, serie]);
   const textoLacunas = serie ? resumoLacunas(serie.lacunas) : null;
-  const IconeVao = ICONE_ATRIBUTO.offline;
 
   let corpo;
   if (carregando && !dados) {
@@ -187,12 +217,19 @@ export default function SensorChart({ deviceId, attr, janela, faixa }) {
     <Cartao larg={4}>
       <Subtitulo>{atributo.rotulo}</Subtitulo>
       <MensagemErro erro={semLeituras(falha) ? null : erro} />
-      <div className="h-56 md:h-72">{corpo}</div>
+      <div className="h-64 md:h-72">{corpo}</div>
       {textoLacunas && (
-        <p className="mt-3 flex items-start gap-2 text-sm text-taupe">
-          <IconeVao size={16} strokeWidth={1.5} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>{textoLacunas} A faixa cinza no gráfico marca esse período, sem dados.</span>
-        </p>
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-rose/40 bg-rose/10 px-4 py-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full border border-rose/60 bg-papel text-bordo">
+            <Pause size={16} strokeWidth={1.75} aria-hidden="true" />
+          </span>
+          <div className="min-w-0 text-sm">
+            <p className="font-display text-lg leading-tight text-bordo">Registro pausado</p>
+            <p className="mt-0.5 text-vinho">
+              {textoLacunas} A faixa hachurada no gráfico marca esse período, sem dados.
+            </p>
+          </div>
+        </div>
       )}
       {dados && dados.length > 0 && <p className="sr-only">{resumoEmTexto(atributo, dados, serie.lacunas)}</p>}
     </Cartao>
