@@ -222,6 +222,29 @@ async def test_limite_do_gemini_vira_rate_limited(tools_falso):
         await chatbot(tools_falso, cliente(erro)).ask("oi", [])
 
 
+def erro_429_com_espera(segundos):
+    detalhes = [{"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": f"{segundos}s"}]
+    return errors.APIError(429, {"error": {"code": 429, "message": "quota", "status": "RESOURCE_EXHAUSTED",
+                                           "details": detalhes}})
+
+
+@pytest.mark.anyio
+async def test_cota_diaria_esgotada_diz_quanto_esperar(tools_falso):
+    # 31781 s = 8 h 49 min 41 s (arredondado ao minuto: 8 h 50 min); não pode dizer "alguns segundos"
+    with pytest.raises(ChatbotRateLimited) as exc:
+        await chatbot(tools_falso, cliente(erro_429_com_espera(31781))).ask("oi", [])
+    assert "8 h 50 min" in exc.value.message
+    assert "GEMINI_MODEL" in exc.value.message
+    assert "alguns segundos" not in exc.value.message
+
+
+@pytest.mark.anyio
+async def test_limite_curto_continua_pedindo_alguns_segundos(tools_falso):
+    with pytest.raises(ChatbotRateLimited) as exc:
+        await chatbot(tools_falso, cliente(erro_429_com_espera(12))).ask("oi", [])
+    assert "alguns segundos" in exc.value.message
+
+
 @pytest.mark.anyio
 async def test_outro_erro_do_gemini_vira_upstream(tools_falso):
     erro = errors.APIError(500, {"error": {"code": 500, "message": "interno", "status": "INTERNAL"}})

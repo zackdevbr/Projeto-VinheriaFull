@@ -76,6 +76,35 @@ def resumo_frota(report: FleetReport, fuso: tzinfo | None = None) -> str:
     return f"Situação agora: FIWARE ok; {total} {plural}; " + "; ".join(problemas) + "."
 
 
+def _espera_sugerida(exc: errors.APIError) -> float | None:
+    """Segundos que o Google manda esperar num 429 (RetryInfo.retryDelay, ex.: "31781s")."""
+    corpo = exc.details if isinstance(exc.details, dict) else {}
+    for item in (corpo.get("error") or {}).get("details") or []:
+        atraso = item.get("retryDelay") if isinstance(item, dict) else None
+        if isinstance(atraso, str) and atraso.endswith("s"):
+            try:
+                return float(atraso[:-1])
+            except ValueError:
+                return None
+    return None
+
+
+def _duracao(segundos: float) -> str:
+    """Ex.: 31781 -> "8 h 49 min"; 150 -> "3 min"."""
+    minutos = max(1, round(segundos / 60))
+    horas, resto = divmod(minutos, 60)
+    return f"{horas} h {resto} min" if horas else f"{minutos} min"
+
+
+def _mensagem_429(exc: errors.APIError) -> str:
+    """Espera curta pede paciência; cota diária esgotada diz quanto falta e como contornar."""
+    espera = _espera_sugerida(exc)
+    if espera is None or espera < 120:
+        return "limite de uso do Gemini atingido, aguarde alguns segundos"
+    return (f"cota do Gemini esgotada; volta em cerca de {_duracao(espera)}. "
+            "Troque o modelo em GEMINI_MODEL (backend/.env) ou ative a cobrança da chave")
+
+
 def _conteudo(role: str, texto: str) -> types.Content:
     """Um turno de texto no formato do SDK."""
     return types.Content(role=role, parts=[types.Part.from_text(text=texto)])
@@ -141,8 +170,7 @@ class Chatbot:
                     await asyncio.sleep(espera)
                     continue
                 if exc.code == 429:
-                    raise ChatbotRateLimited(
-                        "limite de uso do Gemini atingido, aguarde alguns segundos") from exc
+                    raise ChatbotRateLimited(_mensagem_429(exc)) from exc
                 log.warning("Gemini respondeu HTTP %s", exc.code)
                 raise ChatbotUpstreamError(f"falha ao consultar o Gemini (HTTP {exc.code})") from exc
             except Exception as exc:  # rede caída, DNS, timeout: o SDK não padroniza essas falhas
