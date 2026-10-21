@@ -480,6 +480,8 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 ### Task 6: Front-end — visão geral, gráficos dinâmicos, triggers, alertas e score
 
+> **Task 6 IMPLEMENTADA em 20/10/2026** — commits 0441e2f..147a333 (spec e plano em [`docs/specs/task-6-visao-geral-graficos/`](docs/specs/task-6-visao-geral-graficos/)); 73 testes do front passando, build ok, backend 285 passed; conferências estáticas limpas. Telas vistas em capturas do Edge headless com dados sintéticos (a EC2 estava desligada); a auditoria achou e corrigiu a legenda dos gráficos. **Desvios:** `resumoFrota` ficou sem a guarda redundante do plano (as chaves de `ORDEM` já excluem o total); nenhum de escopo. **Pendente com EC2 ligada e 2 Wokwi:** o ensaio manual da seção 7.5 da spec (esquentar o DHT de uma vinheria, mudar a faixa e ver as linhas e o LCD, "Piscar luz" e "Desligar alerta", parar um Wokwi e ver os comandos desabilitados e o alerta offline, filtro e Voltar em `/alertas`, janela "Datas"), mais o detalhe em 375 px com dados reais.
+
 **Files:** criar `src/components/SensorChart.jsx`, `GaugeScore.jsx`, `TriggerPanel.jsx`, `AlertTimeline.jsx`, `VinheriaCard.jsx`, `src/pages/Overview.jsx`, `VinheriaDetail.jsx`, `Alerts.jsx`
 
 - [ ] **Passo 0:** `Overview` + `VinheriaCard` — grid de cards com nome, cidade, cor do status (verde/vermelho/cinza), valores atuais, score e "visto há Ns", alimentados por `FleetContext`; clicar abre `/vinherias/:id`.

@@ -1,5 +1,7 @@
 # Task 6 — Visão geral, detalhe com gráficos, faixa, comandos e alertas — Plano de execução
 
+> **Estado em 20/10/2026:** feitas as subtarefas 6.1 a 6.12 e a parte automática da 6.13; falta o ensaio manual com EC2 e 2 Wokwi (ver nota da Task 6 no PLANO).
+
 > **Para quem executa (Sonnet):** use `superpowers:executing-plans` e `superpowers:test-driven-development`. Os passos usam checkbox (`- [ ]`). Execute as subtarefas em ordem; informe o resultado de cada passo e faça um commit por subtarefa. Se algo não bater com a [`spec.md`](spec.md), pare e devolva para planejamento; não improvise. Toda decisão visual já está na spec, na spec da 5B e neste plano: **não invente cor, fonte, espaçamento ou componente**.
 
 **Objetivo:** entregar `/` (herói + KPIs + cartões), `/vinherias/:id` (score, valores, três gráficos do STH, faixa, alerta manual, linha do tempo) e `/alertas` (histórico filtrável) no design system da 5B.
