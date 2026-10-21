@@ -2,14 +2,16 @@
  * Layout e rotas do painel Smart Solutions.
  *
  * Rotas: / Visão geral · /vinherias/:id Detalhe · /alertas · /dispositivos
- * · /chat. Só o /chat (Task 7A) ainda é Placeholder.
+ * · /chat. O Placeholder fica só para o 404.
  * A troca de página é sempre pelo react-router-dom (NavLink/Link/useNavigate),
  * sem recarregar: os toasts e o polling da frota continuam vivos.
  * Navegação: menu na barra do topo a partir de 768 px (FiwareBar) e barra
  * inferior abaixo disso (NavInferior); os dois leem o mesmo MENU.
+ * O ChatFlutuante abre o assistente de qualquer tela, menos de /chat.
  */
 import { Route, Routes } from 'react-router-dom';
 import AlertBanner from './components/AlertBanner.jsx';
+import ChatFlutuante from './components/ChatFlutuante.jsx';
 import FiwareBar from './components/FiwareBar.jsx';
 import NavInferior from './components/NavInferior.jsx';
 import { ChatProvider } from './context/ChatContext.jsx';
@@ -17,6 +19,7 @@ import { ConfigProvider } from './context/ConfigContext.jsx';
 import { FleetProvider } from './context/FleetContext.jsx';
 import Devices from './pages/Devices.jsx';
 import Alerts from './pages/Alerts.jsx';
+import Chat from './pages/Chat.jsx';
 import Overview from './pages/Overview.jsx';
 import Placeholder from './pages/Placeholder.jsx';
 import VinheriaDetail from './pages/VinheriaDetail.jsx';
@@ -34,10 +37,11 @@ export default function App() {
               <Route path="/vinherias/:id" element={<VinheriaDetail />} />
               <Route path="/alertas" element={<Alerts />} />
               <Route path="/dispositivos" element={<Devices />} />
-              <Route path="/chat" element={<Placeholder titulo="Chat" task="Task 7A" />} />
+              <Route path="/chat" element={<Chat />} />
               <Route path="*" element={<Placeholder titulo="Página não encontrada" />} />
             </Routes>
           </main>
+          <ChatFlutuante />
           <NavInferior />
         </ChatProvider>
       </FleetProvider>
