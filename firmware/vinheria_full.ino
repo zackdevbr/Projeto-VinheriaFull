@@ -3,7 +3,7 @@
  *
  * Lê temperatura, umidade (DHT) e luminosidade (LDR), publica no FIWARE por
  * MQTT em UltraLight 2.0, executa comandos de alerta (LED RGB e buzzer) e
- * mostra os dados num LCD 16x2. O ID da vinheria e a rede ficam no bloco
+ * mostra os dados num OLED 128x64. O ID da vinheria e a rede ficam no bloco
  * "CONFIGURAÇÃO DESTA INSTÂNCIA" abaixo.
  *
  * Nasce sem faixa ideal: mostra "Configure o dispositivo" e recusa alertas
@@ -14,9 +14,9 @@
 #include <PubSubClient.h>
 #include <DHT.h>
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <time.h>
-#include "boot_animacao.h"
 #include "limites.h"
 #include "led_rgb.h"
 
@@ -54,26 +54,23 @@ DHT dht(DHTPIN, DHTTYPE);
 // --- Buzzer de alerta (o LED RGB de status e seus pinos ficam em led_rgb.h) ---
 #define BUZZER_PIN 5
 
-// --- Display LCD 16x2 I2C (herdado do CP2, endereco 0x27) ---
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-
-// Caracteres customizados do CP2: taça (2 metades), gota, sol.
-byte CHAR_TACA_ESQ[8] = {B00111, B01000, B01000, B11111, B11111, B11111, B11111, B01111};
-byte CHAR_TACA_DIR[8] = {B11100, B00010, B00010, B11111, B11111, B11111, B11111, B11110};
-byte CHAR_GOTA[8] = {B00100, B00100, B01010, B01010, B10001, B10001, B10001, B01110};
-byte CHAR_SOL[8] = {B00100, B10101, B01110, B11111, B01110, B10101, B00100, B00000};
+// --- Display OLED SSD1306 128x64 I2C (endereço 0x3C, pinos SDA 21 e SCL 22) ---
+#define LARGURA_OLED 128
+#define ALTURA_OLED 64
+Adafruit_SSD1306 oled(LARGURA_OLED, ALTURA_OLED, &Wire, -1);
+bool oledOk = false; // false se o display não respondeu no setup(): o firmware segue sem ele
 
 // --- Faixa ideal recebida do backend (comando set_limits) ---
-// O ESP32 nasce SEM faixa: até o backend mandar o set_limits, o LCD mostra
+// O ESP32 nasce SEM faixa: até o backend mandar o set_limits, o OLED mostra
 // "Configure o dispositivo" e os comandos de alerta são recusados, para
 // nenhum alerta disparar com parâmetros que não foram cadastrados. A faixa
-// é só informativa no LCD (quem decide o alerta é o backend). `configurado`
+// é só informativa no OLED (quem decide o alerta é o backend). `configurado`
 // vai na telemetria (c|0 ou c|1): é por ele que o backend percebe que o
 // ESP32 reiniciou e reenvia a faixa na hora.
 Faixa faixa;
 bool configurado = false;
 
-// Flags por atributo: o LCD precisa saber se cada atributo está em alerta
+// Flags por atributo: o OLED precisa saber se cada atributo está em alerta
 // mesmo quando o alertMode (que só governa o padrão de LED/buzzer) está
 // ocupado com outro atributo — duas anomalias podem estar ativas ao mesmo
 // tempo. alert_off limpa as três de uma vez; quando uma anomalia normaliza
@@ -82,8 +79,8 @@ bool alertTemp = false;
 bool alertHum = false;
 bool alertLux = false;
 
-// Últimas leituras válidas — usadas pelo publish MQTT e pelas telas do LCD.
-// Começam em 0 porque o LCD só as exibe depois da primeira leitura válida.
+// Últimas leituras válidas — usadas pelo publish MQTT e pelas telas do OLED.
+// Começam em 0 porque o OLED só as exibe depois da primeira leitura válida.
 float ultimaTemperatura = 0;
 float ultimaUmidade = 0;
 int ultimaLuminosidade = 0;
@@ -131,115 +128,174 @@ void iniciarRelogio() {
   configTime(FUSO_HORARIO_SEG, 0, "pool.ntp.org");
 }
 
-// Preenche p2 (2 dígitos com zero à esquerda) no LCD, igual ao CP2.
-void imprimirDoisDigitos(int valor) {
-  if (valor < 10) lcd.print("0");
-  lcd.print(valor);
+// Escreve o texto centralizado na horizontal, na linha y, com o tamanho dado.
+void centralizar(const String& texto, uint8_t tamanho, int16_t y) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  oled.setTextSize(tamanho);
+  oled.getTextBounds(texto, 0, 0, &x1, &y1, &w, &h);
+  oled.setCursor((LARGURA_OLED - w) / 2, y);
+  oled.print(texto);
 }
 
-// Tela 0: data e hora obtidas por NTP. Se ainda não sincronizou, avisa.
+// Preenche dois dígitos com zero à esquerda, igual ao CP2.
+String doisDigitos(int valor) {
+  return (valor < 10 ? "0" : "") + String(valor);
+}
+
+enum Icone { ICONE_TACA, ICONE_GOTA, ICONE_SOL };
+
+// Desenha um ícone de 10x10 pixels com primitivas do GFX, a partir do canto
+// superior esquerdo (x, y). Substitui os caracteres customizados do LCD.
+void desenharIcone(Icone tipo, int16_t x, int16_t y) {
+  switch (tipo) {
+    case ICONE_TACA:
+      oled.fillTriangle(x, y, x + 10, y, x + 5, y + 5, SSD1306_WHITE);
+      oled.drawFastVLine(x + 5, y + 5, 4, SSD1306_WHITE);
+      oled.drawFastHLine(x + 2, y + 9, 7, SSD1306_WHITE);
+      break;
+    case ICONE_GOTA:
+      oled.fillCircle(x + 5, y + 6, 4, SSD1306_WHITE);
+      oled.fillTriangle(x + 5, y, x + 1, y + 5, x + 9, y + 5, SSD1306_WHITE);
+      break;
+    case ICONE_SOL:
+      oled.fillCircle(x + 5, y + 5, 2, SSD1306_WHITE);
+      oled.drawFastVLine(x + 5, y, 2, SSD1306_WHITE);
+      oled.drawFastVLine(x + 5, y + 8, 2, SSD1306_WHITE);
+      oled.drawFastHLine(x, y + 5, 2, SSD1306_WHITE);
+      oled.drawFastHLine(x + 8, y + 5, 2, SSD1306_WHITE);
+      oled.drawLine(x + 1, y + 1, x + 2, y + 2, SSD1306_WHITE);
+      oled.drawLine(x + 8, y + 1, x + 7, y + 2, SSD1306_WHITE);
+      oled.drawLine(x + 1, y + 8, x + 2, y + 7, SSD1306_WHITE);
+      oled.drawLine(x + 8, y + 8, x + 7, y + 7, SSD1306_WHITE);
+      break;
+  }
+}
+
+// Faixa de título no alto da tela: texto à esquerda, ícone opcional à direita
+// e uma linha horizontal embaixo.
+void desenharTitulo(const String& texto, bool comIcone, Icone icone) {
+  oled.setTextSize(1);
+  oled.setCursor(0, 2);
+  oled.print(texto);
+  if (comIcone) desenharIcone(icone, LARGURA_OLED - 10, 1);
+  oled.drawFastHLine(0, 12, LARGURA_OLED, SSD1306_WHITE);
+}
+
+// Valor principal em tamanho 3, centralizado (3 linhas de 24 px no meio da tela).
+void desenharValor(const String& texto) {
+  centralizar(texto, 3, 22);
+}
+
+// Rodapé da tela de um atributo. Em alerta, um retângulo branco cheio com o
+// texto em preto chama a atenção; sem alerta, mostra a faixa ideal.
+// `desenharFaixa` escreve a faixa com o cursor já posicionado no rodapé.
+void desenharRodape(bool emAlerta, void (*desenharFaixa)()) {
+  oled.setTextSize(1);
+  if (emAlerta) {
+    oled.fillRect(0, 52, LARGURA_OLED, 12, SSD1306_WHITE);
+    oled.setTextColor(SSD1306_BLACK);
+    centralizar("FORA DA FAIXA", 1, 54);
+    oled.setTextColor(SSD1306_WHITE);
+  } else {
+    oled.setCursor(0, 54);
+    desenharFaixa();
+  }
+}
+
+void faixaTemp() {
+  oled.print("Ideal ");
+  imprimirLimite(oled, faixa.tempMin);
+  oled.print("-");
+  imprimirLimite(oled, faixa.tempMax);
+  oled.print(" C");
+}
+
+void faixaUmidade() {
+  oled.print("Ideal ");
+  imprimirLimite(oled, faixa.humMin);
+  oled.print("-");
+  imprimirLimite(oled, faixa.humMax);
+  oled.print(" %");
+}
+
+void faixaLuz() {
+  oled.print("Ideal ate ");
+  imprimirLimite(oled, faixa.luxMax);
+  oled.print(" %");
+}
+
+// Tela 0: data (no título) e hora obtidas por NTP. Se ainda não sincronizou, avisa.
 void telaData() {
   struct tm dt;
   if (!getLocalTime(&dt)) {
-    lcd.setCursor(0, 0);
-    lcd.print("Sincronizando");
-    lcd.setCursor(0, 1);
-    lcd.print("relogio (NTP)...");
+    desenharTitulo("Relogio", false, ICONE_TACA);
+    centralizar("Sincronizando", 1, 28);
+    centralizar("relogio (NTP)...", 1, 40);
     return;
   }
 
-  lcd.setCursor(0, 0);
-  lcd.print("Data: ");
-  imprimirDoisDigitos(dt.tm_mday);
-  lcd.print("/");
-  imprimirDoisDigitos(dt.tm_mon + 1);
-  lcd.print("/");
-  lcd.print(dt.tm_year + 1900);
-
-  lcd.setCursor(0, 1);
-  lcd.print("Hora: ");
-  imprimirDoisDigitos(dt.tm_hour);
-  lcd.print(":");
-  imprimirDoisDigitos(dt.tm_min);
-  lcd.print(":");
-  imprimirDoisDigitos(dt.tm_sec);
+  desenharTitulo(doisDigitos(dt.tm_mday) + "/" + doisDigitos(dt.tm_mon + 1) + "/" + String(dt.tm_year + 1900),
+                 false, ICONE_TACA);
+  centralizar(doisDigitos(dt.tm_hour) + ":" + doisDigitos(dt.tm_min) + ":" + doisDigitos(dt.tm_sec), 2, 28);
 }
 
-// Tela 1: temperatura atual. Linha 2 mostra a faixa configurada (set_limits)
+// Tela 1: temperatura atual. O rodapé mostra a faixa configurada (set_limits)
 // quando normal, ou aviso de fora da faixa quando o backend mandou alerta.
 void telaTemp() {
-  lcd.setCursor(0, 0);
-  lcd.print("Temp: ");
-  lcd.print(ultimaTemperatura, 1);
-  lcd.print((char)223); // símbolo de grau
-  lcd.print("C");
-
-  lcd.setCursor(0, 1);
-  if (alertTemp) {
-    lcd.print("TEMP FORA FAIXA");
-  } else {
-    lcd.print("Ideal ");
-    imprimirLimite(lcd, faixa.tempMin);
-    lcd.print("-");
-    imprimirLimite(lcd, faixa.tempMax);
-    lcd.print("C");
-  }
+  desenharTitulo("Temperatura", false, ICONE_TACA);
+  // O símbolo de grau não existe no GFX padrão: é um círculo entre o valor e o "C".
+  String valor = String(ultimaTemperatura, 1);
+  int16_t x1, y1;
+  uint16_t wValor, h;
+  oled.setTextSize(3);
+  oled.getTextBounds(valor, 0, 0, &x1, &y1, &wValor, &h);
+  int16_t xInicial = (LARGURA_OLED - (wValor + 8 + 12)) / 2; // valor + grau + "C" em tamanho 2
+  oled.setCursor(xInicial, 22);
+  oled.print(valor);
+  oled.drawCircle(xInicial + wValor + 4, 24, 2, SSD1306_WHITE);
+  oled.setTextSize(2);
+  oled.setCursor(xInicial + wValor + 8, 22);
+  oled.print("C");
+  desenharRodape(alertTemp, faixaTemp);
 }
 
-// Tela 2: umidade atual, com o caractere de gota.
+// Tela 2: umidade atual, com o ícone de gota.
 void telaUmidade() {
-  lcd.setCursor(0, 0);
-  lcd.print("Umidade: ");
-  lcd.print(ultimaUmidade, 0);
-  lcd.print("% ");
-  lcd.write(byte(2));
-
-  lcd.setCursor(0, 1);
-  if (alertHum) {
-    lcd.print("UMID FORA FAIXA");
-  } else {
-    lcd.print("Ideal ");
-    imprimirLimite(lcd, faixa.humMin);
-    lcd.print("-");
-    imprimirLimite(lcd, faixa.humMax);
-    lcd.print("%");
-  }
+  desenharTitulo("Umidade", true, ICONE_GOTA);
+  desenharValor(String(ultimaUmidade, 0) + "%");
+  desenharRodape(alertHum, faixaUmidade);
 }
 
-// Tela 3: luminosidade atual, com o caractere de sol.
+// Tela 3: luminosidade atual, com o ícone de sol.
 void telaLuz() {
-  lcd.setCursor(0, 0);
-  lcd.print("Luz: ");
-  lcd.print(ultimaLuminosidade);
-  lcd.print("% ");
-  lcd.write(byte(3));
-
-  lcd.setCursor(0, 1);
-  if (alertLux) {
-    lcd.print("LUZ FORA FAIXA");
-  } else {
-    lcd.print("Ideal ate ");
-    imprimirLimite(lcd, faixa.luxMax);
-    lcd.print("%");
-  }
+  desenharTitulo("Luminosidade", true, ICONE_SOL);
+  desenharValor(String(ultimaLuminosidade) + "%");
+  desenharRodape(alertLux, faixaLuz);
 }
 
-// Tela 4: status geral da adega, com o caractere de taça (2 metades).
+// Tela 4: status geral da adega, com o ícone de taça.
 // "Sem conexao" tem prioridade: se a EC2 caiu, é isso que importa mostrar.
 void telaStatus() {
-  lcd.setCursor(0, 0);
-  lcd.print("Status Adega ");
-  lcd.write(byte(0));
-  lcd.write(byte(1));
-
-  lcd.setCursor(0, 1);
+  desenharTitulo("Status Adega", true, ICONE_TACA);
   if (!MQTT.connected()) {
-    lcd.print("Sem conexao");
+    centralizar("SEM", 2, 22);
+    centralizar("CONEXAO", 2, 40);
   } else if (alertTemp || alertHum || alertLux) {
-    lcd.print("Atencao");
+    centralizar("ATENCAO", 2, 28);
   } else {
-    lcd.print("Cond. Premium");
+    centralizar("PREMIUM", 2, 28);
   }
+}
+
+// Limpa o OLED e mostra até duas linhas de texto centralizadas (tamanho 1).
+void telaTexto(const String& linha1, const String& linha2) {
+  if (!oledOk) return;
+  oled.clearDisplay();
+  oled.setTextColor(SSD1306_WHITE);
+  centralizar(linha1, 1, 24);
+  centralizar(linha2, 1, 38);
+  oled.display();
 }
 
 // Tela de espera enquanto o backend não mandou a faixa. Os pontos animados
@@ -247,34 +303,31 @@ void telaStatus() {
 int pontosCarregando = 0;
 
 void telaConfigurar() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  if (MQTT.connected()) {
-    lcd.print("Configure o");
-    lcd.setCursor(0, 1);
-    lcd.print("dispositivo");
-  } else {
-    lcd.print("Conectando");
-    lcd.setCursor(0, 1);
-    lcd.print(ID_DEVICE);
-  }
+  String pontos = "";
   for (int i = 0; i < pontosCarregando; i++) {
-    lcd.print(".");
+    pontos += ".";
+  }
+  if (MQTT.connected()) {
+    telaTexto("Configure o", "dispositivo" + pontos);
+  } else {
+    telaTexto("Conectando" + pontos, ID_DEVICE);
   }
   pontosCarregando = (pontosCarregando + 1) % 4;
 }
 
-// Despacha a tela atual (0-4) e limpa o LCD antes de desenhar — evita
-// sobrepor texto de tamanhos diferentes entre uma tela e outra.
+// Despacha a tela atual (0-4). O buffer do OLED é limpo antes de desenhar
+// para não sobrepor o conteúdo da tela anterior.
 int telaAtual = 0;
 
-// Intervalo de troca das telas do LCD e ritmo dos pontos da tela de espera.
+// Intervalo de troca das telas do OLED e ritmo dos pontos da tela de espera.
 const unsigned long T_TELA = 3000;
 const unsigned long T_CARREGANDO = 500;
 unsigned long ultimaTela = 0;
 
-void telaLCD() {
-  lcd.clear();
+void telaOLED() {
+  if (!oledOk) return;
+  oled.clearDisplay();
+  oled.setTextColor(SSD1306_WHITE);
   switch (telaAtual) {
     case 0: telaData(); break;
     case 1: telaTemp(); break;
@@ -282,6 +335,7 @@ void telaLCD() {
     case 3: telaLuz(); break;
     case 4: telaStatus(); break;
   }
+  oled.display();
   telaAtual = (telaAtual + 1) % 5;
 }
 
@@ -356,11 +410,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     configurado = true;
     if (primeiraVez) {
       // Sai da tela de espera: mostra a confirmação e o carrossel segue depois
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Configurado!");
-      lcd.setCursor(0, 1);
-      lcd.print(ID_DEVICE);
+      telaTexto("Configurado!", ID_DEVICE);
       telaAtual = 0;
       ultimaTela = millis();
     }
@@ -375,7 +425,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 // Tenta reconectar ao broker sem travar o loop() — se falhar, não insiste
 // imediatamente, só tenta de novo depois de INTERVALO_RECONEXAO_MQTT. Assim
-// o LCD, o LED e o buzzer continuam funcionando mesmo com a EC2 fora do ar.
+// o OLED, o LED e o buzzer continuam funcionando mesmo com a EC2 fora do ar.
 const unsigned long INTERVALO_RECONEXAO_MQTT = 2000;
 unsigned long ultimaTentativaMQTT = 0;
 
@@ -522,19 +572,21 @@ void atualizarLed() {
 
 // Tela de boot exibida uma única vez. delay() aceitável aqui: roda antes do
 // loop(), não interfere no padrão não-bloqueante de LED/buzzer.
+// A animação da uva entra no passo 6 da Task 1C.
 void logo() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Smart Solutions"); // 15 colunas de 16; a linha 2 fica vazia
+  if (!oledOk) return;
+  oled.clearDisplay();
+  oled.setTextColor(SSD1306_WHITE);
+  centralizar("Smart", 2, 14);
+  centralizar("Solutions", 2, 34);
+  oled.display();
   delay(2000);
-  animacaoBoot(lcd);
-  lcd.clear();
-  lcd.print("Inicializando");
+  String pontos = "";
   for (int i = 0; i < 5; i++) {
-    lcd.print(".");
+    pontos += ".";
+    telaTexto("Inicializando" + pontos, "");
     delay(300);
   }
-  lcd.clear();
 }
 
 void setup() {
@@ -548,16 +600,11 @@ void setup() {
   dht.begin();
   pinMode(BUZZER_PIN, OUTPUT);
 
-  lcd.init();
-  lcd.backlight();
+  oledOk = oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  if (!oledOk) {
+    Serial.println("OLED nao encontrado no endereco 0x3C - seguindo sem display");
+  }
   logo();
-
-  // Os ícones do carrossel ocupam os slots 0 a 3, que a animação de boot
-  // sobrescreve. Por isso só são carregados depois do logo().
-  lcd.createChar(0, CHAR_TACA_ESQ);
-  lcd.createChar(1, CHAR_TACA_DIR);
-  lcd.createChar(2, CHAR_GOTA);
-  lcd.createChar(3, CHAR_SOL);
   iniciarRelogio();
 }
 
@@ -584,7 +631,7 @@ void loop() {
     }
   } else if (agora - ultimaTela >= T_TELA) {
     ultimaTela = agora;
-    telaLCD();
+    telaOLED();
   }
 
   atualizarBuzzer();

@@ -3,7 +3,7 @@
  *
  * Formato do valor: "tmin,tmax,hmin,hmax,lmin,lmax", separado por vírgula (o
  * Orion rejeita ; em valores de atributo), com decimais opcionais
- * (ex.: "12.5,18,50,70,0,30"). Funções puras: não usam LCD, MQTT nem as
+ * (ex.: "12.5,18,50,70,0,30"). Funções puras: não usam o display, MQTT nem as
  * variáveis globais do .ino.
  */
 #ifndef LIMITES_H
@@ -60,8 +60,8 @@ bool parseFaixa(String args, Faixa &faixa) {
   return true;
 }
 
-// Imprime um limite no LCD sem casas quando é inteiro (12) e com uma casa
-// quando não é (12.5), para caber nas 16 colunas.
+// Imprime um limite no display sem casas quando é inteiro (12) e com uma casa
+// quando não é (12.5), para caber na linha do rodapé.
 void imprimirLimite(Print &saida, float valor) {
   if (valor == (int)valor) {
     saida.print((int)valor);
