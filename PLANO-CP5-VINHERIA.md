@@ -454,6 +454,82 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 
 **Escopo previsto:** trocar o separador para `,`, aceitar decimais (decidir no planejamento se o LCD mostra com 1 casa ou arredondado), manter a validação atômica dos 6 campos e o ack `ok`/`erro`, e conferir a tela da faixa no carrossel (RF19).
 
+### Task 1C: Firmware — LED RGB de status e display OLED
+
+> *Planejada em 21/10/2026, a pedido do usuário. Muda só o firmware e o Wokwi; backend, front e contratos MQTT ficam iguais.*
+
+**1. Contexto.** O hardware mudou: o LED azul dá lugar a um LED RGB e o LCD 16x2 I2C dá lugar a um OLED SSD1306 128x64 I2C. Hoje o LED azul só acende em alerta e o LCD mostra o carrossel e a animação de boot feita com caracteres customizados 5x8 do HD44780, que não existem no OLED. Já estão prontos: máquina de alerta com `millis()` (Task 1), faixa `set_limits` e tela "Configure o dispositivo" (Task 4.15), marca e animação de boot (Task 1B). Dependem desta task: o ensaio da demo e os manuais da Task 8 (pinagem e descrição do LED).
+
+**2. Objetivo.** No Wokwi, o LED RGB fica amarelo fixo enquanto o ESP32 está conectando, sem Wi-Fi, sem MQTT ou aguardando `set_limits`, verde fixo quando conectado, configurado e sem alerta, e vermelho piscando no ritmo do sensor (500/250/125 ms) ao receber `blink_temp|blink_hum|blink_lux`, voltando ao verde com `alert_off`; o OLED mostra "Smart Solutions", a animação da uva em pixels e o carrossel de 5 telas com os mesmos dados de hoje.
+
+**3. Detalhes técnicos.**
+
+Decisões do usuário (21/10/2026):
+- Cor espelha o status do backend: `ok` = verde fixo, `alerta` = vermelho piscando, `offline`/`configurando` = amarelo fixo (revisado pelo usuário em 22/10/2026; a primeira versão usava amarelo para alerta e vermelho para offline). No ESP32, "offline" é o equivalente local: `WiFi.status() != WL_CONNECTED` ou `!MQTT.connected()`. Não há comando novo; o ESP32 continua obedecendo `blink_*`/`alert_off`.
+- Vermelho mantém o ritmo de pisca por sensor (TEMP 500 ms, HUM 250 ms, LUX 125 ms); na fase apagada do pisca o LED fica apagado. Buzzer sem mudança.
+- Animação de boot refeita em pixels com o mesmo roteiro (cacho de 6 uvas se desfaz de baixo para cima, cada uva cai, rola e entra no copo, que enche em 5 níveis).
+
+Decisões de planejamento (confirmar com o usuário na revisão):
+- Prioridade da cor: amarelo (sem conexão) > vermelho (alerta ativo) > amarelo (conectado, mas ainda sem `set_limits`, equivale ao `configurando` do backend) > verde (conectado e configurado). Na prática: sem conexão ou sem faixa = amarelo; alerta = vermelho; resto = verde.
+- Sem conexão, o buzzer segue o `alertMode` atual (comportamento de hoje); só a cor do LED muda.
+- Durante o boot, antes do Wi-Fi conectar, o LED já fica amarelo.
+
+Pinagem nova (GPIO 2 deixa de ser usado):
+
+| Peça | Pino ESP32 | Observação |
+|---|---|---|
+| LED RGB — R | GPIO 25 | resistor 220 Ω |
+| LED RGB — G | GPIO 26 | resistor 220 Ω |
+| LED RGB — B | GPIO 27 | resistor 220 Ω; ligado mas sempre LOW (amarelo = R + G) |
+| LED RGB — COM | GND | catodo comum (`"common": "cathode"` no Wokwi) |
+| OLED SDA / SCL | GPIO 21 / 22 | mesmos pinos I2C do LCD; endereço `0x3C` |
+| OLED VCC / GND | 3V3 / GND | |
+
+Arquivos:
+- **Criar `firmware/led_rgb.h`** — funções do LED de status, com comentários em português:
+  - `enum CorLed { COR_APAGADO, COR_VERDE, COR_AMARELO, COR_VERMELHO };` (`COR_APAGADO` só aparece na fase apagada do pisca vermelho)
+  - `CorLed escolherCor(bool conectado, bool emAlerta, bool configurado, bool faseAcesa)` — pura, aplica a prioridade acima; `faseAcesa` é o resultado de `estadoLed()` e só importa no vermelho (fase apagada devolve `COR_APAGADO`).
+  - `void iniciarLedRgb()` — `pinMode` dos 3 pinos e LED apagado.
+  - `void aplicarCor(CorLed cor)` — `digitalWrite` em R/G/B (verde = G; amarelo = R+G; vermelho = R). Guarda a última cor e só escreve quando muda.
+  - `#define LED_R 25`, `LED_G 26`, `LED_B 27` no próprio header.
+- **Modificar `firmware/vinheria_full.ino`:**
+  - Includes: sai `LiquidCrystal_I2C.h`; entram `Adafruit_GFX.h`, `Adafruit_SSD1306.h` e `"led_rgb.h"`. Sai `#define LED_PIN 2`.
+  - `LiquidCrystal_I2C lcd(...)` vira `Adafruit_SSD1306 oled(128, 64, &Wire, -1);` e, no `setup()`, `oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)` (se falhar, loga no Serial e segue sem display). Saem os 4 `byte CHAR_*` e os `createChar`.
+  - `atualizarAlerta()` passa a cuidar só do buzzer (renomear para `atualizarBuzzer()`; lógica dos padrões intacta). Nova `atualizarLed()` chama `escolherCor(WiFi.status() == WL_CONNECTED && MQTT.connected(), alertMode != ALERT_NONE, configurado, estadoLed(decorrido, intervaloLed))` e `aplicarCor()`. O intervalo do LED por modo sai do `switch` atual para uma função `intervaloLedDoModo(AlertMode)` usada pelas duas.
+  - `loop()` chama `atualizarBuzzer()` e `atualizarLed()` no lugar de `atualizarAlerta()`. `setup()` chama `iniciarLedRgb()` e `aplicarCor(COR_AMARELO)` antes de `conectarWiFi()`.
+  - Telas: `telaLCD()` vira `telaOLED()`; cada tela faz `oled.clearDisplay()`, desenha e termina com `oled.display()`. Layout comum (128x64):
+    - faixa de título em y 0–11: texto tamanho 1 à esquerda e ícone 10x10 à direita, linha horizontal em y 12;
+    - valor principal em tamanho 3 centralizado (y ~20), ex. `14.5C`, `62%`, `31%`;
+    - rodapé em y 54, tamanho 1: `Ideal 12-18 C` (usa `imprimirLimite(oled, ...)`); em alerta, retângulo branco cheio (`fillRect`) com o texto em preto `FORA DA FAIXA`.
+    - Data/hora: data tamanho 1 no título, hora `HH:MM:SS` tamanho 2 no centro. Status: título "Status Adega" + ícone taça; texto tamanho 2 `PREMIUM` / `ATENCAO` / `SEM` + `CONEXAO` em duas linhas.
+    - "Configure o dispositivo" e "Conectando..." viram texto tamanho 1 centralizado em 2–3 linhas.
+  - Ícones desenhados com primitivas GFX numa função `desenharIcone(tipo, x, y)` (taça: triângulo + haste + base; gota: círculo + triângulo; sol: círculo + 8 raios). Sem bitmaps novos.
+  - O símbolo de grau (`(char)223` do LCD) vira um `drawCircle` de raio 2 antes do `C`.
+  - Comentários e o cabeçalho do arquivo trocam "LCD 16x2" e "LED azul" por "OLED 128x64" e "LED RGB".
+- **Reescrever `firmware/boot_animacao.h`** — `void animacaoBoot(Adafruit_SSD1306& oled)`; some tudo de CGRAM (`CENA`, `COPO`, `SLOT_*`, `atualizarSlot`). Cena desenhada por quadro com primitivas: cacho (talo `drawLine`, folha `fillTriangle`, 6 uvas `fillCircle` raio 4 em fileiras de 3, 2, 1), chão em y 60, copo (contorno de taça com `drawLine` + haste + base) à direita, vinho com `fillRect` crescendo em 5 níveis. Tabela `ROTEIRO` mantém o papel de hoje (nível do copo + duração), agora gerada por uva: queda e rolagem em passos de pixel. Duração total ≤ 5 s. `delay()` continua aceito (roda só no `setup()`).
+- **`logo()`**: "Smart" e "Solutions" em tamanho 2 centralizados por 2 s, depois `animacaoBoot(oled)`, depois "Inicializando..." com os pontos.
+- **`firmware/limites.h`**: `imprimirLimite(Print&, float)` já aceita o OLED (o `Adafruit_SSD1306` herda de `Print`); só ajustar o comentário que cita o LCD.
+- **Modificar `firmware/diagram.json`**: remover `led1`, `r_led` e `lcd1`; adicionar `{ "type": "wokwi-rgb-led", "id": "rgb1", "attrs": { "common": "cathode" } }`, três `wokwi-resistor` de 220 Ω (`r_r`, `r_g`, `r_b`) e `{ "type": "board-ssd1306", "id": "oled1", "attrs": { "i2cAddress": "0x3c" } }`, com as ligações da tabela.
+- **Modificar `firmware/libraries.txt`**: sai `LiquidCrystal I2C`; entram `Adafruit GFX Library` e `Adafruit SSD1306`.
+- **Docs**: `CLAUDE.md` §1 e §5 (LED RGB, OLED, bibliotecas) e, neste plano, a Arquitetura (linha "LED azul"), a Estrutura de arquivos (`led_rgb.h`, `diagram.json`), a tabela de alertas (coluna "LED azul" vira "LED RGB (vermelho)"), a Task 8 passo 1 (pinagem) e o ensaio end-to-end ("LED azul a 500 ms" vira "LED vermelho a 500 ms", e o card offline deixa o LED amarelo).
+
+**4. Ferramentas e requisitos.** Wokwi aberto no navegador (não há `arduino-cli` local; a compilação é a do Wokwi). Bibliotecas novas: Adafruit GFX Library e Adafruit SSD1306 (o Wokwi instala pelo `libraries.txt`). Para os passos de comando: EC2 ligada, containers FIWARE de pé e `vinheria001` provisionada; backend rodando para enviar `set_limits` e `blink_*` (ou Postman direto no IoT Agent).
+
+**5. Passos.**
+- [ ] **Passo 1:** `diagram.json` e `libraries.txt` com LED RGB, 3 resistores e OLED; LCD e LED azul removidos. Verificar: Wokwi abre o diagrama sem erro de peça e mostra as ligações da tabela. Commit.
+- [ ] **Passo 2:** criar `led_rgb.h` (enum, `escolherCor`, `iniciarLedRgb`, `aplicarCor`). Verificar: compila no Wokwi com o `.ino` incluindo o header (ainda sem uso). Commit.
+- [ ] **Passo 3:** no `.ino`, separar `atualizarBuzzer()` / `atualizarLed()` / `intervaloLedDoModo()`, remover `LED_PIN`, ligar no `loop()` e no `setup()`. Verificar no Wokwi: amarelo no boot e antes do `set_limits`, verde após conectar e receber `set_limits`. Commit.
+- [ ] **Passo 4:** trocar LCD por OLED no `.ino` (objeto, `begin`, `logo()` provisório só com o texto, chamada de `animacaoBoot` comentada), portar `telaConfigurar()` e `telaData()`. Verificar: OLED mostra "Smart Solutions", "Conectando..." e data/hora. Commit.
+- [ ] **Passo 5:** portar `telaTemp()`, `telaUmidade()`, `telaLuz()`, `telaStatus()` com `desenharIcone()` e rodapé invertido em alerta; ajustar comentário de `limites.h`. Verificar: carrossel de 5 telas a cada 3 s, sem texto cortado. Commit.
+- [ ] **Passo 6:** reescrever `boot_animacao.h` em pixels e religar `animacaoBoot(oled)` no `logo()`. Verificar: animação completa em ≤ 5 s, copo enche em 5 níveis, carrossel começa logo depois. Commit.
+- [ ] **Passo 7:** atualizar `CLAUDE.md` e as seções deste plano listadas em "Docs". Verificar: `grep -n "LED azul\|LCD" CLAUDE.md PLANO-CP5-VINHERIA.md` só retorna menções históricas (Tasks 1 e 1B). Commit.
+
+**6. Como verificar (fim da task).** No Wokwi com a EC2 ligada:
+1. Ligar: OLED mostra "Smart Solutions", a animação e o carrossel; LED amarelo até conectar ao MQTT e receber `set_limits`, depois verde.
+2. Postman/front: `blink_temp` deixa o LED vermelho piscando a 500 ms + 2 bipes, e a tela de temperatura mostra `FORA DA FAIXA`; `alert_off` volta ao verde fixo e cala o buzzer. Repetir `blink_hum` (250 ms) e `blink_lux` (125 ms).
+3. Trocar o IP do broker para um inválido (ou parar o Mosquitto): o LED fica amarelo fixo e a tela de status mostra `SEM CONEXAO`; ao voltar, retorna ao verde.
+4. Ack `vinheria001@<cmd>|ok` continua chegando no Orion (contrato MQTT inalterado).
+
 ### Task 5: Front-end React — base, config de IP e devices
 
 > **5A FEITA em 12/10/2026** — commits 5f38195..b325dcd; 30 testes do front passando, build ok, backend 285 passed (o plano dizia 281; o backend ganhou testes na revisão da Task 4); desvios: nenhum no código. Verificado no navegador sem EC2 (rotas, Voltar/Avançar, 404, faixa e toast únicos de EC2 fora, listagem de dispositivos). **Verificado com EC2 ligada e Wokwi em 18/10/2026:** troca de IP no Avançado, toasts de offline/volta da vinheria, cadastro e remoção de `vinheria099`, backend parado e voltando (o painel se recuperou sem recarregar). O único erro de console é o 404 de `/favicon.ico` (o favicon entrou em 20/10/2026 com o ícone de vinho em `frontend/public/icone-vinheria.png`, e o 404 acabou).
