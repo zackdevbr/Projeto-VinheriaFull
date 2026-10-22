@@ -2,7 +2,7 @@
  * Smart Solutions — monitoramento de vinherias (firmware ESP32)
  *
  * Lê temperatura, umidade (DHT) e luminosidade (LDR), publica no FIWARE por
- * MQTT em UltraLight 2.0, executa comandos de alerta (LED azul e buzzer) e
+ * MQTT em UltraLight 2.0, executa comandos de alerta (LED RGB e buzzer) e
  * mostra os dados num LCD 16x2. O ID da vinheria e a rede ficam no bloco
  * "CONFIGURAÇÃO DESTA INSTÂNCIA" abaixo.
  *
@@ -18,6 +18,7 @@
 #include <time.h>
 #include "boot_animacao.h"
 #include "limites.h"
+#include "led_rgb.h"
 
 // ===== CONFIGURAÇÃO DESTA INSTÂNCIA =====
 // Único bloco a editar ao rodar o firmware em outro computador ou ESP32.
@@ -50,8 +51,7 @@ DHT dht(DHTPIN, DHTTYPE);
 // Leitura ADC 0-4095 (12 bits do ESP32) convertida para percentual 0-100%.
 #define LDRPIN 34
 
-// --- LED azul e buzzer de alerta ---
-#define LED_PIN 2
+// --- Buzzer de alerta (o LED RGB de status e seus pinos ficam em led_rgb.h) ---
 #define BUZZER_PIN 5
 
 // --- Display LCD 16x2 I2C (herdado do CP2, endereco 0x27) ---
@@ -459,35 +459,40 @@ bool estadoLed(unsigned long decorrido, unsigned long intervaloMs) {
   return ((decorrido / intervaloMs) % 2) == 0;
 }
 
-// Atualiza LED azul e buzzer conforme o alertMode atual. Chamada every loop().
-void atualizarAlerta() {
+// Intervalo de pisca do LED (ms) de cada modo de alerta; 0 quando não há alerta.
+unsigned long intervaloLedDoModo(AlertMode modo) {
+  switch (modo) {
+    case ALERT_TEMP: return 500;
+    case ALERT_HUM: return 250;
+    case ALERT_LUX: return 125;
+    default: return 0;
+  }
+}
+
+// Atualiza o buzzer conforme o alertMode atual. Chamada a cada loop().
+void atualizarBuzzer() {
   if (alertMode == ALERT_NONE) {
-    digitalWrite(LED_PIN, LOW);
     noTone(BUZZER_PIN);
     return;
   }
 
   unsigned long decorrido = millis() - alertCycleStart;
-  unsigned long intervaloLed;
   const int* padrao;
   int tamanhoPadrao;
   unsigned long duracaoCiclo;
 
   switch (alertMode) {
     case ALERT_TEMP:
-      intervaloLed = 500;
       padrao = PADRAO_TEMP;
       tamanhoPadrao = sizeof(PADRAO_TEMP) / sizeof(int);
       duracaoCiclo = 2000;
       break;
     case ALERT_HUM:
-      intervaloLed = 250;
       padrao = PADRAO_HUM;
       tamanhoPadrao = sizeof(PADRAO_HUM) / sizeof(int);
       duracaoCiclo = 3000;
       break;
     case ALERT_LUX:
-      intervaloLed = 125;
       padrao = PADRAO_LUX;
       tamanhoPadrao = sizeof(PADRAO_LUX) / sizeof(int);
       duracaoCiclo = 2000;
@@ -496,13 +501,23 @@ void atualizarAlerta() {
       return;
   }
 
-  digitalWrite(LED_PIN, estadoLed(decorrido, intervaloLed) ? HIGH : LOW);
-
   if (estadoBuzzer(decorrido % duracaoCiclo, padrao, tamanhoPadrao)) {
     tone(BUZZER_PIN, 2000); // 2kHz fixo; timbre não importa para o alerta
   } else {
     noTone(BUZZER_PIN);
   }
+}
+
+// Atualiza o LED RGB de status: verde (ok), vermelho piscando no ritmo do
+// sensor em alerta, amarelo sem conexão ou sem faixa. Chamada a cada loop().
+void atualizarLed() {
+  bool conectado = WiFi.status() == WL_CONNECTED && MQTT.connected();
+  bool emAlerta = alertMode != ALERT_NONE;
+  bool faseAcesa = true;
+  if (emAlerta) {
+    faseAcesa = estadoLed(millis() - alertCycleStart, intervaloLedDoModo(alertMode));
+  }
+  aplicarCor(escolherCor(conectado, emAlerta, configurado, faseAcesa));
 }
 
 // Tela de boot exibida uma única vez. delay() aceitável aqui: roda antes do
@@ -525,11 +540,12 @@ void logo() {
 void setup() {
   Serial.begin(115200);
   montarTopicos();
+  iniciarLedRgb();
+  aplicarCor(COR_AMARELO); // amarelo até conectar e receber o set_limits
   conectarWiFi();
   MQTT.setServer(BROKER_MQTT, BROKER_PORT);
   MQTT.setCallback(mqttCallback);
   dht.begin();
-  pinMode(LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
 
   lcd.init();
@@ -547,6 +563,7 @@ void setup() {
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
+    aplicarCor(COR_AMARELO); // conectarWiFi() bloqueia até reconectar
     conectarWiFi();
   }
   if (!MQTT.connected()) {
@@ -570,5 +587,6 @@ void loop() {
     telaLCD();
   }
 
-  atualizarAlerta();
+  atualizarBuzzer();
+  atualizarLed();
 }
