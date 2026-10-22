@@ -521,7 +521,7 @@ Arquivos:
 - [ ] **Passo 3:** no `.ino`, separar `atualizarBuzzer()` / `atualizarLed()` / `intervaloLedDoModo()`, remover `LED_PIN`, ligar no `loop()` e no `setup()`. Verificar no Wokwi: amarelo no boot e antes do `set_limits`, verde após conectar e receber `set_limits`. Commit.
 - [ ] **Passo 4:** trocar LCD por OLED no `.ino` (objeto, `begin`, `logo()` provisório só com o texto, chamada de `animacaoBoot` comentada), portar `telaConfigurar()` e `telaData()`. Verificar: OLED mostra "Smart Solutions", "Conectando..." e data/hora. Commit.
 - [ ] **Passo 5:** portar `telaTemp()`, `telaUmidade()`, `telaLuz()`, `telaStatus()` com `desenharIcone()` e rodapé invertido em alerta; ajustar comentário de `limites.h`. Verificar: carrossel de 5 telas a cada 3 s, sem texto cortado. Commit.
-- [ ] **Passo 6:** reescrever `boot_animacao.h` em pixels e religar `animacaoBoot(oled)` no `logo()`. Verificar: animação completa em ≤ 5 s, copo enche em 5 níveis, carrossel começa logo depois. Commit.
+- [ ] **Passo 6:** reescrever `boot_animacao.h` em pixels e religar `animacaoBoot(oled)` no `logo()`. Verificar: animação completa em ≤ 5 s, taça enche uva a uva (6 passos), carrossel começa logo depois. Commit.
 - [ ] **Passo 7:** atualizar `CLAUDE.md` e as seções deste plano listadas em "Docs". Verificar: `grep -n "LED azul\|LCD" CLAUDE.md PLANO-CP5-VINHERIA.md` só retorna menções históricas (Tasks 1 e 1B). Commit.
 
 **6. Como verificar (fim da task).** No Wokwi com a EC2 ligada:

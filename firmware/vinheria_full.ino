@@ -17,6 +17,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <time.h>
+#include "boot_animacao.h"
 #include "limites.h"
 #include "led_rgb.h"
 
@@ -572,7 +573,6 @@ void atualizarLed() {
 
 // Tela de boot exibida uma única vez. delay() aceitável aqui: roda antes do
 // loop(), não interfere no padrão não-bloqueante de LED/buzzer.
-// A animação da uva entra no passo 6 da Task 1C.
 void logo() {
   if (!oledOk) return;
   oled.clearDisplay();
@@ -581,6 +581,7 @@ void logo() {
   centralizar("Solutions", 2, 34);
   oled.display();
   delay(2000);
+  animacaoBoot(oled);
   String pontos = "";
   for (int i = 0; i < 5; i++) {
     pontos += ".";
