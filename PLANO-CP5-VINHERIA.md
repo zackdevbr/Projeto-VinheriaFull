@@ -4,7 +4,7 @@
 
 ## Context
 
-CP5 de Edge Computing & Computer Systems (Prof. Dr. Fábio H. Cabrini, FIAP) — entrega **26/10/2026**. Evolui o projeto Smart Lamp (LDR + LED via FIWARE/MQTT) para uma solução completa de monitoramento de vinherias: ESP32 com **DHT-11 + LDR + buzzer + LED azul**, integrado ao FIWARE em AWS EC2, com **dashboard web dinâmico** para cadastro de IoT Devices, gráficos históricos (STH-Comet 8666), ajuste de triggers e disparo remoto de alertas sonoros/visuais pelo front-end.
+CP5 de Edge Computing & Computer Systems (Prof. Dr. Fábio H. Cabrini, FIAP) — entrega **26/10/2026**. Evolui o projeto Smart Lamp (LDR + LED via FIWARE/MQTT) para uma solução completa de monitoramento de vinherias: ESP32 com **DHT-11 + LDR + buzzer + LED RGB de status + display OLED**, integrado ao FIWARE em AWS EC2, com **dashboard web dinâmico** para cadastro de IoT Devices, gráficos históricos (STH-Comet 8666), ajuste de triggers e disparo remoto de alertas sonoros/visuais pelo front-end.
 
 FIWARE e Postman já configurados pelo usuário (stack `fabiocabrini/fiware`). Equipe = mesma do Smart Lamp. Estado em 05/10/2026: Task 1 com os passos 1–5 prontos e sensores validados no Wokwi; falta o Passo 6.
 
@@ -31,12 +31,12 @@ FIWARE e Postman já configurados pelo usuário (stack `fabiocabrini/fiware`). E
 
 **Revisão 2 (05/10/2026) — também não reabrir:**
 - **IP elástico na EC2.** O IP do FIWARE fica fixo. Default no `backend/.env` (`FIWARE_HOST`) e no bloco de configuração do firmware (`BROKER_MQTT`); o campo de IP do site vira configuração avançada (recolhida), e o indicador de saúde continua visível.
-- **Marca Smart Solutions.** A empresa fictícia da equipe é **Smart Solutions**; o nome "Vinheria Agnello" sai do projeto. No LCD, o boot mostra "Smart Solutions" centralizado (linha 2 vazia) e em seguida uma **animação de um cacho de uva sendo espremido e enchendo uma taça**. A animação é **só no LCD**; no site, apenas o nome "Smart Solutions" no cabeçalho e no `<title>`.
+- **Marca Smart Solutions.** A empresa fictícia da equipe é **Smart Solutions**; o nome "Vinheria Agnello" sai do projeto. No display (LCD até a Task 1B, OLED desde a Task 1C), o boot mostra "Smart Solutions" centralizado (linha 2 vazia) e em seguida uma **animação de um cacho de uva sendo espremido e enchendo uma taça**. A animação é **só no display do ESP32**; no site, apenas o nome "Smart Solutions" no cabeçalho e no `<title>`.
 
 **Revisão 3 (05/10/2026, durante a Task 0) — também não reabrir:**
 - **Faixa ideal = limites dos triggers.** Um único min/max por atributo por vinheria, definido pelo usuário no painel. Ele dispara os alertas e define o score 100 (penalidade proporcional fora da faixa). A faixa 12–18 °C / 50–70 % / luz 0–30 % vira só o default de vinheria recém-cadastrada.
 - **A faixa é propagada.** Ao salvar (`PUT /api/devices/{id}/triggers`): grava no SQLite, publica `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max` como atributos da entidade no Orion e envia ao ESP32 o novo comando **`set_limits`** com valor `"tmin,tmax,hmin,hmax,lmin,lmax"` (separador `,`: o `;` é barrado pelo Orion e o `|` colide com o UltraLight). Também enviar no cadastro, com o default.
-- **No ESP32 a faixa é só informativa.** Guarda a última recebida e mostra no carrossel do LCD. "Backend decide, ESP32 obedece" continua valendo.
+- **No ESP32 a faixa é só informativa.** Guarda a última recebida e mostra no carrossel do OLED. "Backend decide, ESP32 obedece" continua valendo.
 - **Remoção apaga no FIWARE.** `DELETE /api/devices/{id}` remove o device no IoT Agent, a entidade e as subscriptions dela no Orion, e o cadastro local. O histórico no STH-Comet é mantido.
 - **Impacto nas tasks:** Task 2 (`FiwareClient` ganha `delete_device`, `delete_entity`, `delete_subscriptions(entity_id)` e `update_attrs(entity_id, attrs)`); Task 3 (`quality_score(reading, limits)`, provisionamento declara `set_limits`, remoção completa); Task 4 (PUT de triggers propaga a faixa; confirmar na EC2 se os atributos `*_min/*_max` vão por `PATCH` direto no Orion ou provisionados no device); nova **Task 4B** de firmware (comando `set_limits` com parse e ack, tela do carrossel com a faixa), depois da Task 4.
 
@@ -46,7 +46,7 @@ FIWARE e Postman já configurados pelo usuário (stack `fabiocabrini/fiware`). E
 
 ```
 [1] Camada de Dispositivo (Edge)
-    ESP32 + DHT-11 (DHT-22 no Wokwi) + LDR + Buzzer + LED azul
+    ESP32 + DHT-11 (DHT-22 no Wokwi) + LDR + Buzzer + LED RGB de status + OLED 128x64
     Firmware .ino — leitura de sensores, publish UltraLight 2.0, execução de comandos de alerta
 
 [2] Camada de Comunicação
@@ -86,8 +86,9 @@ projetovinheria/
 │   └── manual-software.md          # instalação FIWARE/EC2, provisionamento, execução
 ├── firmware/
 │   ├── vinheria_full.ino           # sketch principal
-│   ├── boot_animacao.h             # marca Smart Solutions: uva espremida enchendo a taça (LCD)
-│   ├── diagram.json                # Wokwi (DHT-22 + LDR + buzzer + LED)
+│   ├── boot_animacao.h             # marca Smart Solutions: uva espremida enchendo a taça (OLED, em pixels)
+│   ├── diagram.json                # Wokwi (DHT-22 + LDR + buzzer + LED RGB + OLED)
+│   ├── led_rgb.h                   # LED RGB de status: verde ok, vermelho alerta, amarelo conectando/offline
 │   ├── libraries.txt
 │   └── wokwi-project.txt
 ├── postman/
@@ -234,7 +235,7 @@ projetovinheria/
 > Atenção: o `object_id` curto (`t`/`h`/`l`) é o que vai no payload UltraLight; o nome longo (`temperature`/`humidity`/`luminosity`) é o que o Orion e o STH usam. Comando e subscription usam o nome longo.
 
 **Alerta sonoro distinto por anomalia** (buzzer, não bloqueante, via `millis()`):
-| Anomalia | LED azul | Buzzer |
+| Anomalia | LED RGB (vermelho) | Buzzer |
 |---|---|---|
 | Temperatura | pisca 500 ms | 2 bipes curtos (100 ms) a cada 2 s |
 | Umidade | pisca 250 ms | 1 bipe longo (700 ms) a cada 3 s |
@@ -457,6 +458,8 @@ leitura dentro da faixa  -> se estado == ALERTA: envia alert_off (se nenhum outr
 ### Task 1C: Firmware — LED RGB de status e display OLED
 
 > *Planejada em 21/10/2026, a pedido do usuário. Muda só o firmware e o Wokwi; backend, front e contratos MQTT ficam iguais.*
+>
+> **Código FEITO em 22/10/2026 (commits `29fb15e` a `f9231f1`), verificação no Wokwi PENDENTE:** não há compilador nem `arduino-cli` na máquina, então nada foi compilado nem rodado. Os passos 4 e 5 foram feitos juntos num commit (`add7947`), porque separados deixariam o `.ino` sem compilar. A taça enche em 6 passos (um por uva), não em 5 níveis. A animação é guiada por `millis()` (4,7 s), sem `delay()`. README, PRD e `docs/arquitetura.md` ainda citam LED azul/LCD e ficam para a Task 8.
 
 **1. Contexto.** O hardware mudou: o LED azul dá lugar a um LED RGB e o LCD 16x2 I2C dá lugar a um OLED SSD1306 128x64 I2C. Hoje o LED azul só acende em alerta e o LCD mostra o carrossel e a animação de boot feita com caracteres customizados 5x8 do HD44780, que não existem no OLED. Já estão prontos: máquina de alerta com `millis()` (Task 1), faixa `set_limits` e tela "Configure o dispositivo" (Task 4.15), marca e animação de boot (Task 1B). Dependem desta task: o ensaio da demo e os manuais da Task 8 (pinagem e descrição do LED).
 
@@ -516,13 +519,13 @@ Arquivos:
 **4. Ferramentas e requisitos.** Wokwi aberto no navegador (não há `arduino-cli` local; a compilação é a do Wokwi). Bibliotecas novas: Adafruit GFX Library e Adafruit SSD1306 (o Wokwi instala pelo `libraries.txt`). Para os passos de comando: EC2 ligada, containers FIWARE de pé e `vinheria001` provisionada; backend rodando para enviar `set_limits` e `blink_*` (ou Postman direto no IoT Agent).
 
 **5. Passos.**
-- [ ] **Passo 1:** `diagram.json` e `libraries.txt` com LED RGB, 3 resistores e OLED; LCD e LED azul removidos. Verificar: Wokwi abre o diagrama sem erro de peça e mostra as ligações da tabela. Commit.
-- [ ] **Passo 2:** criar `led_rgb.h` (enum, `escolherCor`, `iniciarLedRgb`, `aplicarCor`). Verificar: compila no Wokwi com o `.ino` incluindo o header (ainda sem uso). Commit.
-- [ ] **Passo 3:** no `.ino`, separar `atualizarBuzzer()` / `atualizarLed()` / `intervaloLedDoModo()`, remover `LED_PIN`, ligar no `loop()` e no `setup()`. Verificar no Wokwi: amarelo no boot e antes do `set_limits`, verde após conectar e receber `set_limits`. Commit.
-- [ ] **Passo 4:** trocar LCD por OLED no `.ino` (objeto, `begin`, `logo()` provisório só com o texto, chamada de `animacaoBoot` comentada), portar `telaConfigurar()` e `telaData()`. Verificar: OLED mostra "Smart Solutions", "Conectando..." e data/hora. Commit.
-- [ ] **Passo 5:** portar `telaTemp()`, `telaUmidade()`, `telaLuz()`, `telaStatus()` com `desenharIcone()` e rodapé invertido em alerta; ajustar comentário de `limites.h`. Verificar: carrossel de 5 telas a cada 3 s, sem texto cortado. Commit.
-- [ ] **Passo 6:** reescrever `boot_animacao.h` em pixels e religar `animacaoBoot(oled)` no `logo()`. Verificar: animação completa em ≤ 5 s, taça enche uva a uva (6 passos), carrossel começa logo depois. Commit.
-- [ ] **Passo 7:** atualizar `CLAUDE.md` e as seções deste plano listadas em "Docs". Verificar: `grep -n "LED azul\|LCD" CLAUDE.md PLANO-CP5-VINHERIA.md` só retorna menções históricas (Tasks 1 e 1B). Commit.
+- [x] **Passo 1:** `diagram.json` e `libraries.txt` com LED RGB, 3 resistores e OLED; LCD e LED azul removidos. Verificar: Wokwi abre o diagrama sem erro de peça e mostra as ligações da tabela. Commit.
+- [x] **Passo 2:** criar `led_rgb.h` (enum, `escolherCor`, `iniciarLedRgb`, `aplicarCor`). Verificar: compila no Wokwi com o `.ino` incluindo o header (ainda sem uso). Commit.
+- [x] **Passo 3:** no `.ino`, separar `atualizarBuzzer()` / `atualizarLed()` / `intervaloLedDoModo()`, remover `LED_PIN`, ligar no `loop()` e no `setup()`. Verificar no Wokwi: amarelo no boot e antes do `set_limits`, verde após conectar e receber `set_limits`. Commit.
+- [x] **Passo 4:** trocar LCD por OLED no `.ino` (objeto, `begin`, `logo()` provisório só com o texto, chamada de `animacaoBoot` comentada), portar `telaConfigurar()` e `telaData()`. Verificar: OLED mostra "Smart Solutions", "Conectando..." e data/hora. Commit.
+- [x] **Passo 5:** portar `telaTemp()`, `telaUmidade()`, `telaLuz()`, `telaStatus()` com `desenharIcone()` e rodapé invertido em alerta; ajustar comentário de `limites.h`. Verificar: carrossel de 5 telas a cada 3 s, sem texto cortado. Commit.
+- [x] **Passo 6:** reescrever `boot_animacao.h` em pixels e religar `animacaoBoot(oled)` no `logo()`. Verificar: animação completa em ≤ 5 s, taça enche uva a uva (6 passos), carrossel começa logo depois. Commit.
+- [x] **Passo 7:** atualizar `CLAUDE.md` e as seções deste plano listadas em "Docs". Verificar: `grep -n "LED azul\|LCD" CLAUDE.md PLANO-CP5-VINHERIA.md` só retorna menções históricas (Tasks 1 e 1B). Commit.
 
 **6. Como verificar (fim da task).** No Wokwi com a EC2 ligada:
 1. Ligar: OLED mostra "Smart Solutions", a animação e o carrossel; LED amarelo até conectar ao MQTT e receber `set_limits`, depois verde.
@@ -628,7 +631,7 @@ Arquivos:
 > **Registrada em 07/10/2026, a pedido do usuário. Só depois que a demo central (Tasks 4 a 6) funcionar.** Precisa de planejamento próprio em Opus antes de qualquer código.
 
 **Ideia.** O operador não precisa mais editar o `ID_DEVICE` no firmware.
-1. O ESP32 sem id salvo na flash (`Preferences`) entra em "aguardando cadastro" e mostra no LCD um código curto (ex.: `K7Q2`).
+1. O ESP32 sem id salvo na flash (`Preferences`) entra em "aguardando cadastro" e mostra no OLED um código curto (ex.: `K7Q2`).
 2. O operador cadastra a vinheria no painel informando esse código.
 3. O backend manda o id pelo comando `assign` (valor `"K7Q2;vinheria003"`) de um device fixo `bootstrap`, provisionado no IoT Agent. Todos os ESP32 sem id escutam o tópico dele.
 4. Só o ESP32 com o código certo grava o id, refaz os tópicos e passa a publicar como `vinheria003`.
@@ -643,7 +646,7 @@ Arquivos:
 
 **Files:** criar `docs/manual-hardware.md`, `docs/manual-software.md`, `postman/CP5-Vinheria.postman_collection.json`; modificar `README.md`, `PRD.md`
 
-- [ ] **Passo 1:** `manual-hardware.md` — lista de materiais, tabela de pinagem (DHT-11 GPIO 4, LDR GPIO 34, buzzer GPIO 5, LED azul GPIO 2), esquema de montagem, cuidados (resistor de pull-up do DHT, divisor do LDR) e diferenças DHT-11 vs DHT-22.
+- [ ] **Passo 1:** `manual-hardware.md` — lista de materiais, tabela de pinagem (DHT-11 GPIO 4, LDR GPIO 34, buzzer GPIO 5, LED RGB R/G/B GPIO 25/26/27, OLED SDA/SCL GPIO 21/22), esquema de montagem, cuidados (resistor de pull-up do DHT, divisor do LDR) e diferenças DHT-11 vs DHT-22.
 - [ ] **Passo 2:** `manual-software.md` — subir a EC2, `docker-compose up -d` do `fabiocabrini/fiware`, portas no Security Group (1026, 4041, 8666, 1883), provisionamento via Postman, instalar/rodar backend (`pip install -r requirements.txt`, `.env`, `uvicorn`) e front (`npm install`, `npm run dev`), **alocar e associar o IP elástico à EC2** (e o que fazer se precisar trocá-lo: `.env`, bloco do firmware, variável `{{url}}` do Postman, painel Avançado do site) e troubleshooting. Incluir a seção **"Rodar uma vinheria Wokwi em outro computador"**: abrir o link do Wokwi, editar o bloco `CONFIGURAÇÃO DESTA INSTÂNCIA` (`ID_DEVICE`, `BROKER_MQTT`), Start e cadastrar a vinheria no site (`device_id`, nome, cidade).
 - [ ] **Passo 3:** criar `postman/CP5-Vinheria.postman_collection.json` a partir da collection base do professor: variável `{{url}}` mantida, entidade `urn:ngsi-ld:Vinheria:001`/type `Vinheria` (variáveis para trocar o `00N` e provisionar as outras vinherias), os 4 comandos no provisionamento e na registration, e as 3 subscriptions (temperature, humidity, luminosity) — remover os requests de Lamp que não se aplicam.
 - [ ] **Passo 4:** finalizar `README.md` (arquitetura em camadas, links do Wokwi e do vídeo, prints do dashboard) e revisar o `PRD.md` contra o que foi construído.
@@ -658,7 +661,7 @@ Arquivos:
 2. Backend recém-iniciado, sem digitar IP: `GET /api/config/health` usa o IP elástico do `.env` → três portas OK.
 3. 5 instâncias ligadas (1 física + 4 Wokwi, `vinheria001` a `vinheria005`) e cadastradas; a Visão Geral mostra 5 cards verdes. `GET /api/devices/vinheria001/current` retorna `t`, `h`, `l`.
 4. `GET /api/devices/vinheria001/history?attr=t&lastN=20` retorna série do STH e o gráfico desenha.
-5. Pelo front, baixar o máximo de temperatura **só da vinheria002** → apenas o LED/buzzer dela reage (LED azul a 500 ms + 2 bipes curtos); banner aparece e os outros cards seguem verdes. Subir o limite de novo → para. Repetir para umidade (bipe longo) e luminosidade (3 bipes rápidos).
+5. Pelo front, baixar o máximo de temperatura **só da vinheria002** → apenas o LED/buzzer dela reage (LED vermelho a 500 ms + 2 bipes curtos); banner aparece e os outros cards seguem verdes. Subir o limite de novo → para. Repetir para umidade (bipe longo) e luminosidade (3 bipes rápidos).
 6. Parar um Wokwi → em até ~35 s o card fica cinza "offline", aparece o toast e a timeline registra `offline`. Religar → volta para ok e o alerta fecha.
 7. Timeline de alertas mostra os eventos com início, fim e duração, filtráveis por vinheria.
 8. Chat: "Como está a temperatura da vinheria de São Paulo?" → resposta com média, unidade e tendência, números conferem com o gráfico. "Alguma vinheria com problema?" → cita a vinheria em alerta ou offline.
