@@ -9,10 +9,12 @@
     { "type": "wokwi-dht22", "id": "dht1", "top": -260, "left": -20, "attrs": {} },
     { "type": "wokwi-resistor", "id": "r_dht", "top": -200, "left": 10, "rotate": 90, "attrs": { "value": "4700" } },
     { "type": "wokwi-photoresistor-sensor", "id": "ldr1", "top": -260, "left": 70, "attrs": {} },
-    { "type": "wokwi-led", "id": "led1", "top": -260, "left": 160, "attrs": { "color": "blue" } },
-    { "type": "wokwi-resistor", "id": "r_led", "top": -190, "left": 160, "attrs": { "value": "220" } },
+    { "type": "wokwi-rgb-led", "id": "rgb1", "top": -260, "left": 160, "attrs": { "common": "cathode" } },
+    { "type": "wokwi-resistor", "id": "r_r", "top": -190, "left": 150, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r_g", "top": -190, "left": 170, "rotate": 90, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r_b", "top": -190, "left": 190, "rotate": 90, "attrs": { "value": "220" } },
     { "type": "wokwi-buzzer", "id": "bz1", "top": -260, "left": 250, "attrs": {} },
-    { "type": "wokwi-lcd1602", "id": "lcd1", "top": -260, "left": 360, "attrs": { "pins": "i2c" } }
+    { "type": "board-ssd1306", "id": "oled1", "top": -280, "left": 360, "attrs": { "i2cAddress": "0x3c" } }
   ],
   "connections": [
     [ "esp:TX0", "$serialMonitor:RX", "", [] ],
@@ -31,17 +33,21 @@
     [ "ldr1:VCC", "bb1:tp.10", "red", [ "v0" ] ],
     [ "ldr1:GND", "bb1:tn.10", "black", [ "v0" ] ],
 
-    [ "esp:D2", "r_led:1", "cyan", [ "v0" ] ],
-    [ "r_led:2", "led1:A", "cyan", [ "v0" ] ],
-    [ "led1:C", "bb1:tn.15", "black", [ "v0" ] ],
+    [ "esp:D25", "r_r:1", "red", [ "v0" ] ],
+    [ "r_r:2", "rgb1:R", "red", [ "v0" ] ],
+    [ "esp:D26", "r_g:1", "green", [ "v0" ] ],
+    [ "r_g:2", "rgb1:G", "green", [ "v0" ] ],
+    [ "esp:D27", "r_b:1", "blue", [ "v0" ] ],
+    [ "r_b:2", "rgb1:B", "blue", [ "v0" ] ],
+    [ "rgb1:COM", "bb1:tn.15", "black", [ "v0" ] ],
 
     [ "esp:D5", "bz1:2", "purple", [ "v0" ] ],
     [ "bz1:1", "bb1:tn.20", "black", [ "v0" ] ],
 
-    [ "lcd1:SDA", "esp:D21", "green", [ "v0" ] ],
-    [ "lcd1:SCL", "esp:D22", "yellow", [ "v0" ] ],
-    [ "lcd1:VCC", "bb1:tp.25", "red", [ "v0" ] ],
-    [ "lcd1:GND", "bb1:tn.25", "black", [ "v0" ] ]
+    [ "oled1:SDA", "esp:D21", "green", [ "v0" ] ],
+    [ "oled1:SCL", "esp:D22", "yellow", [ "v0" ] ],
+    [ "oled1:VCC", "bb1:tp.25", "red", [ "v0" ] ],
+    [ "oled1:GND", "bb1:tn.25", "black", [ "v0" ] ]
   ],
   "dependencies": {}
 }

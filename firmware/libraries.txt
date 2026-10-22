@@ -1,4 +1,5 @@
 PubSubClient
 DHT sensor library
 Adafruit Unified Sensor
-LiquidCrystal I2C
+Adafruit GFX Library
+Adafruit SSD1306
