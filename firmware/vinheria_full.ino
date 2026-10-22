@@ -89,6 +89,10 @@ int ultimaLuminosidade = 0;
 // Estado da máquina de alerta: qual anomalia está ativa agora (ou nenhuma).
 enum AlertMode { ALERT_NONE, ALERT_TEMP, ALERT_HUM, ALERT_LUX };
 AlertMode alertMode = ALERT_NONE;
+
+// Ícones desenhados nos títulos das telas. Fica aqui no topo (antes da primeira
+// função) porque o Arduino gera os protótipos das funções antes do resto do código.
+enum Icone { ICONE_TACA, ICONE_GOTA, ICONE_SOL };
 unsigned long alertCycleStart = 0; // referência de tempo do ciclo de buzzer atual
 
 // --- Tópicos UltraLight 2.0 derivados do ID_DEVICE ---
@@ -143,8 +147,6 @@ void centralizar(const String& texto, uint8_t tamanho, int16_t y) {
 String doisDigitos(int valor) {
   return (valor < 10 ? "0" : "") + String(valor);
 }
-
-enum Icone { ICONE_TACA, ICONE_GOTA, ICONE_SOL };
 
 // Desenha um ícone de 10x10 pixels com primitivas do GFX, a partir do canto
 // superior esquerdo (x, y). Substitui os caracteres customizados do LCD.
