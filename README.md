@@ -184,8 +184,8 @@ Documentação interativa (Swagger) em `http://localhost:8000/docs` com o backen
 ![Visão geral da frota](docs/img/visao-geral.png)
 ![Detalhe de uma vinheria: score e gráfico de temperatura](docs/img/detalhe.png)
 ![Detalhe de uma vinheria: gráfico de luminosidade, faixa ideal e alerta manual](docs/img/detalhe-faixa.png)
-![Chatbot com leitura e proposta de alteração de faixa](docs/img/chat.png)
 ![Chatbot, tela inicial com sugestões](docs/img/chat-inicio.png)
+![Chatbot com leitura e proposta de alteração de faixa](docs/img/chat.png)
 
 - **Visão geral:** todas as vinherias com status, valores atuais e score.
 - **Detalhe:** gráficos históricos, faixa ideal, comandos de alerta e linha do tempo de alertas.
