@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://saying-chose-forum-replication.trycloudflare.com/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://router-planning-compared-veteran.trycloudflare.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
