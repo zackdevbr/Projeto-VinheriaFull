@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "1cf4e3c8-8cab-4545-a982-a4f8e722e315",
     "name": "CP5 Smart Solutions - Vinheria",
-    "description": "Collection do CP5 (Smart Solutions). Variaveis: url = IP elastico da EC2; device_id/entity_id = vinheria a operar (troque o 00N para outra vinheria). Ordem para colocar uma vinheria nova no ar: 1) Service group (uma vez), 2) Provisionar device, 3) Subscribe temperature/humidity/luminosity. NAO ha request de registration: o IoT Agent registra os comandos sozinho ao provisionar o device, e uma registration manual duplicada quebra o encaminhamento (404). Todo request ao Orion/IoT Agent/STH leva os headers fiware-service e fiware-servicepath; GET nao leva Content-Type.",
+    "description": "Collection do CP5 (Smart Solutions). Variaveis: url = IP elastico da EC2; device_id/entity_id = vinheria a operar (troque o 00N para outra vinheria). Ordem para colocar uma vinheria nova no ar: 1) Service group (uma vez), 2) Provisionar device, 3) Subscribe temperature/humidity/luminosity. NAO ha request de registration: o IoT Agent registra os comandos sozinho ao provisionar o device, e uma registration manual duplicada quebra o encaminhamento (404). Todo request ao Orion/IoT Agent/STH leva os headers fiware-service e fiware-servicepath; GET nao leva Content-Type. Para provisionar outra vinheria, troque device_id e entity_id (ex.: vinheria002 e urn:ngsi-ld:Vinheria:002) e rode 'Provisionar device' e as tres subscriptions (STH). A registration dos comandos e criada pelo proprio IoT Agent, nunca a mao. O comando set_limits envia a faixa 'tmin,tmax,hmin,hmax,lmin,lmax' (padrao do backend: 12,18,50,70,0,30).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -156,7 +156,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"devices\": [\n    {\n      \"device_id\": \"{{device_id}}\",\n      \"entity_name\": \"{{entity_id}}\",\n      \"entity_type\": \"Vinheria\",\n      \"protocol\": \"PDI-IoTA-UltraLight\",\n      \"transport\": \"MQTT\",\n      \"commands\": [\n        {\n          \"name\": \"blink_temp\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"blink_hum\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"blink_lux\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"alert_off\",\n          \"type\": \"command\"\n        }\n      ],\n      \"attributes\": [\n        {\n          \"object_id\": \"t\",\n          \"name\": \"temperature\",\n          \"type\": \"Float\"\n        },\n        {\n          \"object_id\": \"h\",\n          \"name\": \"humidity\",\n          \"type\": \"Float\"\n        },\n        {\n          \"object_id\": \"l\",\n          \"name\": \"luminosity\",\n          \"type\": \"Integer\"\n        }\n      ]\n    }\n  ]\n}",
+              "raw": "{\n  \"devices\": [\n    {\n      \"device_id\": \"{{device_id}}\",\n      \"entity_name\": \"{{entity_id}}\",\n      \"entity_type\": \"Vinheria\",\n      \"protocol\": \"PDI-IoTA-UltraLight\",\n      \"transport\": \"MQTT\",\n      \"commands\": [\n        {\n          \"name\": \"blink_temp\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"blink_hum\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"blink_lux\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"alert_off\",\n          \"type\": \"command\"\n        },\n        {\n          \"name\": \"set_limits\",\n          \"type\": \"command\"\n        }\n      ],\n      \"attributes\": [\n        {\n          \"object_id\": \"t\",\n          \"name\": \"temperature\",\n          \"type\": \"Float\"\n        },\n        {\n          \"object_id\": \"h\",\n          \"name\": \"humidity\",\n          \"type\": \"Float\"\n        },\n        {\n          \"object_id\": \"l\",\n          \"name\": \"luminosity\",\n          \"type\": \"Integer\"\n        },\n        {\n          \"object_id\": \"c\",\n          \"name\": \"configured\",\n          \"type\": \"Integer\"\n        }\n      ]\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -661,6 +661,49 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"alert_off\": {\n    \"type\": \"command\",\n    \"value\": \"\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Comando set_limits",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "fiware-service",
+                "value": "smart"
+              },
+              {
+                "key": "fiware-servicepath",
+                "value": "/"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url}}:1026/v2/entities/{{entity_id}}/attrs",
+              "protocol": "http",
+              "host": [
+                "{{url}}"
+              ],
+              "port": "1026",
+              "path": [
+                "v2",
+                "entities",
+                "{{entity_id}}",
+                "attrs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"set_limits\": {\n    \"type\": \"command\",\n    \"value\": \"12,18,50,70,0,30\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
