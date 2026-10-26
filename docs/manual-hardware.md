@@ -46,8 +46,7 @@ Ligações, uma por uma (GND de tudo é comum):
 
 Circuito montado no Wokwi:
 
-<!-- Adicionar o print em docs/img/wokwi-circuito.png e descomentar a linha abaixo. -->
-<!-- ![Circuito no Wokwi](img/wokwi-circuito.png) -->
+![Circuito no Wokwi](img/wokwi-circuito.png)
 
 Peças usadas no `firmware/diagram.json`: esp32-devkit-v1, breadboard-half, dht22 com resistor, photoresistor-sensor, rgb-led com três resistores, buzzer e ssd1306.
 
