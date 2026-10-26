@@ -614,6 +614,13 @@ Arquivos:
 - [ ] **Passo 6 (teste):** com 2 ou mais vinherias com dados reais no STH, perguntar as três chips e conferir que os números batem com o gráfico do detalhe; parar um Wokwi e confirmar que o bot cita a vinheria offline.
 - [x] **Passo 7:** commits por subtarefa (`8b8eaf4`..`dd25bc2`), em português, no lugar do commit único.
 
+> **Correção da página do STH-Comet (25/10/2026)** — o ensaio manual da 7A achou um bug que os testes com FIWARE falso não pegavam: o STH-Comet da EC2 recusa páginas acima de **100 pontos** (`maxPageSize`, resposta 400 `hLimit <= lastN <= config.maxPageSize`), e o backend pedia 500. O chat respondia "FIWARE indisponível" para média, mínimo e máximo, e o modo "Por período" do gráfico falhava pelo mesmo motivo. Plano e passos em [`docs/specs/fix-sth-pagina/plan.md`](docs/specs/fix-sth-pagina/plan.md); 10 commits (`61f892d` a `66964bf`); backend com 385 testes.
+>
+> - **Consulta por datas paginada:** conta o total da janela (`count=true`, header `fiware-total-count`) e busca as páginas de 100 em paralelo, até 15 páginas (1.500 pontos); acima disso, amostra espaçada. `last_n` aceita no máximo 100.
+> - **Chat limitado a 2 h** e com cache em memória (`services/history_cache.py`): a primeira pergunta busca as 2 h, as seguintes só os pontos novos. A tool `alertas` continua com 24 h, porque lê do SQLite.
+> - **Descartado:** a agregação nativa do STH (`aggrMethod`) devolveu somas inteiras e mínimos que não batem com os valores brutos.
+> - **Verificado:** testes automatizados e, na EC2 real, o teto de 100, o header de contagem e a ordem das páginas por `hOffset`. **Não verificado:** consulta acima de 100 pontos reais (os Wokwi estavam parados, o STH tinha 53 pontos) e a pergunta do cenário 1 no chat. O ensaio da 7A continua pendente.
+
 ### Task 7B: Relatórios CSV/PDF
 
 > **Primeiro corte se o prazo apertar.** Fazer depois da Task 7A.
