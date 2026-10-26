@@ -39,7 +39,7 @@ Os objetivos seguem os critérios de avaliação do CP5. Cada critério tem um a
 
 ### Dentro do escopo
 
-- Firmware ESP32 com DHT-11 (DHT-22 no Wokwi), LDR, buzzer, LED azul e LCD 16x2 I2C.
+- Firmware ESP32 com DHT-11 (DHT-22 no Wokwi), LDR, buzzer, LED RGB de status e display OLED SSD1306 128x64 I2C.
 - Publicação de telemetria em UltraLight 2.0 via MQTT e recepção de comandos de alerta.
 - FIWARE em AWS EC2 com IP elástico: Mosquitto, IoT Agent MQTT, Orion, STH-Comet e MongoDB.
 - Backend FastAPI com cadastro e provisionamento de dispositivos, leitura de estado e histórico, motor de triggers, detecção de offline, log de alertas, score de qualidade, chatbot e relatórios.
@@ -76,9 +76,9 @@ Os objetivos seguem os critérios de avaliação do CP5. Cada critério tem um a
 | RF14 | O painel exibe um aviso global (faixa fixa e toasts) sempre que uma vinheria entra em alerta, fica offline ou volta ao normal, com link para o detalhe dela. |
 | RF15 | O chatbot responde em português sobre qualquer vinheria, identificada por id, nome ou cidade em texto livre ("como está a temperatura da vinheria de São Paulo?"), usando os dados reais do STH-Comet, e pede esclarecimento quando a referência é ambígua. |
 | RF16 | O chatbot avisa por conta própria quando há vinherias em alerta ou offline, e compara vinherias entre si ("qual está mais quente?"). |
-| RF17 | O usuário exporta um relatório CSV ou PDF por vinheria, com dados, estatísticas, gráfico e alertas do período. |
-| RF18 | O LCD do ESP32 mostra a marca Smart Solutions com animação no boot e, em seguida, um carrossel com data/hora, temperatura, umidade e luminosidade. |
-| RF19 | O ESP32 guarda a última faixa ideal recebida por `set_limits` e a exibe no carrossel do LCD. A faixa é só informativa no dispositivo: quem decide o alerta continua sendo o backend. |
+| RF17 | O usuário exporta um relatório CSV ou PDF por vinheria, com dados, estatísticas, gráfico e alertas do período. **Não entregue:** a Task 7B (relatórios) ficou fora do prazo; o restante do sistema cobre os demais requisitos. |
+| RF18 | O OLED do ESP32 mostra a marca Smart Solutions com animação no boot e, em seguida, um carrossel com data/hora, temperatura, umidade e luminosidade. **Entregue com variação:** o carrossel tem cabeçalho com data e hora em todas as telas, e durante um alerta o carrossel pausa e mostra uma tela fixa com o problema (até três ao mesmo tempo). |
+| RF19 | O ESP32 guarda a última faixa ideal recebida por `set_limits` e a exibe no carrossel do OLED. A faixa é só informativa no dispositivo: quem decide o alerta continua sendo o backend. |
 
 ## 6. Requisitos não funcionais
 
@@ -97,7 +97,7 @@ Os objetivos seguem os critérios de avaliação do CP5. Cada critério tem um a
 
 ## 7. Stack
 
-- **Firmware:** C++ (`.ino`) no ESP32, `PubSubClient`, `DHT sensor library`, `Adafruit Unified Sensor`, `LiquidCrystal I2C`. Simulação no Wokwi.
+- **Firmware:** C++ (`.ino`) no ESP32, `PubSubClient`, `DHT sensor library`, `Adafruit Unified Sensor`, `Adafruit GFX Library`, `Adafruit SSD1306`. Simulação no Wokwi.
 - **Middleware:** stack `fabiocabrini/fiware` em Docker na AWS EC2.
 - **Backend:** Python 3.11+, FastAPI, Uvicorn, httpx, Pydantic, SQLite, pandas, matplotlib, reportlab, `google-genai`.
 - **Front-end:** React com JavaScript puro, Vite, Chart.js (`react-chartjs-2`), `react-router-dom`.
@@ -107,7 +107,7 @@ Os objetivos seguem os critérios de avaliação do CP5. Cada critério tem um a
 
 ```
 [1] Camada de Dispositivo (Edge)
-    ESP32 + DHT-11 (DHT-22 no Wokwi) + LDR + Buzzer + LED azul
+    ESP32 + DHT-11 (DHT-22 no Wokwi) + LDR + Buzzer + LED RGB + OLED SSD1306
     Firmware .ino — leitura de sensores, publish UltraLight 2.0, execução de comandos de alerta
 
 [2] Camada de Comunicação
@@ -173,11 +173,11 @@ PATCH http://<EC2>:1026/v2/entities/urn:ngsi-ld:Vinheria:001/attrs
 
 **Padrões de alerta no ESP32**
 
-| Anomalia | Comando | LED azul | Buzzer |
+| Anomalia | Comando | LED RGB | Buzzer |
 |---|---|---|---|
-| Temperatura | `blink_temp` | pisca a cada 500 ms | 2 bipes curtos (100 ms) a cada 2 s |
-| Umidade | `blink_hum` | pisca a cada 250 ms | 1 bipe longo (700 ms) a cada 3 s |
-| Luminosidade | `blink_lux` | pisca a cada 125 ms | 3 bipes rápidos (60 ms) a cada 2 s |
+| Temperatura | `blink_temp` | vermelho piscando a cada 500 ms | 2 bipes curtos (100 ms) a cada 2 s |
+| Umidade | `blink_hum` | vermelho piscando a cada 250 ms | 1 bipe longo (700 ms) a cada 3 s |
+| Luminosidade | `blink_lux` | vermelho piscando a cada 125 ms | 3 bipes rápidos (60 ms) a cada 2 s |
 | — | `alert_off` | apagado | silêncio |
 
 A sequência completa de provisionamento (service group, device, subscriptions) e as armadilhas encontradas em teste estão na seção "Contratos-chave" do plano.
