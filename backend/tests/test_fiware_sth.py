@@ -80,3 +80,23 @@ async def test_query_history_por_datas_com_h_offset(fiware):
     await fiware.query_history("Vinheria", E1, "temperature",
                                date_from="2026-10-05T00:00:00", h_offset=200)
     assert rota.calls.last.request.url.params["hOffset"] == "200"
+
+
+@respx.mock
+async def test_count_history_le_o_header_de_total(fiware):
+    rota = respx.get(URL).mock(return_value=httpx.Response(
+        200, json=_resposta_sth(VALORES[:1]), headers={"fiware-total-count": "253"}))
+    total = await fiware.count_history("Vinheria", E1, "temperature",
+                                       date_from="2026-10-05T00:00:00")
+    assert total == 253
+    params = rota.calls.last.request.url.params
+    assert params["count"] == "true"
+    assert params["hLimit"] == "1"
+    assert params["dateFrom"] == "2026-10-05T00:00:00"
+
+
+@respx.mock
+async def test_count_history_sem_header_devolve_zero(fiware):
+    respx.get(URL).mock(return_value=httpx.Response(200, json=_resposta_sth([])))
+    assert await fiware.count_history("Vinheria", E1, "temperature",
+                                      date_from="2026-10-05T00:00:00") == 0

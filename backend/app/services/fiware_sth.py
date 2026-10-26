@@ -44,3 +44,20 @@ class SthOperations(FiwareBase):
             return resposta.json()["contextResponses"][0]["contextElement"]["attributes"][0]["values"]
         except (KeyError, IndexError, TypeError):
             return []
+
+    async def count_history(self, entity_type: str, entity_id: str, attr: str,
+                            date_from: str | None = None,
+                            date_to: str | None = None) -> int:
+        """Total de pontos do atributo na janela, pelo header fiware-total-count.
+
+        Pede uma página de 1 ponto com count=true; sem o header, devolve 0.
+        """
+        params = {"hLimit": 1, "hOffset": 0, "count": "true"}
+        if date_from is not None:
+            params["dateFrom"] = date_from
+        if date_to is not None:
+            params["dateTo"] = date_to
+        caminho = (f"/STH/v1/contextEntities/type/{entity_type}"
+                   f"/id/{entity_id}/attributes/{attr}")
+        resposta = await self._request("sth", "GET", self.sth_url(caminho), params=params)
+        return int(resposta.headers.get("fiware-total-count", 0))
