@@ -175,19 +175,36 @@ void desenharIcone(Icone tipo, int16_t x, int16_t y) {
   }
 }
 
-// Faixa de título no alto da tela: texto à esquerda, ícone opcional à direita
-// e uma linha horizontal embaixo.
-void desenharTitulo(const String& texto, bool comIcone, Icone icone) {
+// Mini cabeçalho de todas as telas: data à esquerda, hora (HH:MM) à direita e
+// uma linha embaixo. Enquanto o NTP não sincronizou, mostra traços no lugar.
+// getLocalTime com timeout 0 não bloqueia o loop esperando a sincronização.
+void desenharCabecalho() {
+  struct tm dt;
+  String data = "--/--/----";
+  String hora = "--:--";
+  if (getLocalTime(&dt, 0)) {
+    data = doisDigitos(dt.tm_mday) + "/" + doisDigitos(dt.tm_mon + 1) + "/" + String(dt.tm_year + 1900);
+    hora = doisDigitos(dt.tm_hour) + ":" + doisDigitos(dt.tm_min);
+  }
   oled.setTextSize(1);
   oled.setCursor(0, 2);
-  oled.print(texto);
-  if (comIcone) desenharIcone(icone, LARGURA_OLED - 10, 1);
+  oled.print(data);
+  oled.setCursor(LARGURA_OLED - 6 * hora.length(), 2); // fonte padrão: 6 px por caractere
+  oled.print(hora);
   oled.drawFastHLine(0, 12, LARGURA_OLED, SSD1306_WHITE);
 }
 
-// Valor principal em tamanho 3, centralizado (3 linhas de 24 px no meio da tela).
+// Título do atributo logo abaixo do cabeçalho: texto à esquerda e ícone opcional à direita.
+void desenharTitulo(const String& texto, bool comIcone, Icone icone) {
+  oled.setTextSize(1);
+  oled.setCursor(0, 16);
+  oled.print(texto);
+  if (comIcone) desenharIcone(icone, LARGURA_OLED - 10, 15);
+}
+
+// Valor principal em tamanho 3, centralizado (3 linhas de 24 px, entre o título e o rodapé).
 void desenharValor(const String& texto) {
-  centralizar(texto, 3, 22);
+  centralizar(texto, 3, 27);
 }
 
 // Rodapé da tela de um atributo. Em alerta, um retângulo branco cheio com o
@@ -228,25 +245,10 @@ void faixaLuz() {
   oled.print(" %");
 }
 
-// Tela 0: data (no título) e hora obtidas por NTP. Se ainda não sincronizou, avisa.
-void telaData() {
-  struct tm dt;
-  if (!getLocalTime(&dt)) {
-    desenharTitulo("Relogio", false, ICONE_TACA);
-    centralizar("Sincronizando", 1, 28);
-    centralizar("relogio (NTP)...", 1, 40);
-    return;
-  }
-
-  desenharTitulo(doisDigitos(dt.tm_mday) + "/" + doisDigitos(dt.tm_mon + 1) + "/" + String(dt.tm_year + 1900),
-                 false, ICONE_TACA);
-  centralizar(doisDigitos(dt.tm_hour) + ":" + doisDigitos(dt.tm_min) + ":" + doisDigitos(dt.tm_sec), 2, 28);
-}
-
-// Tela 1: temperatura atual. O rodapé mostra a faixa configurada (set_limits)
+// Tela de temperatura atual. O rodapé mostra a faixa configurada (set_limits)
 // quando normal, ou aviso de fora da faixa quando o backend mandou alerta.
 void telaTemp() {
-  desenharTitulo("Temperatura", false, ICONE_TACA);
+  desenharTitulo("Temperatura", true, ICONE_TACA);
   // O símbolo de grau não existe no GFX padrão: é um círculo entre o valor e o "C".
   String valor = String(ultimaTemperatura, 1);
   int16_t x1, y1;
@@ -254,11 +256,11 @@ void telaTemp() {
   oled.setTextSize(3);
   oled.getTextBounds(valor, 0, 0, &x1, &y1, &wValor, &h);
   int16_t xInicial = (LARGURA_OLED - (wValor + 8 + 12)) / 2; // valor + grau + "C" em tamanho 2
-  oled.setCursor(xInicial, 22);
+  oled.setCursor(xInicial, 27);
   oled.print(valor);
-  oled.drawCircle(xInicial + wValor + 4, 24, 2, SSD1306_WHITE);
+  oled.drawCircle(xInicial + wValor + 4, 29, 2, SSD1306_WHITE);
   oled.setTextSize(2);
-  oled.setCursor(xInicial + wValor + 8, 22);
+  oled.setCursor(xInicial + wValor + 8, 27);
   oled.print("C");
   desenharRodape(alertTemp, faixaTemp);
 }
@@ -270,25 +272,49 @@ void telaUmidade() {
   desenharRodape(alertHum, faixaUmidade);
 }
 
-// Tela 3: luminosidade atual, com o ícone de sol.
+// Tela de luminosidade atual, com o ícone de sol.
 void telaLuz() {
   desenharTitulo("Luminosidade", true, ICONE_SOL);
   desenharValor(String(ultimaLuminosidade) + "%");
   desenharRodape(alertLux, faixaLuz);
 }
 
-// Tela 4: status geral da adega, com o ícone de taça.
-// "Sem conexao" tem prioridade: se a EC2 caiu, é isso que importa mostrar.
-void telaStatus() {
-  desenharTitulo("Status Adega", true, ICONE_TACA);
-  if (!MQTT.connected()) {
-    centralizar("SEM", 2, 22);
-    centralizar("CONEXAO", 2, 40);
-  } else if (alertTemp || alertHum || alertLux) {
-    centralizar("ATENCAO", 2, 28);
-  } else {
-    centralizar("PREMIUM", 2, 28);
+// Uma linha da tela de alerta: "Temp 21.4C alta". O sentido sai da comparação
+// da leitura com a faixa; "fora" cobre o instante em que o backend já mandou o
+// alerta mas a leitura local voltou para dentro da faixa.
+String linhaAlerta(const char* nome, float valor, int casas, const char* unidade, float minimo, float maximo) {
+  const char* sentido = valor < minimo ? "baixa" : (valor > maximo ? "alta" : "fora");
+  return String(nome) + " " + String(valor, casas) + unidade + " " + sentido;
+}
+
+// Tela de alerta: faixa branca "ALERTA" e uma linha por atributo em alerta
+// (até 3). Enquanto houver alerta ativa fica fixa, no lugar do carrossel.
+void telaAlerta() {
+  oled.fillRect(0, 14, LARGURA_OLED, 12, SSD1306_WHITE);
+  oled.setTextColor(SSD1306_BLACK);
+  centralizar("ALERTA", 1, 16);
+  oled.setTextColor(SSD1306_WHITE);
+
+  int16_t y = 30;
+  oled.setTextSize(1);
+  if (alertTemp) {
+    oled.setCursor(0, y);
+    oled.print(linhaAlerta("Temp", ultimaTemperatura, 1, "C", faixa.tempMin, faixa.tempMax));
+    y += 11;
   }
+  if (alertHum) {
+    oled.setCursor(0, y);
+    oled.print(linhaAlerta("Umid", ultimaUmidade, 0, "%", faixa.humMin, faixa.humMax));
+    y += 11;
+  }
+  if (alertLux) {
+    oled.setCursor(0, y);
+    oled.print(linhaAlerta("Luz", ultimaLuminosidade, 0, "%", faixa.luxMin, faixa.luxMax));
+  }
+}
+
+bool emAlertaOled() {
+  return alertTemp || alertHum || alertLux;
 }
 
 // Limpa o OLED e mostra até duas linhas de texto centralizadas (tamanho 1).
@@ -318,12 +344,16 @@ void telaConfigurar() {
   pontosCarregando = (pontosCarregando + 1) % 4;
 }
 
-// Despacha a tela atual (0-4). O buffer do OLED é limpo antes de desenhar
-// para não sobrepor o conteúdo da tela anterior.
+// Despacha a tela atual do carrossel (0-2). O buffer do OLED é limpo antes de
+// desenhar para não sobrepor o conteúdo da tela anterior. Com alerta ativo, o
+// carrossel pausa e a tela de alerta é redesenhada a cada T_ALERTA, para o
+// cabeçalho e os valores continuarem atualizados.
+const int TOTAL_TELAS = 3;
 int telaAtual = 0;
 
 // Intervalo de troca das telas do OLED e ritmo dos pontos da tela de espera.
 const unsigned long T_TELA = 3000;
+const unsigned long T_ALERTA = 1000;
 const unsigned long T_CARREGANDO = 500;
 unsigned long ultimaTela = 0;
 
@@ -331,15 +361,18 @@ void telaOLED() {
   if (!oledOk) return;
   oled.clearDisplay();
   oled.setTextColor(SSD1306_WHITE);
-  switch (telaAtual) {
-    case 0: telaData(); break;
-    case 1: telaTemp(); break;
-    case 2: telaUmidade(); break;
-    case 3: telaLuz(); break;
-    case 4: telaStatus(); break;
+  desenharCabecalho();
+  if (emAlertaOled()) {
+    telaAlerta();
+  } else {
+    switch (telaAtual) {
+      case 0: telaTemp(); break;
+      case 1: telaUmidade(); break;
+      case 2: telaLuz(); break;
+    }
+    telaAtual = (telaAtual + 1) % TOTAL_TELAS;
   }
   oled.display();
-  telaAtual = (telaAtual + 1) % 5;
 }
 
 // Troca o modo de alerta e reinicia o ciclo do buzzer (evita salto de fase).
@@ -632,7 +665,7 @@ void loop() {
       ultimaTela = agora;
       telaConfigurar();
     }
-  } else if (agora - ultimaTela >= T_TELA) {
+  } else if (agora - ultimaTela >= (emAlertaOled() ? T_ALERTA : T_TELA)) {
     ultimaTela = agora;
     telaOLED();
   }
