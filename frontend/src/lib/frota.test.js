@@ -47,6 +47,13 @@ describe('vistoHa', () => {
     expect(vistoHa(60)).toBe('há 1 min');
     expect(vistoHa(3599)).toBe('há 59 min');
     expect(vistoHa(7200)).toBe('há 2 h');
+    expect(vistoHa(86399)).toBe('há 23 h');
+    expect(vistoHa(86400)).toBe('há 1 dia');
+    expect(vistoHa(86400 * 29)).toBe('há 29 dias');
+    expect(vistoHa(86400 * 30)).toBe('há 1 mês');
+    expect(vistoHa(86400 * 65)).toBe('há 2 meses');
+    expect(vistoHa(86400 * 360)).toBe('há 1 ano');
+    expect(vistoHa(86400 * 800)).toBe('há 2 anos');
   });
 });
 

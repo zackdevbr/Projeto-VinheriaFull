@@ -44,7 +44,20 @@ export function vistoHa(segundos) {
   if (segundos < 3600) {
     return `há ${Math.floor(segundos / 60)} min`;
   }
-  return `há ${Math.floor(segundos / 3600)} h`;
+  if (segundos < 86400) {
+    return `há ${Math.floor(segundos / 3600)} h`;
+  }
+  // A partir de 24 h conta em dias; 30 dias fecham 1 mês e 12 meses (360 dias) 1 ano
+  const dias = Math.floor(segundos / 86400);
+  if (dias < 30) {
+    return `há ${dias} ${dias === 1 ? 'dia' : 'dias'}`;
+  }
+  const meses = Math.floor(dias / 30);
+  if (meses < 12) {
+    return `há ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+  }
+  const anos = Math.floor(meses / 12);
+  return `há ${anos} ${anos === 1 ? 'ano' : 'anos'}`;
 }
 
 /** Rodapé de uma vinheria: "EC2 fora" quando a queda é da EC2; senão o vistoHa. */
