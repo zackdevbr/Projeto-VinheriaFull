@@ -23,5 +23,9 @@ ENTITY_TYPE = "Vinheria"
 ORION_LIST_LIMIT = 1000
 # Nomes longos aceitos em subscriptions e no histórico
 ATRIBUTOS_LONGOS = tuple(longo for _, longo, _ in SENSOR_ATTRS)
-# Página máxima pedida ao STH quando a consulta é por intervalo de datas
-HISTORY_PAGE_LIMIT = 500
+# Página máxima aceita pelo STH-Comet (config.maxPageSize padrão é 100;
+# acima disso ele responde 400)
+HISTORY_PAGE_LIMIT = 100
+# Teto de páginas por consulta por datas (1.500 pontos, cobre 2 h de leituras);
+# acima disso, as páginas são espaçadas ao longo da janela (amostra)
+HISTORY_MAX_PAGES = 15

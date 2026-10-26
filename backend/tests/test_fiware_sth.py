@@ -42,7 +42,7 @@ async def test_query_history_por_datas(fiware):
     params = rota.calls.last.request.url.params
     assert params["dateFrom"] == "2026-10-05T00:00:00"
     assert params["dateTo"] == "2026-10-05T23:59:59"
-    assert params["hLimit"] == "500"
+    assert params["hLimit"] == "100"
     assert params["hOffset"] == "0"
     assert "lastN" not in params
 
