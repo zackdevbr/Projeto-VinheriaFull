@@ -1,12 +1,14 @@
 /**
  * Aviso global (RF14): faixa fixa enquanto houver vinheria em alerta ou
  * offline (ou a EC2 fora do ar) e toasts empilhados, um por evento, com
- * link para o detalhe da vinheria. Os toasts só somem quando fechados.
+ * link para o detalhe da vinheria. Os toasts somem sozinhos após
+ * DURACAO_TOAST_MS ou quando fechados no X.
  * No celular, a faixa abre com um resumo ("2 vinherias precisam de
  * atenção") e os toasts ficam acima da barra de navegação inferior.
  */
 import { TriangleAlert, X } from 'lucide-react';
-import { Fragment } from 'react';
+import { Fragment, useEffect } from 'react';
+import { DURACAO_TOAST_MS } from '../constants.js';
 import { useFleet } from '../context/FleetContext.jsx';
 import { BORDA_TOAST, ICONE_TOAST } from '../estilo.js';
 import { bannerSummary, contarAtencao, textoDoEvento } from '../lib/fleetEvents.js';
@@ -25,6 +27,29 @@ function listaDeLinks(vinherias) {
 /** Frase de resumo do celular. */
 function resumoCurto(total) {
   return total === 1 ? '1 vinheria precisa de atenção' : `${total} vinherias precisam de atenção`;
+}
+
+/** Um toast; cada um tem o próprio timer e se fecha sozinho após DURACAO_TOAST_MS. */
+function ToastItem({ toast, fechar }) {
+  const Icone = ICONE_TOAST[toast.tipo];
+
+  useEffect(() => {
+    const timer = setTimeout(() => fechar(toast.id), DURACAO_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast.id, fechar]);
+
+  return (
+    <div
+      className={`flex animate-entrar items-center gap-3 rounded-lg border border-l-4 border-linha bg-papel py-1 pl-3 text-sm shadow-media ${BORDA_TOAST[toast.tipo]}`}
+    >
+      <Icone size={18} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        {textoDoEvento(toast)}{' '}
+        {toast.device_id && <LinkVinheria deviceId={toast.device_id}>Ver detalhe</LinkVinheria>}
+      </span>
+      <BotaoIcone icone={X} rotulo="Fechar aviso" onClick={() => fechar(toast.id)} />
+    </div>
+  );
 }
 
 export default function AlertBanner() {
@@ -55,22 +80,9 @@ export default function AlertBanner() {
         className="fixed inset-x-4 bottom-20 z-40 flex flex-col gap-2 md:inset-x-auto md:right-6 md:bottom-6 md:w-96"
         aria-live="polite"
       >
-        {toasts.map((toast) => {
-          const Icone = ICONE_TOAST[toast.tipo];
-          return (
-            <div
-              key={toast.id}
-              className={`flex animate-entrar items-center gap-3 rounded-lg border border-l-4 border-linha bg-papel py-1 pl-3 text-sm shadow-media ${BORDA_TOAST[toast.tipo]}`}
-            >
-              <Icone size={18} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1">
-                {textoDoEvento(toast)}{' '}
-                {toast.device_id && <LinkVinheria deviceId={toast.device_id}>Ver detalhe</LinkVinheria>}
-              </span>
-              <BotaoIcone icone={X} rotulo="Fechar aviso" onClick={() => fecharToast(toast.id)} />
-            </div>
-          );
-        })}
+        {toasts.map((toast) => (
+          <ToastItem key={toast.id} toast={toast} fechar={fecharToast} />
+        ))}
       </div>
     </>
   );

@@ -9,6 +9,8 @@ export const HEALTH_POLL_MS = 30000;
 
 // Quantos avisos (toasts) ficam empilhados na tela ao mesmo tempo
 export const LIMITE_TOASTS = 5;
+// Tempo até um aviso sumir sozinho (o usuário ainda pode fechar antes no X)
+export const DURACAO_TOAST_MS = 8000;
 
 // "aguardando" = cadastrada, mas o poller ainda não a incluiu na frota
 export const STATUS_ROTULO = {
