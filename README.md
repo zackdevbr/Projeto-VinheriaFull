@@ -24,7 +24,7 @@ Projeto do **Check Point 5** de Edge Computing & Computer Systems — FIAP, Prof
 
 | Recurso | Link |
 |---|---|
-| Simulação no Wokwi | _a definir_ |
+| Simulação no Wokwi | [wokwi.com/projects/476975851156685825](https://wokwi.com/projects/476975851156685825) |
 | Vídeo de apresentação | _a definir_ |
 | Collection do Postman | [`postman/CP5-Vinheria.postman_collection.json`](postman/CP5-Vinheria.postman_collection.json) |
 | Documento de produto (PRD) | [`PRD.md`](PRD.md) |
