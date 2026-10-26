@@ -1,42 +1,109 @@
-# Smart Solutions — Monitoramento de Vinherias
+<a id="readme-top"></a>
+
+<!-- Cores do painel: bordô #7A1F2B · vinho #3A1A1C · rosé #B5838D · verde ok #4F6B3A · creme #F4E8E0 -->
+
+<div align="center">
+
+  <a href="https://github.com/zackdevbr/Projeto-VinheriaFull">
+    <img src="docs/img/banner.jpg" alt="Adega monitorada pela Smart Solutions" width="100%">
+  </a>
+
+  <br><br>
+
+  <img src="docs/img/logo.png" alt="Logo Smart Solutions" width="96" height="96">
+
+  <h1>Smart Solutions</h1>
+  <h3>Monitoramento inteligente de vinherias</h3>
+
+  <p>
+    Um ESP32 em cada adega, o FIWARE na nuvem e um painel único que mostra, avisa e responde.<br>
+    Temperatura, umidade e luminosidade sob controle, em todas as lojas, o tempo todo.
+  </p>
+
+  <p>
+    <a href="https://smart-solutions-vinheria.vercel.app"><img src="https://img.shields.io/badge/VER_O_PAINEL-7A1F2B?style=for-the-badge&logo=vercel&logoColor=F4E8E0" alt="Ver o painel"></a>
+    <a href="https://wokwi.com/projects/476975851156685825"><img src="https://img.shields.io/badge/SIMULAÇÃO_NO_WOKWI-3A1A1C?style=for-the-badge&logo=arduino&logoColor=F4E8E0" alt="Simulação no Wokwi"></a>
+    <a href="docs/manual-software.md"><img src="https://img.shields.io/badge/MANUAL_DE_SOFTWARE-B5838D?style=for-the-badge&logo=readthedocs&logoColor=3A1A1C" alt="Manual de software"></a>
+  </p>
+
+  <p>
+    <a href="docs/arquitetura.md">Arquitetura</a>
+    &middot;
+    <a href="docs/manual-hardware.md">Manual de hardware</a>
+    &middot;
+    <a href="docs/roteiro-pitch.md">Roteiro do pitch</a>
+    &middot;
+    <a href="https://github.com/zackdevbr/Projeto-VinheriaFull/issues">Reportar problema</a>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/status-concluído-4F6B3A?style=flat-square" alt="Status concluído">
+    <img src="https://img.shields.io/badge/FIAP-CP5_Edge_Computing-7A1F2B?style=flat-square" alt="FIAP CP5">
+    <img src="https://img.shields.io/badge/entrega-26%2F10%2F2026-3A1A1C?style=flat-square" alt="Entrega 26/10/2026">
+  </p>
+
+</div>
+
+<br>
+
+<!-- SUMÁRIO -->
+<details>
+  <summary><strong>Sumário</strong></summary>
+  <ol>
+    <li>
+      <a href="#sobre-o-projeto">Sobre o projeto</a>
+      <ul>
+        <li><a href="#o-problema">O problema</a></li>
+        <li><a href="#a-solução">A solução</a></li>
+        <li><a href="#funcionalidades">Funcionalidades</a></li>
+        <li><a href="#feito-com">Feito com</a></li>
+      </ul>
+    </li>
+    <li><a href="#telas">Telas</a></li>
+    <li><a href="#arquitetura">Arquitetura</a></li>
+    <li>
+      <a href="#detalhes-técnicos">Detalhes técnicos</a>
+      <ul>
+        <li><a href="#hardware">Hardware</a></li>
+        <li><a href="#nomes-no-fiware">Nomes no FIWARE</a></li>
+        <li><a href="#mqtt">MQTT</a></li>
+        <li><a href="#padrões-de-alerta">Padrões de alerta</a></li>
+        <li><a href="#regras-de-alerta">Regras de alerta</a></li>
+        <li><a href="#api-do-backend">API do backend</a></li>
+        <li><a href="#princípios-de-código">Princípios de código</a></li>
+      </ul>
+    </li>
+    <li><a href="#como-rodar">Como rodar</a></li>
+    <li><a href="#estrutura-do-repositório">Estrutura do repositório</a></li>
+    <li><a href="#manuais">Manuais</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#equipe">Equipe</a></li>
+  </ol>
+</details>
+
+---
+
+<!-- SOBRE -->
+## Sobre o projeto
 
 Solução IoT para monitorar o ambiente de uma rede de vinherias. Cada loja tem um ESP32 que mede temperatura, umidade e luminosidade, envia as leituras ao FIWARE na nuvem e avisa no local, com luz e som, quando algo sai da faixa ideal. Um painel web único mostra todas as vinherias, guarda o histórico, permite ajustar a faixa ideal de cada uma e responde perguntas em linguagem natural por meio de um chatbot.
 
-Projeto do **Check Point 5** de Edge Computing & Computer Systems — FIAP, Prof. Dr. Fábio H. Cabrini. Entrega em 26/10/2026.
-
-> **Status:** concluído. Firmware, backend, painel web e chatbot prontos. O andamento de cada etapa está na seção [Roadmap](#roadmap).
-
----
-
-## Equipe — Smart Solutions
-
-| Nome | RM |
-|---|---|
-| Eduarda Soares Moraes | RM569369 |
-| Isac Nilton Fernandes de Oliveira | RM573282 |
-| João Benedito de Oliveira Simplício | RM570206 |
-| Julia Souza Matarazzo | RM571340 |
-| Mariana Malagutti Gomes Peixoto | RM570290 |
-
----
-
-## Links
+Projeto do **Check Point 5** de Edge Computing & Computer Systems, FIAP, Prof. Dr. Fábio H. Cabrini. Entrega em 26/10/2026.
 
 | Recurso | Link |
 |---|---|
+| Painel no ar | [smart-solutions-vinheria.vercel.app](https://smart-solutions-vinheria.vercel.app) (disponível enquanto o backend da equipe estiver ligado) |
 | Simulação no Wokwi | [wokwi.com/projects/476975851156685825](https://wokwi.com/projects/476975851156685825) |
-| Vídeo de apresentação | _a definir_ |
+| Vídeo de apresentação | _em breve_ |
 | Collection do Postman | [`postman/CP5-Vinheria.postman_collection.json`](postman/CP5-Vinheria.postman_collection.json) |
 | Documento de produto (PRD) | [`PRD.md`](PRD.md) |
 | Plano de implementação | [`PLANO-CP5-VINHERIA.md`](PLANO-CP5-VINHERIA.md) |
 
----
-
-## O problema
+### O problema
 
 Vinho é sensível ao ambiente. Temperatura alta acelera o envelhecimento e pode estragar a bebida; umidade baixa resseca a rolha e deixa o oxigênio entrar; luz em excesso degrada os aromas. Em uma rede com lojas em várias cidades, ninguém consegue vigiar cada adega o tempo todo, e um problema costuma ser percebido só quando o estoque já foi afetado.
 
-## A solução
+### A solução
 
 - **No local:** o ESP32 lê os sensores a cada 2 segundos, mostra os valores num display OLED e, quando recebe um alerta, pisca o LED RGB em vermelho e toca no buzzer um padrão de som diferente para cada problema (temperatura, umidade ou luminosidade). Assim, quem está na loja sabe o que aconteceu só pelo som.
 - **Na nuvem:** o FIWARE recebe as leituras por MQTT, mantém o estado atual de cada vinheria e guarda o histórico.
@@ -58,8 +125,75 @@ Vinho é sensível ao ambiente. Temperatura alta acelera o envelhecimento e pode
 - Animação de marca no boot do OLED (cacho de uva rolando para dentro da taça).
 - LED RGB de status: verde (ok), amarelo (conectando ou sem faixa) e vermelho piscando (alerta).
 
+### Feito com
+
+**Firmware e hardware**
+
+[![ESP32](https://img.shields.io/badge/ESP32-7A1F2B?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/)
+[![Arduino](https://img.shields.io/badge/C%2B%2B_Arduino-3A1A1C?style=for-the-badge&logo=arduino&logoColor=white)](https://www.arduino.cc/)
+[![MQTT](https://img.shields.io/badge/MQTT-B5838D?style=for-the-badge&logo=mqtt&logoColor=3A1A1C)](https://mqtt.org/)
+[![Wokwi](https://img.shields.io/badge/Wokwi-4F6B3A?style=for-the-badge&logoColor=white)](https://wokwi.com/)
+
+**Middleware**
+
+[![FIWARE](https://img.shields.io/badge/FIWARE-7A1F2B?style=for-the-badge&logoColor=white)](https://www.fiware.org/)
+[![Docker](https://img.shields.io/badge/Docker-3A1A1C?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![AWS EC2](https://img.shields.io/badge/AWS_EC2-B5838D?style=for-the-badge&logo=amazonec2&logoColor=3A1A1C)](https://aws.amazon.com/ec2/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4F6B3A?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+
+**Backend**
+
+[![Python](https://img.shields.io/badge/Python_3.11+-7A1F2B?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-3A1A1C?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-B5838D?style=for-the-badge&logo=sqlite&logoColor=3A1A1C)](https://www.sqlite.org/)
+[![Pytest](https://img.shields.io/badge/Pytest-4F6B3A?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org/)
+
+**Painel e chatbot**
+
+[![React](https://img.shields.io/badge/React-7A1F2B?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-3A1A1C?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-B5838D?style=for-the-badge&logo=tailwindcss&logoColor=3A1A1C)](https://tailwindcss.com/)
+[![Chart.js](https://img.shields.io/badge/Chart.js-4F6B3A?style=for-the-badge&logo=chartdotjs&logoColor=white)](https://www.chartjs.org/)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-7A1F2B?style=for-the-badge&logo=googlegemini&logoColor=white)](https://ai.google.dev/)
+
+Bibliotecas do firmware: `PubSubClient`, `DHT sensor library`, `Adafruit Unified Sensor`, `Adafruit GFX Library`, `Adafruit SSD1306`. Backend: `httpx`, `Pydantic`, `pandas`, `matplotlib`, `reportlab`, `respx`, `google-genai` (modelo `gemini-3.5-flash-lite`, com function calling). Painel: `react-router-dom`, `react-chartjs-2`. Ferramentas: Postman e Git/GitHub.
+
+<p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
+
 ---
 
+<!-- TELAS -->
+## Telas
+
+<div align="center">
+
+**Visão geral:** todas as vinherias com status, valores atuais e score.
+
+<img src="docs/img/visao-geral.png" alt="Visão geral da frota" width="90%">
+
+<br><br>
+
+**Detalhe:** score de qualidade e gráficos históricos, faixa ideal, alerta manual e linha do tempo de alertas.
+
+<img src="docs/img/detalhe.png" alt="Detalhe de uma vinheria: score e gráfico de temperatura" width="90%">
+<br><br>
+<img src="docs/img/detalhe-faixa.png" alt="Detalhe de uma vinheria: gráfico de luminosidade, faixa ideal e alerta manual" width="90%">
+
+<br><br>
+
+**Chat:** perguntas em linguagem natural sobre cada vinheria, com confirmação antes de alterar a faixa.
+
+<img src="docs/img/chat-inicio.png" alt="Chatbot, tela inicial com sugestões" width="90%">
+<br><br>
+<img src="docs/img/chat.png" alt="Chatbot com leitura e proposta de alteração de faixa" width="90%">
+
+</div>
+
+<p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
+
+---
+
+<!-- ARQUITETURA -->
 ## Arquitetura
 
 A solução é organizada em sete camadas, do sensor à tela:
@@ -81,34 +215,28 @@ As camadas 2 a 5 rodam em Docker numa instância AWS EC2 com IP elástico (stack
 
 Diagramas detalhados em [`docs/arquitetura.md`](docs/arquitetura.md).
 
----
-
-## Stack
-
-| Camada | Tecnologias |
-|---|---|
-| Firmware | C++ (Arduino) no ESP32 · `PubSubClient` · `DHT sensor library` · `Adafruit Unified Sensor` · `Adafruit GFX Library` · `Adafruit SSD1306` · simulação no Wokwi |
-| Middleware | FIWARE em Docker na AWS EC2: Orion Context Broker, IoT Agent MQTT (UltraLight 2.0), STH-Comet, Mosquitto, MongoDB |
-| Backend | Python 3.11+ · FastAPI · Uvicorn · httpx · Pydantic · SQLite · pandas · matplotlib · reportlab · testes com pytest e respx |
-| Front-end | React (JavaScript, sem TypeScript) · Vite · Chart.js via react-chartjs-2 · react-router-dom |
-| Chatbot | Google Gemini (`gemini-3.5-flash-lite`) via `google-genai`, com function calling |
-| Ferramentas | Postman · Git/GitHub |
+<p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
 
 ---
 
+<!-- DETALHES TÉCNICOS -->
 ## Detalhes técnicos
 
 ### Hardware
+
+<div align="center">
+  <img src="docs/img/wokwi-circuito.png" alt="Circuito no Wokwi" width="70%">
+</div>
 
 | Componente | Pino do ESP32 | Função |
 |---|---|---|
 | DHT-11 (DHT-22 no Wokwi) | GPIO 4 | Temperatura e umidade |
 | LDR (divisor de tensão) | GPIO 34 (ADC) | Luminosidade, mapeada de 0 a 100 % |
-| Buzzer | GPIO 5 | Alerta sonoro (tom de 2 kHz) |
+| Buzzer | GPIO 5 | Alerta sonoro (tom de 4 kHz) |
 | LED RGB | R 25 · G 26 · B 27 | Status: verde, amarelo ou vermelho piscando |
 | OLED SSD1306 128x64 I2C | SDA 21 · SCL 22, endereço `0x3C` | Boot animado e carrossel de leituras |
 
-O relógio do OLED vem de NTP (UTC−3). Cada instância do firmware é configurada num único bloco no topo do `.ino` (`CONFIGURAÇÃO DESTA INSTÂNCIA`): ID da vinheria, rede Wi-Fi, endereço do broker e modelo do DHT.
+O relógio do OLED vem de NTP (UTC−3). Cada instância do firmware é configurada num único bloco no topo do `.ino` (`CONFIGURAÇÃO DESTA INSTÂNCIA`): ID da vinheria, rede Wi-Fi, endereço do broker e modelo do DHT. Lista de materiais e montagem em [`docs/manual-hardware.md`](docs/manual-hardware.md).
 
 ### Nomes no FIWARE
 
@@ -177,39 +305,11 @@ Documentação interativa (Swagger) em `http://localhost:8000/docs` com o backen
 - Código comentado em português.
 - Segredos (como a chave do Gemini) só no `.env`, que não é versionado.
 
----
-
-## Telas
-
-![Visão geral da frota](docs/img/visao-geral.png)
-![Detalhe de uma vinheria: score e gráfico de temperatura](docs/img/detalhe.png)
-![Detalhe de uma vinheria: gráfico de luminosidade, faixa ideal e alerta manual](docs/img/detalhe-faixa.png)
-![Chatbot, tela inicial com sugestões](docs/img/chat-inicio.png)
-![Chatbot com leitura e proposta de alteração de faixa](docs/img/chat.png)
-
-- **Visão geral:** todas as vinherias com status, valores atuais e score.
-- **Detalhe:** gráficos históricos, faixa ideal, comandos de alerta e linha do tempo de alertas.
-- **Chat:** perguntas em linguagem natural sobre cada vinheria.
+<p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
 
 ---
 
-## Estrutura do repositório
-
-```
-projetovinheria/
-├── README.md
-├── PRD.md                  documento de produto
-├── PLANO-CP5-VINHERIA.md   plano de implementação
-├── CLAUDE.md               regras de trabalho do repositório
-├── docs/                   arquitetura e manuais
-├── firmware/               sketch do ESP32, animação de boot e projeto Wokwi
-├── postman/                collections do FIWARE
-├── backend/                API FastAPI
-└── frontend/               painel React
-```
-
----
-
+<!-- COMO RODAR -->
 ## Como rodar
 
 O passo a passo completo está em [`docs/manual-software.md`](docs/manual-software.md). Resumo:
@@ -248,8 +348,29 @@ npm run dev                 # http://localhost:5173
 
 **5. Cadastrar a vinheria** pelo painel, na página de dispositivos, com o mesmo ID usado no firmware.
 
+<p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
+
 ---
 
+<!-- ESTRUTURA -->
+## Estrutura do repositório
+
+```
+projetovinheria/
+├── README.md
+├── PRD.md                  documento de produto
+├── PLANO-CP5-VINHERIA.md   plano de implementação
+├── CLAUDE.md               regras de trabalho do repositório
+├── docs/                   arquitetura, manuais e imagens
+├── firmware/               sketch do ESP32, animação de boot e projeto Wokwi
+├── postman/                collections do FIWARE
+├── backend/                API FastAPI
+└── frontend/               painel React
+```
+
+---
+
+<!-- MANUAIS -->
 ## Manuais
 
 | Documento | Conteúdo | Status |
@@ -259,8 +380,11 @@ npm run dev                 # http://localhost:5173
 | [`docs/manual-software.md`](docs/manual-software.md) | EC2 e FIWARE, IP elástico, Postman, backend, front-end, rodar uma vinheria Wokwi em outro computador, troubleshooting | pronto |
 | [`docs/roteiro-pitch.md`](docs/roteiro-pitch.md) | Roteiro de 5 a 7 minutos e checklist de preparação | pronto |
 
+<p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
+
 ---
 
+<!-- ROADMAP -->
 ## Roadmap
 
 - [x] Firmware ESP32: sensores, publicação MQTT, alertas não bloqueantes, várias instâncias
@@ -275,3 +399,24 @@ npm run dev                 # http://localhost:5173
 - [x] Chatbot Gemini multi-vinheria
 - [x] Manuais, collection final do Postman e roteiro do pitch
 - [ ] Vídeo de apresentação
+
+<p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
+
+---
+
+<!-- EQUIPE -->
+## Equipe
+
+**Smart Solutions**, FIAP, Check Point 5 de Edge Computing & Computer Systems, Prof. Dr. Fábio H. Cabrini.
+
+| Nome | RM |
+|---|---|
+| Eduarda Soares Moraes | RM569369 |
+| Isac Nilton Fernandes de Oliveira | RM573282 |
+| João Benedito de Oliveira Simplício | RM570206 |
+| Julia Souza Matarazzo | RM571340 |
+| Mariana Malagutti Gomes Peixoto | RM570290 |
+
+Repositório: [github.com/zackdevbr/Projeto-VinheriaFull](https://github.com/zackdevbr/Projeto-VinheriaFull)
+
+<p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
