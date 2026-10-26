@@ -7,32 +7,9 @@ from app.models.schemas import HistoryPoint
 from app.models.schemas_fleet import ActiveAlert, SensorValues
 from app.services.chat_tools import ChatTools
 from app.services.fiware_errors import FiwareUnavailable
-from tests.fakes import status_vinheria
+from tests.fakes import ReadingsFalso, serie, status_vinheria
 
 pytestmark = pytest.mark.anyio
-
-
-class ReadingsFalso:
-    """Substitui o ReadingsService: devolve séries por (device_id, atributo)."""
-
-    def __init__(self):
-        self.series = {}
-        self.erro = None
-        self.pedidos = []
-
-    async def history(self, device_id, query):
-        self.pedidos.append((device_id, query))
-        if self.erro:
-            raise self.erro
-        return list(self.series.get((device_id, query.attr), []))
-
-
-def serie(relogio, valores, passo_min=1.0):
-    """Pontos do mais velho ao mais novo, o último no instante do relógio."""
-    n = len(valores)
-    return [HistoryPoint(ts=(relogio.agora - timedelta(minutes=passo_min * (n - 1 - i)))
-                         .strftime("%Y-%m-%dT%H:%M:%S.000Z"), value=v)
-            for i, v in enumerate(valores)]
 
 
 @pytest.fixture

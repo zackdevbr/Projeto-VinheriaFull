@@ -1,6 +1,7 @@
 """Peças falsas compartilhadas pelos testes da Task 4 (FIWARE, relógio, frota)."""
 from datetime import datetime, timedelta, timezone
 
+from app.models.schemas import HistoryPoint
 from app.models.schemas_fleet import SensorValues, VinheriaStatus
 
 
@@ -75,3 +76,26 @@ def entidade(numero: str = "001", t: float | None = 15.0, h: float | None = 60.0
         if valor is not None:
             dados[nome] = valor
     return dados
+
+
+class ReadingsFalso:
+    """Substitui o ReadingsService: devolve séries por (device_id, atributo)."""
+
+    def __init__(self):
+        self.series = {}
+        self.erro = None
+        self.pedidos = []
+
+    async def history(self, device_id, query):
+        self.pedidos.append((device_id, query))
+        if self.erro:
+            raise self.erro
+        return list(self.series.get((device_id, query.attr), []))
+
+
+def serie(relogio, valores, passo_min=1.0):
+    """Pontos do mais velho ao mais novo, o último no instante do relógio."""
+    n = len(valores)
+    return [HistoryPoint(ts=(relogio.agora - timedelta(minutes=passo_min * (n - 1 - i)))
+                         .strftime("%Y-%m-%dT%H:%M:%S.000Z"), value=v)
+            for i, v in enumerate(valores)]
