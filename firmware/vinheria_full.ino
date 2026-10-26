@@ -65,6 +65,9 @@ DHT dht(DHTPIN, DHTTYPE);
 
 // --- Buzzer de alerta (o LED RGB de status e seus pinos ficam em led_rgb.h) ---
 #define BUZZER_PIN 5
+// Buzzers passivos piezo têm o pico de volume perto de 4 kHz; a 2 kHz soam fracos.
+// Se ainda ficar baixo, teste 2700 ou 3500 conforme o modelo.
+#define FREQ_BUZZER_HZ 4000
 
 // --- Display OLED SSD1306 128x64 I2C (endereço 0x3C, pinos SDA 21 e SCL 22) ---
 #define LARGURA_OLED 128
@@ -599,7 +602,7 @@ void atualizarBuzzer() {
   }
 
   if (estadoBuzzer(decorrido % duracaoCiclo, padrao, tamanhoPadrao)) {
-    tone(BUZZER_PIN, 2000); // 2kHz fixo; timbre não importa para o alerta
+    tone(BUZZER_PIN, FREQ_BUZZER_HZ);
   } else {
     noTone(BUZZER_PIN);
   }
@@ -636,21 +639,33 @@ void logo() {
   }
 }
 
+// Inicia o OLED SSD1306 128x64 (módulo físico 0,96"). Endereço e pinos são os
+// do teste que funcionou na placa real: 0x3C confirmado por scanner I2C,
+// SDA no GPIO 21 e SCL no GPIO 22.
+#define OLED_SDA 21
+#define OLED_SCL 22
+#define OLED_ENDERECO 0x3C
+
+void iniciarOled() {
+  Wire.begin(OLED_SDA, OLED_SCL);
+  oledOk = oled.begin(SSD1306_SWITCHCAPVCC, OLED_ENDERECO);
+  if (!oledOk) {
+    Serial.println("OLED nao encontrado em 0x3C - confira SDA=21, SCL=22, VCC=3V3, GND - seguindo sem display");
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   montarTopicos();
   iniciarLedRgb();
   aplicarCor(COR_AMARELO); // amarelo até conectar e receber o set_limits
+  iniciarOled(); // antes do Wi-Fi: conectarWiFi() bloqueia e deixaria o display apagado
   conectarWiFi();
   MQTT.setServer(BROKER_MQTT, BROKER_PORT);
   MQTT.setCallback(mqttCallback);
   dht.begin();
   pinMode(BUZZER_PIN, OUTPUT);
 
-  oledOk = oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  if (!oledOk) {
-    Serial.println("OLED nao encontrado no endereco 0x3C - seguindo sem display");
-  }
   logo();
   iniciarRelogio();
 }
