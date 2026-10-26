@@ -216,3 +216,8 @@ async def test_history_por_datas_junta_as_paginas_em_ordem(readings, cadastrar):
     pontos = await readings.history("vinheria001", consulta)
     assert sorted(offsets) == [0, 100, 200]
     assert [p.value for p in pontos] == [float(i) for i in range(250)]
+
+
+def test_history_query_last_n_acima_do_teto_do_sth():
+    with pytest.raises(ValidationError):
+        HistoryQuery(attr="temperature", last_n=101)

@@ -22,7 +22,7 @@ async def read_current(device_id: str,
 @router.get("/{device_id}/history", response_model=list[HistoryPoint])
 async def read_history(device_id: str, query: Annotated[HistoryQuery, Query()],
                        readings: ReadingsService = Depends(get_readings)) -> list[HistoryPoint]:
-    """Histórico de um atributo: last_n (1–500) ou date_from/date_to."""
+    """Histórico de um atributo: last_n (1–100) ou date_from/date_to."""
     return await readings.history(device_id, query)
 
 

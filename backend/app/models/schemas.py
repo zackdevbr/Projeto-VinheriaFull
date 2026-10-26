@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.services.fiware_constants import HISTORY_PAGE_LIMIT
+
 _PORTA = {"ge": 1, "le": 65535}
 _POLL = {"ge": 1, "le": 300}
 _OFFLINE = {"ge": 5, "le": 3600}
@@ -152,7 +154,7 @@ class HistoryPoint(BaseModel):
 class HistoryQuery(BaseModel):
     """Janela de consulta do histórico: OU last_n OU intervalo de datas (ISO 8601)."""
     attr: SensorAttr
-    last_n: int | None = Field(default=None, ge=1, le=500)
+    last_n: int | None = Field(default=None, ge=1, le=HISTORY_PAGE_LIMIT)
     date_from: str | None = None
     date_to: str | None = None
 
