@@ -17,6 +17,20 @@ from app.services.limits import LimitsStore
 from app.services.quality_score import quality_score, unavailable_message
 
 
+def deslocamentos_paginas(total: int, pagina: int, max_paginas: int) -> list[int]:
+    """hOffsets das páginas a buscar para cobrir `total` pontos.
+
+    Até `max_paginas` páginas cobrem tudo (0, pagina, 2*pagina...); acima disso,
+    `max_paginas` páginas espaçadas igualmente do início ao fim da janela.
+    """
+    if total <= 0:
+        return []
+    if total <= pagina * max_paginas:
+        return list(range(0, total, pagina))
+    passo = (total - pagina) / (max_paginas - 1)
+    return [round(i * passo) for i in range(max_paginas)]
+
+
 def to_float(valor) -> float | None:
     """Converte um valor do FIWARE para float; None se ausente ou inválido.
 

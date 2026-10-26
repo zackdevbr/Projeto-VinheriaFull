@@ -5,6 +5,7 @@ import respx
 from pydantic import ValidationError
 
 from app.models.schemas import HistoryQuery
+from app.services.readings import deslocamentos_paginas
 from app.services.registry_errors import DeviceNotFound
 
 pytestmark = pytest.mark.anyio
@@ -178,3 +179,14 @@ def test_reading_from_entity_converte(bruto, esperado):
     assert leitura.configured is esperado
     vazia = reading_from_entity("vinheria001", {})
     assert vazia.temperature is None and vazia.time_instant is None and vazia.configured is None
+
+
+@pytest.mark.parametrize("total,esperado", [
+    (0, []),
+    (53, [0]),
+    (250, [0, 100, 200]),
+    (1500, list(range(0, 1500, 100))),
+    (2900, [round(i * 2800 / 14) for i in range(15)]),
+])
+def test_deslocamentos_paginas(total, esperado):
+    assert deslocamentos_paginas(total, 100, 15) == esperado
