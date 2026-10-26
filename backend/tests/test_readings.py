@@ -190,3 +190,29 @@ def test_reading_from_entity_converte(bruto, esperado):
 ])
 def test_deslocamentos_paginas(total, esperado):
     assert deslocamentos_paginas(total, 100, 15) == esperado
+
+
+@respx.mock
+async def test_history_por_datas_junta_as_paginas_em_ordem(readings, cadastrar):
+    """250 pontos no STH (páginas de 100) viram uma lista só, em ordem cronológica."""
+    cadastrar("001")
+    todos = [{"recvTime": f"2026-10-07T21:{i // 60:02d}:{i % 60:02d}.000Z",
+              "attrValue": str(i)} for i in range(250)]
+    offsets = []
+
+    def sth(request):
+        params = request.url.params
+        if params.get("count") == "true":
+            return httpx.Response(200, json=_resposta_sth(todos[:1]),
+                                  headers={"fiware-total-count": "250"})
+        inicio = int(params["hOffset"])
+        offsets.append(inicio)
+        assert params["hLimit"] == "100"
+        return httpx.Response(200, json=_resposta_sth(todos[inicio:inicio + 100]))
+
+    respx.get(_sth_url()).mock(side_effect=sth)
+    consulta = HistoryQuery(attr="temperature", date_from="2026-10-07T00:00:00",
+                            date_to="2026-10-07T23:59:59")
+    pontos = await readings.history("vinheria001", consulta)
+    assert sorted(offsets) == [0, 100, 200]
+    assert [p.value for p in pontos] == [float(i) for i in range(250)]

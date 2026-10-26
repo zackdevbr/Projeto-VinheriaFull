@@ -6,12 +6,13 @@ ou inválidos) e o histórico vira [{ts, value}]. Vinheria recém-cadastrada
 ainda não tem atributos de sensor no Orion; isso aparece como None, não
 como erro.
 """
+import asyncio
 import math
 
 from app.models.schemas import CurrentReading, HistoryPoint, HistoryQuery, ScoreReport
 from app.services.device_registry import DeviceRegistry
 from app.services.fiware_client import FiwareClient
-from app.services.fiware_constants import ENTITY_TYPE
+from app.services.fiware_constants import ENTITY_TYPE, HISTORY_MAX_PAGES, HISTORY_PAGE_LIMIT
 from app.services.fiware_errors import FiwareNotFound
 from app.services.limits import LimitsStore
 from app.services.quality_score import quality_score, unavailable_message
@@ -91,12 +92,29 @@ class ReadingsService:
         return reading_from_entity(device.device_id, entidade)
 
     async def history(self, device_id: str, query: HistoryQuery) -> list[HistoryPoint]:
-        """Histórico de um atributo, normalizado e sem pontos inválidos."""
+        """Histórico de um atributo, normalizado e sem pontos inválidos.
+
+        Por datas, o STH limita cada página a 100 pontos: conta o total da
+        janela e busca as páginas em paralelo (amostrando se passar do teto).
+        """
         device = self._registry.get(device_id)
-        brutos = await self._fiware.query_history(
-            ENTITY_TYPE, device.entity_id, query.attr,
-            last_n=query.last_n, date_from=query.date_from, date_to=query.date_to,
-        )
+        if query.last_n is not None:
+            brutos = await self._fiware.query_history(
+                ENTITY_TYPE, device.entity_id, query.attr, last_n=query.last_n)
+            return self._normalizar(brutos)
+        janela = {"date_from": query.date_from, "date_to": query.date_to}
+        total = await self._fiware.count_history(
+            ENTITY_TYPE, device.entity_id, query.attr, **janela)
+        offsets = deslocamentos_paginas(total, HISTORY_PAGE_LIMIT, HISTORY_MAX_PAGES)
+        paginas = await asyncio.gather(*[
+            self._fiware.query_history(ENTITY_TYPE, device.entity_id, query.attr,
+                                       h_offset=offset, **janela)
+            for offset in offsets])
+        return self._normalizar([ponto for pagina in paginas for ponto in pagina])
+
+    @staticmethod
+    def _normalizar(brutos: list[dict]) -> list[HistoryPoint]:
+        """Pontos do STH para HistoryPoint, descartando valor ou instante inválido."""
         pontos = []
         for ponto in brutos:
             valor = to_float(ponto.get("attrValue"))
