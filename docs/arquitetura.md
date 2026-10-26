@@ -12,7 +12,7 @@ A solução tem sete camadas. Cada uma conversa só com a vizinha, o que permite
 
 | # | Camada | Onde roda | Componentes |
 |---|---|---|---|
-| 1 | Dispositivo (Edge) | Cada vinheria | ESP32, DHT-11 (DHT-22 no Wokwi), LDR, buzzer, LED azul, LCD 16x2 I2C |
+| 1 | Dispositivo (Edge) | Cada vinheria | ESP32, DHT-11 (DHT-22 no Wokwi), LDR, buzzer, LED RGB de status, display OLED SSD1306 128x64 (I2C) |
 | 2 | Comunicação | AWS EC2 | Wi-Fi + Mosquitto MQTT (1883), payload UltraLight 2.0 |
 | 3 | Middleware IoT | AWS EC2 | IoT Agent MQTT (4041) |
 | 4 | Contexto | AWS EC2 | Orion Context Broker (1026) + MongoDB (27017) |
@@ -129,7 +129,7 @@ sequenceDiagram
     OR->>IA: encaminha o comando (registration)
     IA->>MQ: publish /TEF/vinheria002/cmd<br/>vinheria002@blink_temp|
     MQ->>ESP: entrega o comando
-    ESP->>ESP: LED azul 500 ms + 2 bipes curtos a cada 2 s
+    ESP->>ESP: LED vermelho piscando 500 ms + 2 bipes curtos a cada 2 s
     ESP->>MQ: publish /TEF/vinheria002/cmdexe<br/>vinheria002@blink_temp|ok
     MQ->>IA: entrega o ack
     IA->>OR: blink_temp_status = OK, blink_temp_info = ok
@@ -139,11 +139,11 @@ Só a vinheria endereçada reage: as outras não assinam o tópico `/TEF/vinheri
 
 | Comando | Efeito no ESP32 |
 |---|---|
-| `blink_temp` | LED azul a cada 500 ms + 2 bipes curtos a cada 2 s |
-| `blink_hum` | LED azul a cada 250 ms + 1 bipe longo a cada 3 s |
-| `blink_lux` | LED azul a cada 125 ms + 3 bipes rápidos a cada 2 s |
-| `alert_off` | apaga o LED e silencia o buzzer |
-| `set_limits` | guarda a faixa ideal recebida e a mostra no LCD |
+| `blink_temp` | LED vermelho piscando a cada 500 ms + 2 bipes curtos a cada 2 s |
+| `blink_hum` | LED vermelho piscando a cada 250 ms + 1 bipe longo a cada 3 s |
+| `blink_lux` | LED vermelho piscando a cada 125 ms + 3 bipes rápidos a cada 2 s |
+| `alert_off` | volta o LED ao verde e silencia o buzzer |
+| `set_limits` | guarda a faixa ideal recebida e a mostra no OLED |
 
 ---
 
@@ -187,7 +187,7 @@ sequenceDiagram
     BE->>OR: grava temp_min ... lux_max na entidade
     BE->>OR: PATCH set_limits = "12#59;18#59;50#59;70#59;0#59;30"
     OR-->>ESP: comando via IoT Agent e MQTT (fluxo da seção 3)
-    ESP->>ESP: guarda a faixa e mostra no carrossel do LCD
+    ESP->>ESP: guarda a faixa e mostra no carrossel do OLED
     BE-->>FE: faixa salva
 ```
 
