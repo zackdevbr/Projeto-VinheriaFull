@@ -4,12 +4,6 @@
 
 <div align="center">
 
-  <a href="https://github.com/zackdevbr/Projeto-VinheriaFull">
-    <img src="docs/img/banner.jpg" alt="Adega monitorada pela Smart Solutions" width="100%">
-  </a>
-
-  <br><br>
-
   <img src="docs/img/logo.png" alt="Logo Smart Solutions" width="96" height="96">
 
   <h1>Smart Solutions</h1>
