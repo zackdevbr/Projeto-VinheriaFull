@@ -13,10 +13,13 @@ class SthOperations(FiwareBase):
     async def query_history(self, entity_type: str, entity_id: str, attr: str,
                             last_n: int | None = None,
                             date_from: str | None = None,
-                            date_to: str | None = None) -> list[dict]:
+                            date_to: str | None = None,
+                            h_offset: int = 0) -> list[dict]:
         """Histórico bruto de um atributo no STH-Comet.
 
         Use OU last_n (últimos N pontos) OU date_from/date_to (datas ISO 8601).
+        `h_offset` pula pontos na consulta por datas (paginação); o STH limita
+        cada página a HISTORY_PAGE_LIMIT pontos.
         Devolve a lista `values` do STH ([{recvTime, attrValue, ...}]), ou []
         quando não há dados.
         """
@@ -29,7 +32,7 @@ class SthOperations(FiwareBase):
             params = {"lastN": last_n}
         else:
             # Consulta por datas exige paginação explícita no STH
-            params = {"hLimit": HISTORY_PAGE_LIMIT, "hOffset": 0}
+            params = {"hLimit": HISTORY_PAGE_LIMIT, "hOffset": h_offset}
             if date_from is not None:
                 params["dateFrom"] = date_from
             if date_to is not None:

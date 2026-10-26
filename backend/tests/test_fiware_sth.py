@@ -72,3 +72,11 @@ async def test_query_history_sem_dados_devolve_lista_vazia(fiware):
 async def test_query_history_resposta_sem_entidade_devolve_lista_vazia(fiware):
     respx.get(URL).mock(return_value=httpx.Response(200, json={"contextResponses": []}))
     assert await fiware.query_history("Vinheria", E1, "temperature", last_n=30) == []
+
+
+@respx.mock
+async def test_query_history_por_datas_com_h_offset(fiware):
+    rota = respx.get(URL).mock(return_value=httpx.Response(200, json=_resposta_sth(VALORES)))
+    await fiware.query_history("Vinheria", E1, "temperature",
+                               date_from="2026-10-05T00:00:00", h_offset=200)
+    assert rota.calls.last.request.url.params["hOffset"] == "200"
