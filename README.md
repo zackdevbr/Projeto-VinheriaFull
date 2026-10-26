@@ -4,7 +4,7 @@ Solução IoT para monitorar o ambiente de uma rede de vinherias. Cada loja tem 
 
 Projeto do **Check Point 5** de Edge Computing & Computer Systems — FIAP, Prof. Dr. Fábio H. Cabrini. Entrega em 26/10/2026.
 
-> **Status:** em desenvolvimento. Firmware concluído e validado no Wokwi; backend, painel web e chatbot em construção. O andamento de cada etapa está na seção [Roadmap](#roadmap).
+> **Status:** concluído. Firmware, backend, painel web e chatbot prontos. O andamento de cada etapa está na seção [Roadmap](#roadmap).
 
 ---
 
@@ -38,7 +38,7 @@ Vinho é sensível ao ambiente. Temperatura alta acelera o envelhecimento e pode
 
 ## A solução
 
-- **No local:** o ESP32 lê os sensores a cada 2 segundos, mostra os valores num LCD e, quando recebe um alerta, pisca o LED azul e toca no buzzer um padrão de som diferente para cada problema (temperatura, umidade ou luminosidade). Assim, quem está na loja sabe o que aconteceu só pelo som.
+- **No local:** o ESP32 lê os sensores a cada 2 segundos, mostra os valores num display OLED e, quando recebe um alerta, pisca o LED RGB em vermelho e toca no buzzer um padrão de som diferente para cada problema (temperatura, umidade ou luminosidade). Assim, quem está na loja sabe o que aconteceu só pelo som.
 - **Na nuvem:** o FIWARE recebe as leituras por MQTT, mantém o estado atual de cada vinheria e guarda o histórico.
 - **No painel:** uma visão geral mostra todas as vinherias com status (ok, alerta ou offline). Para cada vinheria há gráficos históricos, score de qualidade do ambiente, ajuste da faixa ideal e linha do tempo de alertas. O backend compara cada leitura com a faixa e dispara o alerta remoto sozinho.
 - **Chatbot:** responde perguntas como "como está a temperatura da vinheria de São Paulo?" ou "qual vinheria está mais úmida agora?" com os dados reais do histórico, e avisa por conta própria quando alguma vinheria está em alerta ou offline.
@@ -48,15 +48,15 @@ Vinho é sensível ao ambiente. Temperatura alta acelera o envelhecimento e pode
 - Cadastro de várias vinherias (ID, nome e cidade), com provisionamento automático no FIWARE e remoção completa.
 - Visão geral da frota com status, valores atuais, score e tempo desde a última leitura.
 - Gráficos históricos dinâmicos por atributo (últimos N pontos ou intervalo de datas).
-- Faixa ideal configurável por vinheria: dispara os alertas, define o score e é enviada ao ESP32, que a mostra no LCD.
+- Faixa ideal configurável por vinheria: dispara os alertas, define o score e é enviada ao ESP32, que a mostra no OLED.
 - Alerta remoto sonoro e visual, com padrão distinto por anomalia, disparado automaticamente ou pelo painel.
 - Detecção de vinheria offline (sem leitura há mais de 30 s, configurável).
 - Aviso global no painel (faixa fixa e notificações) quando uma vinheria entra em alerta, fica offline ou volta ao normal.
 - Histórico de alertas com início, fim e duração.
 - Score de qualidade do ambiente de 0 a 100.
 - Chatbot com Google Gemini que responde por vinheria em linguagem natural.
-- Exportação de relatório CSV e PDF por vinheria.
-- Animação de marca no boot do LCD (cacho de uva rolando para dentro da taça).
+- Animação de marca no boot do OLED (cacho de uva rolando para dentro da taça).
+- LED RGB de status: verde (ok), amarelo (conectando ou sem faixa) e vermelho piscando (alerta).
 
 ---
 
@@ -65,12 +65,12 @@ Vinho é sensível ao ambiente. Temperatura alta acelera o envelhecimento e pode
 A solução é organizada em sete camadas, do sensor à tela:
 
 ```
-[1] Dispositivo (Edge)        ESP32 + DHT-11/22 + LDR + buzzer + LED azul + LCD 16x2
+[1] Dispositivo (Edge)        ESP32 + DHT-11/22 + LDR + buzzer + LED RGB + OLED SSD1306
 [2] Comunicação               Wi-Fi -> Mosquitto MQTT (1883), payload UltraLight 2.0
 [3] Middleware IoT            IoT Agent MQTT (4041): UltraLight <-> NGSI-v2
 [4] Contexto                  Orion Context Broker (1026) + MongoDB (27017)
 [5] Persistência histórica    STH-Comet (8666)
-[6] Aplicação                 Backend FastAPI + SQLite (triggers, alertas, score, chatbot, relatórios)
+[6] Aplicação                 Backend FastAPI + SQLite (triggers, alertas, score, chatbot)
 [7] Apresentação              Painel React + Vite
 ```
 
@@ -87,7 +87,7 @@ Diagramas detalhados em [`docs/arquitetura.md`](docs/arquitetura.md).
 
 | Camada | Tecnologias |
 |---|---|
-| Firmware | C++ (Arduino) no ESP32 · `PubSubClient` · `DHT sensor library` · `Adafruit Unified Sensor` · `LiquidCrystal I2C` · simulação no Wokwi |
+| Firmware | C++ (Arduino) no ESP32 · `PubSubClient` · `DHT sensor library` · `Adafruit Unified Sensor` · `Adafruit GFX Library` · `Adafruit SSD1306` · simulação no Wokwi |
 | Middleware | FIWARE em Docker na AWS EC2: Orion Context Broker, IoT Agent MQTT (UltraLight 2.0), STH-Comet, Mosquitto, MongoDB |
 | Backend | Python 3.11+ · FastAPI · Uvicorn · httpx · Pydantic · SQLite · pandas · matplotlib · reportlab · testes com pytest e respx |
 | Front-end | React (JavaScript, sem TypeScript) · Vite · Chart.js via react-chartjs-2 · react-router-dom |
@@ -104,11 +104,11 @@ Diagramas detalhados em [`docs/arquitetura.md`](docs/arquitetura.md).
 |---|---|---|
 | DHT-11 (DHT-22 no Wokwi) | GPIO 4 | Temperatura e umidade |
 | LDR (divisor de tensão) | GPIO 34 (ADC) | Luminosidade, mapeada de 0 a 100 % |
-| LED azul | GPIO 2 | Alerta visual |
-| Buzzer | GPIO 5 | Alerta sonoro |
-| LCD 16x2 I2C | SDA/SCL, endereço `0x27` | Boot animado e carrossel de leituras |
+| Buzzer | GPIO 5 | Alerta sonoro (tom de 2 kHz) |
+| LED RGB | R 25 · G 26 · B 27 | Status: verde, amarelo ou vermelho piscando |
+| OLED SSD1306 128x64 I2C | SDA 21 · SCL 22, endereço `0x3C` | Boot animado e carrossel de leituras |
 
-O relógio do LCD vem de NTP (UTC−3). Cada instância do firmware é configurada num único bloco no topo do `.ino` (`CONFIGURAÇÃO DESTA INSTÂNCIA`): ID da vinheria, rede Wi-Fi, endereço do broker e modelo do DHT.
+O relógio do OLED vem de NTP (UTC−3). Cada instância do firmware é configurada num único bloco no topo do `.ino` (`CONFIGURAÇÃO DESTA INSTÂNCIA`): ID da vinheria, rede Wi-Fi, endereço do broker e modelo do DHT.
 
 ### Nomes no FIWARE
 
@@ -131,12 +131,12 @@ O relógio do LCD vem de NTP (UTC−3). Cada instância do firmware é configura
 
 ### Padrões de alerta
 
-| Anomalia | Comando | LED azul | Buzzer |
+| Anomalia | Comando | LED RGB | Buzzer |
 |---|---|---|---|
-| Temperatura | `blink_temp` | pisca a cada 500 ms | 2 bipes curtos a cada 2 s |
-| Umidade | `blink_hum` | pisca a cada 250 ms | 1 bipe longo a cada 3 s |
-| Luminosidade | `blink_lux` | pisca a cada 125 ms | 3 bipes rápidos a cada 2 s |
-| — | `alert_off` | apagado | silêncio |
+| Temperatura | `blink_temp` | vermelho piscando a cada 500 ms | 2 bipes curtos a cada 2 s |
+| Umidade | `blink_hum` | vermelho piscando a cada 250 ms | 1 bipe longo a cada 3 s |
+| Luminosidade | `blink_lux` | vermelho piscando a cada 125 ms | 3 bipes rápidos a cada 2 s |
+| — | `alert_off` | volta ao verde | silêncio |
 
 Os padrões rodam numa máquina de estado com `millis()`, sem `delay()`, então o ESP32 continua lendo e publicando enquanto alerta.
 
@@ -158,12 +158,13 @@ GET      /api/config/health           saúde de Orion, IoT Agent e STH-Comet
 GET      /api/fleet                   status de todas as vinherias
 GET/POST /api/devices                 listar / cadastrar vinheria
 DELETE   /api/devices/{id}            remover vinheria (local e FIWARE)
+GET      /api/devices/{id}             detalhe da vinheria
 GET      /api/devices/{id}/current    estado atual
 GET      /api/devices/{id}/history    histórico (lastN ou intervalo de datas)
 GET      /api/devices/{id}/score      score de qualidade
 GET/PUT  /api/devices/{id}/triggers   faixa ideal
 GET      /api/alerts                  histórico de alertas
-GET      /api/report                  relatório CSV ou PDF
+POST     /api/devices/{id}/commands   comando de alerta (blink_*, alert_off)
 POST     /api/chat                    chatbot
 ```
 
@@ -178,6 +179,21 @@ Documentação interativa (Swagger) em `http://localhost:8000/docs` com o backen
 
 ---
 
+## Telas
+
+<!-- Salvar os prints em docs/img/ (visao-geral.png, detalhe.png, chat.png) e descomentar as linhas abaixo. -->
+<!--
+![Visão geral da frota](docs/img/visao-geral.png)
+![Detalhe de uma vinheria com gráficos](docs/img/detalhe.png)
+![Chatbot](docs/img/chat.png)
+-->
+
+- **Visão geral:** todas as vinherias com status, valores atuais e score.
+- **Detalhe:** gráficos históricos, faixa ideal, comandos de alerta e linha do tempo de alertas.
+- **Chat:** perguntas em linguagem natural sobre cada vinheria.
+
+---
+
 ## Estrutura do repositório
 
 ```
@@ -189,15 +205,15 @@ projetovinheria/
 ├── docs/                   arquitetura e manuais
 ├── firmware/               sketch do ESP32, animação de boot e projeto Wokwi
 ├── postman/                collections do FIWARE
-├── backend/                API FastAPI (em construção)
-└── frontend/               painel React (em construção)
+├── backend/                API FastAPI
+└── frontend/               painel React
 ```
 
 ---
 
 ## Como rodar
 
-O passo a passo completo estará em [`docs/manual-software.md`](docs/manual-software.md). Resumo:
+O passo a passo completo está em [`docs/manual-software.md`](docs/manual-software.md). Resumo:
 
 **1. FIWARE na EC2**
 
@@ -240,22 +256,23 @@ npm run dev                 # http://localhost:5173
 | Documento | Conteúdo | Status |
 |---|---|---|
 | [`docs/arquitetura.md`](docs/arquitetura.md) | Diagrama em camadas, fluxos de telemetria e de comando | pronto |
-| [`docs/manual-hardware.md`](docs/manual-hardware.md) | Lista de materiais, pinagem, montagem, DHT-11 vs DHT-22 | a fazer |
-| [`docs/manual-software.md`](docs/manual-software.md) | EC2 e FIWARE, IP elástico, Postman, backend, front-end, rodar uma vinheria Wokwi em outro computador, troubleshooting | a fazer |
+| [`docs/manual-hardware.md`](docs/manual-hardware.md) | Lista de materiais, pinagem, montagem, DHT-11 vs DHT-22 | pronto |
+| [`docs/manual-software.md`](docs/manual-software.md) | EC2 e FIWARE, IP elástico, Postman, backend, front-end, rodar uma vinheria Wokwi em outro computador, troubleshooting | pronto |
+| [`docs/roteiro-pitch.md`](docs/roteiro-pitch.md) | Roteiro de 5 a 7 minutos e checklist de preparação | pronto |
 
 ---
 
 ## Roadmap
 
 - [x] Firmware ESP32: sensores, publicação MQTT, alertas não bloqueantes, várias instâncias
-- [x] Marca Smart Solutions e animação de boot no LCD
+- [x] Marca Smart Solutions e animação de boot no OLED
 - [x] Documentação base: PRD, README e arquitetura
 - [x] Backend: configuração e cliente FIWARE
 - [x] Backend: cadastro de vinherias, histórico e score
-- [ ] Backend: motor de triggers, offline e log de alertas
-- [ ] Firmware: recebimento e exibição da faixa ideal
-- [ ] Painel: base, configuração e cadastro
-- [ ] Painel: visão geral, gráficos, triggers, alertas e score
-- [ ] Chatbot Gemini multi-vinheria
-- [ ] Relatórios CSV e PDF
-- [ ] Manuais, collection final do Postman e vídeo
+- [x] Backend: motor de triggers, offline e log de alertas
+- [x] Firmware: recebimento e exibição da faixa ideal
+- [x] Painel: base, configuração e cadastro
+- [x] Painel: visão geral, gráficos, triggers, alertas e score
+- [x] Chatbot Gemini multi-vinheria
+- [x] Manuais, collection final do Postman e roteiro do pitch
+- [ ] Vídeo de apresentação
