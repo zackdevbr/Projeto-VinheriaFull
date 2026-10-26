@@ -651,6 +651,8 @@ Arquivos:
 
 ### Task 8: Manuais, Postman e fechamento da entrega
 
+> **Planejada em 25/10/2026.** Executar por [`docs/specs/task-8-entrega/plan.md`](docs/specs/task-8-entrega/plan.md) (8 subtarefas, de 8.0 a 8.7, commit por subtarefa; a 8.0 põe o cabeçalho com o grupo e os integrantes em todo arquivo de código). Os passos abaixo são o resumo original; em caso de divergência, o plan.md manda. Achados: a collection do Postman já existe (falta `set_limits` e o atributo `configured`); README, PRD e `arquitetura.md` ainda descrevem LCD e LED azul; o README lista rotas que não batem com o backend.
+
 **Files:** criar `docs/manual-hardware.md`, `docs/manual-software.md`, `postman/CP5-Vinheria.postman_collection.json`; modificar `README.md`, `PRD.md`
 
 - [ ] **Passo 1:** `manual-hardware.md` — lista de materiais, tabela de pinagem (DHT-11 GPIO 4, LDR GPIO 34, buzzer GPIO 5, LED RGB R/G/B GPIO 25/26/27, OLED SDA/SCL GPIO 21/22), esquema de montagem, cuidados (resistor de pull-up do DHT, divisor do LDR) e diferenças DHT-11 vs DHT-22.
