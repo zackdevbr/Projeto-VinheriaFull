@@ -651,7 +651,7 @@ Arquivos:
 
 ### Task 8: Manuais, Postman e fechamento da entrega
 
-> **Executada em 25/10/2026 (8.0 a 8.7.2).** Pendentes, dependem do usuário: 8.0.7 (compilar no Wokwi com os cabeçalhos), prints em `docs/img/` (descomentar as imagens no README e no manual de hardware), link do Wokwi e do vídeo no README (8.7.3 a 8.7.6). A Task 7B (relatórios) não existe no código: menções removidas do README e RF17 anotado como não entregue no PRD. O cabeçalho entrou em 168 arquivos (o plano previa 166).
+> **Executada em 25/10/2026 (8.0 a 8.7.2).** 8.0.7 confirmado pelo usuário (compila no Wokwi com os cabeçalhos). Pendentes, dependem do usuário: prints em `docs/img/` (descomentar as imagens no README e no manual de hardware), link do Wokwi e do vídeo no README (8.7.3 a 8.7.6). A Task 7B (relatórios) não existe no código: menções removidas do README e RF17 anotado como não entregue no PRD. O cabeçalho entrou em 168 arquivos (o plano previa 166).
 
 > **Planejada em 25/10/2026.** Executar por [`docs/specs/task-8-entrega/plan.md`](docs/specs/task-8-entrega/plan.md) (8 subtarefas, de 8.0 a 8.7, commit por subtarefa; a 8.0 põe o cabeçalho com o grupo e os integrantes em todo arquivo de código). Os passos abaixo são o resumo original; em caso de divergência, o plan.md manda. Achados: a collection do Postman já existe (falta `set_limits` e o atributo `configured`); README, PRD e `arquitetura.md` ainda descrevem LCD e LED azul; o README lista rotas que não batem com o backend.
 
