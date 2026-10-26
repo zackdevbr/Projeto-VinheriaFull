@@ -1,3 +1,14 @@
+/*
+ * Smart Solutions — Monitoramento de Vinherias
+ * CP5 · Edge Computing & Computer Systems · FIAP · Prof. Dr. Fábio H. Cabrini
+ * Integrantes:
+ *   Eduarda Soares Moraes — RM569369
+ *   Isac Nilton Fernandes de Oliveira — RM573282
+ *   João Benedito de Oliveira Simplício — RM570206
+ *   Julia Souza Matarazzo — RM571340
+ *   Mariana Malagutti Gomes Peixoto — RM570290
+ */
+
 /**
  * Textos da linha do tempo de alertas (RF10): o que aconteceu, quando e
  * por quanto tempo. A queda da EC2 é registrada com device_id 'fiware'.

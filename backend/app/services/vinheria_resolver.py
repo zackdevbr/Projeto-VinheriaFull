@@ -1,3 +1,12 @@
+# Smart Solutions — Monitoramento de Vinherias
+# CP5 · Edge Computing & Computer Systems · FIAP · Prof. Dr. Fábio H. Cabrini
+# Integrantes:
+#   Eduarda Soares Moraes — RM569369
+#   Isac Nilton Fernandes de Oliveira — RM573282
+#   João Benedito de Oliveira Simplício — RM570206
+#   Julia Souza Matarazzo — RM571340
+#   Mariana Malagutti Gomes Peixoto — RM570290
+
 """
 Resolve uma referência em texto livre ("vinheria de São Paulo", "002") para
 a vinheria cadastrada certa. Usado pelo chatbot (Task 7A).

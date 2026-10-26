@@ -1,3 +1,14 @@
+/*
+ * Smart Solutions — Monitoramento de Vinherias
+ * CP5 · Edge Computing & Computer Systems · FIAP · Prof. Dr. Fábio H. Cabrini
+ * Integrantes:
+ *   Eduarda Soares Moraes — RM569369
+ *   Isac Nilton Fernandes de Oliveira — RM573282
+ *   João Benedito de Oliveira Simplício — RM570206
+ *   Julia Souza Matarazzo — RM571340
+ *   Mariana Malagutti Gomes Peixoto — RM570290
+ */
+
 /** Testes do cliente HTTP do painel (spec R2). O fetch é sempre falso: nada vai à rede. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, api, errorFromResponse, request } from './client.js';

@@ -1,3 +1,14 @@
+/*
+ * Smart Solutions — Monitoramento de Vinherias
+ * CP5 · Edge Computing & Computer Systems · FIAP · Prof. Dr. Fábio H. Cabrini
+ * Integrantes:
+ *   Eduarda Soares Moraes — RM569369
+ *   Isac Nilton Fernandes de Oliveira — RM573282
+ *   João Benedito de Oliveira Simplício — RM570206
+ *   Julia Souza Matarazzo — RM571340
+ *   Mariana Malagutti Gomes Peixoto — RM570290
+ */
+
 /**
  * Histórico de alertas (RF10): linha do tempo geral, filtrável por vinheria
  * ou pela EC2. O filtro mora na URL (?vinheria=), então o link pode ser

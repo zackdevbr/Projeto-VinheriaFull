@@ -70,6 +70,7 @@ Não trocar sem decisão explícita do usuário.
   - UltraLight curto: `t`, `h`, `l` · nomes longos no Orion/STH: `temperature`, `humidity`, `luminosity`
   - comandos: `blink_temp`, `blink_hum`, `blink_lux`, `alert_off`, `set_limits` (valor `"tmin,tmax,hmin,hmax,lmin,lmax"`)
   - faixa ideal no Orion: `temp_min`, `temp_max`, `hum_min`, `hum_max`, `lux_min`, `lux_max`
+- Todo arquivo de código novo começa com o cabeçalho do grupo (Smart Solutions e os cinco integrantes com RM), no formato de `docs/specs/task-8-entrega/plan.md` §3.
 - Sem `delay()` nos padrões de alerta do firmware — máquina de estado com `millis()`.
 - Segredos nunca commitados. `.env` no `.gitignore`; `.env.example` commitado com as chaves vazias.
 

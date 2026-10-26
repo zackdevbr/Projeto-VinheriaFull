@@ -1,3 +1,14 @@
+/*
+ * Smart Solutions — Monitoramento de Vinherias
+ * CP5 · Edge Computing & Computer Systems · FIAP · Prof. Dr. Fábio H. Cabrini
+ * Integrantes:
+ *   Eduarda Soares Moraes — RM569369
+ *   Isac Nilton Fernandes de Oliveira — RM573282
+ *   João Benedito de Oliveira Simplício — RM570206
+ *   Julia Souza Matarazzo — RM571340
+ *   Mariana Malagutti Gomes Peixoto — RM570290
+ */
+
 /**
  * Contexto do chat (Task 7A): a conversa vive aqui, acima das rotas, para a
  * página /chat e o painel flutuante mostrarem a mesma conversa e ela
