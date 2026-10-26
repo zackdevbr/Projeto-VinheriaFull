@@ -11,25 +11,23 @@ import inspect
 import statistics
 from datetime import datetime, timedelta, timezone, tzinfo
 
-from app.models.schemas import Device, HistoryPoint, HistoryQuery
+from app.models.schemas import Device, HistoryPoint
 from app.services.chat_stats import (
     NOME_ATRIBUTO,
     UNIDADE,
     estatisticas as calcular_estatisticas,
-    filtrar_janela,
     hora_local,
     para_datetime,
 )
-from app.services.fiware_errors import FiwareError, FiwareNotFound
+from app.services.fiware_errors import FiwareError
+from app.services.history_cache import HistoryCache
 from app.services.registry_errors import AmbiguousVinheria, VinheriaNotFound
 from app.services.vinheria_resolver import resolve_vinheria
 
 # Atributos aceitos pelas tools (nomes longos do Orion/STH)
 ATRIBUTOS = tuple(NOME_ATRIBUTO)
-# Pontos pedidos ao STH: os mais novos (a consulta por datas devolveria os mais velhos)
-PONTOS_HISTORICO = 500
-# Janela aceita pelas tools, em horas
-HORAS_MIN, HORAS_MAX = 0.25, 24.0
+# Janela aceita pelas tools, em horas (2 h cabem no cache e na paginação do STH)
+HORAS_MIN, HORAS_MAX = 0.25, 2.0
 # Quantos alertas ler do SQLite antes de filtrar pela janela
 LIMITE_ALERTAS = 200
 
@@ -58,7 +56,7 @@ def checar_atributo(atributo) -> dict | None:
 
 
 def horas_validas(valor, padrao: float = 1.0) -> float:
-    """Converte a janela pedida pelo Gemini (número ou texto) e recorta em 0,25–24 h."""
+    """Converte a janela pedida pelo Gemini (número ou texto) e recorta em 0,25–2 h."""
     try:
         horas = float(valor)
     except (TypeError, ValueError):
@@ -78,7 +76,7 @@ class ChatTools:
     def __init__(self, registry, readings, fleet, alerts, limits,
                  agora=agora_utc, fuso: tzinfo | None = None):
         self._registry = registry
-        self._readings = readings
+        self._cache = HistoryCache(readings, HORAS_MAX, agora)
         self._fleet = fleet
         self._alerts = alerts
         self._limits = limits
@@ -164,13 +162,8 @@ class ChatTools:
                 **{NOME_ATRIBUTO[a]: _faixa(limites, a) for a in ATRIBUTOS}}
 
     async def _pontos(self, device_id: str, atributo: str, horas: float) -> list[HistoryPoint]:
-        """Os 500 pontos mais novos do STH, só os que caem na janela; [] sem dados."""
-        consulta = HistoryQuery(attr=atributo, last_n=PONTOS_HISTORICO)
-        try:
-            pontos = await self._readings.history(device_id, consulta)
-        except FiwareNotFound:
-            return []
-        return filtrar_janela(pontos, horas, self._agora())
+        """Pontos da janela pedida, vindos do cache (que só busca no STH o que é novo)."""
+        return await self._cache.pontos(device_id, atributo, horas)
 
     async def estatisticas(self, vinheria: str, atributo: str, horas=1) -> dict:
         """Média, mínimo, máximo, desvio e tendência de um atributo na janela."""

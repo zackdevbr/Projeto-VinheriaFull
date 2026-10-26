@@ -107,7 +107,11 @@ async def test_estatisticas_da_ultima_hora(tools, duas, readings_falso, relogio)
     r = await tools.executar("estatisticas", {"vinheria": "São Paulo", "atributo": "temperature"}, [])
     assert (r["device_id"], r["atributo"], r["horas_pedidas"]) == ("vinheria001", "temperatura", 1.0)
     assert (r["n"], r["media"], r["minimo"], r["maximo"]) == (61, 15.0, 14, 16)
-    assert readings_falso.pedidos[0][1].last_n == 500
+    # consulta por datas: as 2 h que terminam no relógio (o cache enche a janela máxima)
+    consulta = readings_falso.pedidos[0][1]
+    assert consulta.last_n is None
+    assert (consulta.date_from, consulta.date_to) == (
+        "2026-10-08T10:00:00.000Z", "2026-10-08T12:00:00.000Z")
 
 
 async def test_estatisticas_sem_dados_no_sth(tools, duas, readings_falso):
@@ -116,7 +120,7 @@ async def test_estatisticas_sem_dados_no_sth(tools, duas, readings_falso):
     assert r["n"] == 0
 
 
-@pytest.mark.parametrize("horas, esperado", [("2", 2.0), (0, 0.25), (100, 24.0), ("abc", 1.0)])
+@pytest.mark.parametrize("horas, esperado", [("2", 2.0), (0, 0.25), (100, 2.0), ("abc", 1.0)])
 async def test_estatisticas_recortam_horas(tools, duas, horas, esperado):
     r = await tools.executar("estatisticas",
                              {"vinheria": "001", "atributo": "humidity", "horas": horas}, [])
