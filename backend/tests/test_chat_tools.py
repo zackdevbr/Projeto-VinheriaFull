@@ -167,3 +167,9 @@ async def test_alertas_filtra_janela_e_vinheria(tools, duas, alert_log, relogio)
     assert todos["alertas"][1]["aberto"] is True
     so_001 = await tools.executar("alertas", {"vinheria": "São Paulo"}, [])
     assert [a["device_id"] for a in so_001["alertas"]] == ["vinheria001"]
+
+
+async def test_alertas_mantem_a_janela_de_24_h(tools, duas):
+    # o teto de 2 h vale só para o histórico do STH; alertas vêm do SQLite
+    assert (await tools.executar("alertas", {}, []))["horas"] == 24.0
+    assert (await tools.executar("alertas", {"horas": 100}, []))["horas"] == 24.0

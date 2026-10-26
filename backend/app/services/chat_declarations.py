@@ -16,9 +16,10 @@ _ATRIBUTO = types.Schema(
     description="Sensor: temperatura, umidade ou luminosidade.")
 
 
-def _horas(padrao: int) -> types.Schema:
-    """Parâmetro de janela em horas, com o padrão descrito."""
-    return types.Schema(type="NUMBER", description=f"Janela em horas (0.25 a 24). Padrão {padrao}.")
+def _horas(padrao: int, maximo: int) -> types.Schema:
+    """Parâmetro de janela em horas, com o padrão e o máximo descritos."""
+    return types.Schema(type="NUMBER",
+                        description=f"Janela em horas (0.25 a {maximo}). Padrão {padrao}.")
 
 
 def _objeto(propriedades: dict, obrigatorios: list[str]) -> types.Schema:
@@ -38,17 +39,17 @@ LEITURA = [
         name="estatisticas",
         description="Média, mínimo, máximo, desvio e tendência de um sensor de uma vinheria "
                     "nas últimas horas.",
-        parameters=_objeto({"vinheria": _VINHERIA, "atributo": _ATRIBUTO, "horas": _horas(1)},
+        parameters=_objeto({"vinheria": _VINHERIA, "atributo": _ATRIBUTO, "horas": _horas(1, 2)},
                            ["vinheria", "atributo"])),
     types.FunctionDeclaration(
         name="comparar",
         description="Média de um sensor em cada vinheria nas últimas horas, da maior para a menor.",
-        parameters=_objeto({"atributo": _ATRIBUTO, "horas": _horas(1)}, ["atributo"])),
+        parameters=_objeto({"atributo": _ATRIBUTO, "horas": _horas(1, 2)}, ["atributo"])),
     types.FunctionDeclaration(
         name="alertas",
         description="Histórico de alertas (sensor fora da faixa, vinheria offline, FIWARE fora) "
                     "de uma vinheria ou de todas.",
-        parameters=_objeto({"vinheria": _VINHERIA, "horas": _horas(24)}, [])),
+        parameters=_objeto({"vinheria": _VINHERIA, "horas": _horas(24, 24)}, [])),
     types.FunctionDeclaration(
         name="limites",
         description="Faixa ideal (mínimo e máximo) de cada sensor de uma vinheria.",

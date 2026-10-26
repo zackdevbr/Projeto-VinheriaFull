@@ -28,6 +28,8 @@ from app.services.vinheria_resolver import resolve_vinheria
 ATRIBUTOS = tuple(NOME_ATRIBUTO)
 # Janela aceita pelas tools, em horas (2 h cabem no cache e na paginação do STH)
 HORAS_MIN, HORAS_MAX = 0.25, 2.0
+# Janela da tool de alertas (vêm do SQLite, sem o limite de páginas do STH)
+HORAS_MAX_ALERTAS = 24.0
 # Quantos alertas ler do SQLite antes de filtrar pela janela
 LIMITE_ALERTAS = 200
 
@@ -55,13 +57,13 @@ def checar_atributo(atributo) -> dict | None:
     return {"erro": f"atributo inválido: {atributo}; use temperature, humidity ou luminosity"}
 
 
-def horas_validas(valor, padrao: float = 1.0) -> float:
-    """Converte a janela pedida pelo Gemini (número ou texto) e recorta em 0,25–2 h."""
+def horas_validas(valor, padrao: float = 1.0, maximo: float = HORAS_MAX) -> float:
+    """Converte a janela pedida pelo Gemini (número ou texto) e recorta em 0,25 h–`maximo`."""
     try:
         horas = float(valor)
     except (TypeError, ValueError):
         horas = padrao
-    return min(max(horas, HORAS_MIN), HORAS_MAX)
+    return min(max(horas, HORAS_MIN), maximo)
 
 
 def _faixa(limites, atributo: str) -> dict:
@@ -208,7 +210,7 @@ class ChatTools:
             if erro:
                 return erro
             device_id = device.device_id
-        horas = horas_validas(horas, padrao=24.0)
+        horas = horas_validas(horas, padrao=24.0, maximo=HORAS_MAX_ALERTAS)
         inicio = self._agora() - timedelta(hours=horas)
         lista = [a for a in self._alerts.list(device_id, limit=LIMITE_ALERTAS)
                  if para_datetime(a.opened_at) >= inicio]
