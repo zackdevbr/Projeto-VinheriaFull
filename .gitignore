@@ -15,3 +15,6 @@ node_modules/
 dist/
 # Exceção: fotos do banco guardadas de propósito no repositório (sem segredos)
 !backend/snapshots/*.db
+
+# Pasta do CLI da Vercel (ids do projeto)
+.vercel/
