@@ -17,6 +17,7 @@
   <p>
     <a href="https://smart-solutions-vinheria.vercel.app"><img src="https://img.shields.io/badge/VER_O_PAINEL-7A1F2B?style=for-the-badge&logo=vercel&logoColor=F4E8E0" alt="Ver o painel"></a>
     <a href="https://wokwi.com/projects/476975851156685825"><img src="https://img.shields.io/badge/SIMULAÇÃO_NO_WOKWI-3A1A1C?style=for-the-badge&logo=arduino&logoColor=F4E8E0" alt="Simulação no Wokwi"></a>
+    <a href="https://youtu.be/BNFmuYgVAc0"><img src="https://img.shields.io/badge/VÍDEO_NO_YOUTUBE-4F6B3A?style=for-the-badge&logo=youtube&logoColor=F4E8E0" alt="Vídeo no YouTube"></a>
     <a href="docs/manual-software.md"><img src="https://img.shields.io/badge/MANUAL_DE_SOFTWARE-B5838D?style=for-the-badge&logo=readthedocs&logoColor=3A1A1C" alt="Manual de software"></a>
   </p>
 
@@ -88,7 +89,7 @@ Projeto do **Check Point 5** de Edge Computing & Computer Systems, FIAP, Prof. D
 |---|---|
 | Painel no ar | [smart-solutions-vinheria.vercel.app](https://smart-solutions-vinheria.vercel.app) (disponível enquanto o backend da equipe estiver ligado) |
 | Simulação no Wokwi | [wokwi.com/projects/476975851156685825](https://wokwi.com/projects/476975851156685825) |
-| Vídeo de apresentação | _em breve_ |
+| Vídeo de apresentação | [youtu.be/BNFmuYgVAc0](https://youtu.be/BNFmuYgVAc0) |
 | Collection do Postman | [`postman/CP5-Vinheria.postman_collection.json`](postman/CP5-Vinheria.postman_collection.json) |
 | Documento de produto (PRD) | [`PRD.md`](PRD.md) |
 | Plano de implementação | [`PLANO-CP5-VINHERIA.md`](PLANO-CP5-VINHERIA.md) |
@@ -392,7 +393,7 @@ projetovinheria/
 - [x] Painel: visão geral, gráficos, triggers, alertas e score
 - [x] Chatbot Gemini multi-vinheria
 - [x] Manuais, collection final do Postman e roteiro do pitch
-- [ ] Vídeo de apresentação
+- [x] Vídeo de apresentação
 
 <p align="right">(<a href="#readme-top">voltar ao topo</a>)</p>
 
