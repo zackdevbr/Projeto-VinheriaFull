@@ -32,7 +32,6 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/status-concluído-4F6B3A?style=flat-square" alt="Status concluído">
     <img src="https://img.shields.io/badge/FIAP-CP5_Edge_Computing-7A1F2B?style=flat-square" alt="FIAP CP5">
     <img src="https://img.shields.io/badge/entrega-26%2F10%2F2026-3A1A1C?style=flat-square" alt="Entrega 26/10/2026">
   </p>
